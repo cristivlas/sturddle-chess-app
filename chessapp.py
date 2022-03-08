@@ -1642,17 +1642,16 @@ class ChessApp(App):
     Dumb down the engine by inserting delays
     """
     def search_callback(self, search, millisec):
-        try:
-            # no delays at MAX_DIFFICULTY
-            assert self.difficulty_level < self.MAX_DIFFICULTY
-            target_nps = self.NPS_LEVEL[self.difficulty_level-1]
-            time_limit = self._time_limit[self.difficulty_level] * 1000
+        # no delays at MAX_DIFFICULTY
+        assert self.difficulty_level < self.MAX_DIFFICULTY
 
-            while not search.is_cancelled and search.nps > target_nps and time_limit > millisec:
-                millisec = search.nanosleep(100000)
-                self.nps = search.nps
-        except Exception as e:
-            Logger.exception('callback exception')
+        target_nps = self.NPS_LEVEL[self.difficulty_level-1]
+        time_limit = self._time_limit[self.difficulty_level-1] * 1000
+
+        while time_limit > millisec and search.nps > target_nps:
+            millisec = search.nanosleep(100000)
+            self.nps = search.nps
+
 
 
     def set_difficulty_level(self, level, cores_slider=None):
