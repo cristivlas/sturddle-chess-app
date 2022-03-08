@@ -44,12 +44,14 @@
             active: app.engine.notation=='san'
             on_active: app.engine.set_notation('san' if self.active else 'uci')
 
+        # Turn the engine on / off. With the engine off the app acts as PGN viewer.
         OptLabel:
             text: 'Engine'
         Switch:
             active: not app.study_mode
             on_active: app.set_study_mode(not app.study_mode)
 
+        # Turn use of opening book on / off
         OptLabel:
             text:'Opening Book'
         Switch:
@@ -57,6 +59,9 @@
             active: app.engine.book != None
             on_active: app.engine.use_opening_book(self.active)
 
+        # With this setting ON, the app selects a random move from the opening
+        # book (if it finds more than one match). With the setting OFF, it plays
+        # the first match.
         OptLabel:
             text: 'Variable Opening'
             disabled: not book_switch.active
@@ -94,6 +99,7 @@
             cursor_size: dp(22), dp(22)
             padding: dp(16)
 
+        # Available on highest difficulty level only.
         OptLabel:
             text: 'CPU Cores: {cores:2d}'.format(cores=int(cores.value))
 
@@ -124,12 +130,19 @@
     GridLayout:
         cols: 2
 
+        # Developer flag: clear the hashtable after making a move.
+        # For troubleshooting transposition table aging mechanism.
         OptLabel:
             text: 'Clear Hash / Move'
         Switch:
             active: app.engine.clear_hash_on_move
             on_active: app.engine.clear_hash_on_move = self.active
 
+        # The user can paste a PGN into the app (long press, Paste).
+        # The PGN may contain commentaries, this option controls
+        # if they are displayed or not (in a text bubble).
+        # Pasting a game into the app turns off the chess engine
+        # and the app acts as a PGN viewer.
         OptLabel:
             text: 'Comments'
         Switch:
@@ -137,6 +150,9 @@
             active: app.comments
             on_active: app.comments = self.active
 
+        # Control which opening book (.bin) file to use.
+        # User can select built-in or navigate outside the app's
+        # private area.
         OptLabel:
             text: 'Polyglot File'
         RelativeLayout:
@@ -147,12 +163,18 @@
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 on_release: app.select_opening_book()
 
+        # Developer option: display usage of hash table (percent)
+        # and engine speed in nodes per second.
         OptLabel:
             text: 'Show Metrics'
         Switch:
             active: app.show_hash and app.show_nps
             on_active: app.show_hash = app.show_nps = self.active
 
+        # Enable SEE (Static Exchange Evaluation) in node evaluation
+        # (as opposed to "playing through" captures and recaptures).
+        # This setting does not affect capture evaluation during move
+        # re-ordering, which always uses SEE (as of version 0.76)
         OptLabel:
             text: 'Static Exchanges'
         Switch:
