@@ -1,0 +1,19 @@
+Linux & Windows
+===============
+git clone --recurse-submodules https://github.com/cristivlas/sturddle-chess-app.git
+cd sturddle-chess-app
+python3 -m pip install -r requirements.txt
+cd sturddle_chess_engine
+python3 setup.py build_ext --inplace
+cd ..
+python3 main.py
+
+Package for Android (from Linux only)
+=====================================
+Install buildozer (https://github.com/kivy/buildozer)
+Optional: copy any custom *.bin Polyglot opening book files you may have into the sturddle-chess-app folder.
+
+cd sturddle-chess-app
+buildozer android debug
+
+Then use adb to install. (https://developer.android.com/studio/command-line/adb)
