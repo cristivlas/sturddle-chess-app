@@ -1,0 +1,372 @@
+#:kivy 2.0.0
+#:import utils kivy.utils
+#:import Window kivy.core.window.Window
+#:import BoardWidget boardwidget
+#:include msgbox.kv
+#:include settings.kv
+
+
+<FontScalingLabel>:
+    canvas.before:
+        Color:
+            rgba: self.background or self.default_background
+        RoundedRectangle:
+            pos: [i+j for i,j in zip(self.pos, self.margin)]
+            size: [i-2*j for i,j in zip(self.size, self.margin)]
+            radius: 16,
+        Color:
+            rgba: 1,1,1,1
+    background: None
+    on_text: self.scale_font()
+
+
+<AwesomeActionButton@ActionButton>:
+    font_name: 'fonts/Font Awesome 5 Free Solid.ttf'
+    font_size: sp(20)
+    background_disabled_normal: self.background_normal
+    minimum_width: sp(80)
+
+
+<AwesomeLabel@Label>:
+    font_size: dp(20)
+    font_name: 'fonts/Font Awesome 5 Free Solid.ttf'
+    markup: True
+    halign: 'left'
+    text_size: self.width, None
+    height: self.texture_size[1]
+    padding_x: 5 # for captured pieces
+
+
+<MenuButton@Button>:
+    on_release: app.menu.dismiss()
+    height: sp(60)
+    font_size: sp(20)
+    size_hint_y: None
+    background_disabled_normal: self.background_normal
+
+
+<Menu>:
+    auto_width: False
+    width: min(sp(250), Window.size[0] / 2)
+    app: app
+    canvas.before:
+        Color:
+            rgba: utils.get_color_from_hex('#303030d0')
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    MenuButton:
+        text: 'New Game'
+        id: new_button
+        on_release: app.new_game()
+
+    MenuButton:
+        text: 'Auto Open'
+        id: auto_open_button
+        on_release: app.auto_open()
+
+    MenuButton:
+        text: 'Edit Board'
+        id: edit_button
+        on_release: app.edit_start()
+
+    MenuButton:
+        text: 'Puzzles'
+        on_release: app.puzzles()
+
+    MenuButton:
+        text: 'Settings'
+        on_release: app.settings()
+
+    MenuButton:
+        text: 'About'
+        on_release: app.about()
+
+    MenuButton:
+        text: 'Exit'
+        id: exit_button
+        on_release: app.exit()
+
+
+<Root>:
+    cols: 1
+    canvas.before:
+        Color:
+            rgb: utils.get_color_from_hex('#000505')
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    # Labels for moves, status
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint: 1, 0.075
+        spacing: 3
+        padding: 5
+        canvas.before:
+            Color:
+                rgb: utils.get_color_from_hex('#303030')
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        FontScalingLabel:
+            id: w_move_label
+            size_hint: 0.35, 1
+            markup: True
+            text_size: self.width, None
+            halign: 'left'
+            padding_x: 10
+            background: 0,0,0,0
+
+        FontScalingLabel:
+            id: status_label
+            size_hint: 1, 0.85
+            pos_hint: {'center_x':.5, 'center_y':.5}
+            markup: True
+            halign: 'center'
+
+        FontScalingLabel:
+            id: b_move_label
+            size_hint: 0.3, 1
+            markup: True
+            text_size: self.width, None
+            halign: 'right'
+            padding_x: 10
+            background: 0,0,0,0
+
+    ProgressBar:
+        id: progress
+        max: 20
+        size_hint: 1, 0
+
+        canvas:
+            Color:
+                rgb: (1,.5,0) if self.value < self.max else (1,1,0)
+            BorderImage:
+                # border: [int(min(self.width * (self.value / float(self.max)) if self.max else 0, 1))] * 4
+                # Border information in the format (bottom, right, top, left).
+                border: [1,0,1,0]
+                pos: self.x, self.center_y - 1
+                size: self.width * (self.value / float(self.max)) if self.max else 0, 4
+
+    RelativeLayout:
+        orientation: 'vertical'
+        FontScalingLabel:
+            background: 0,0,0,0
+            x: 0
+            size_hint: None, 0.05
+            id: hash_label
+            halign: 'left'
+            valign: 'top'
+            font_name: 'DejaVuSans'
+
+        FontScalingLabel:
+            background: 0,0,0,0
+            x: root.width - self.width
+            size_hint: None, 0.05
+            id: nps_label
+            halign: 'right'
+            valign: 'top'
+            font_name: 'DejaVuSans'
+
+        AwesomeLabel:
+            pos_hint: { 'y': 0.912 }
+            size_hint: 1, 0.1
+            id: captures_theirs
+            halign: 'right'
+
+        BoardWidget:
+            id: board_widget
+            y_size_hint: 0.7
+
+        # label that shows name of opening (e.g. Sicilian Defense)
+        FontScalingLabel:
+            id: opening
+            color: utils.get_color_from_hex('#FFD700')
+            background: 0,0,0,0
+            markup: True
+            on_ref_press:
+                import webbrowser
+                webbrowser.open(args[1])
+            max_font_size: sp(16)
+            pos_hint: { 'y': 0.0075 }
+            size_hint: 1, 0.1
+            text_size: self.width, None
+            height: self.texture_size[1]
+            halign: 'center'
+            valign: 'top'
+
+        AwesomeLabel:
+            size_hint: 1, 0.055
+            id: captures_ours
+
+    ActionBar:
+        size_hint: 1, 0.085
+        ActionView:
+            use_separator: True
+            ActionPrevious:
+                app_icon:'images/chess.png'
+                previous_image:'images/menu-bar.png'
+                previous_image_width: sp(32)
+                previous_image_height: sp(32)
+                on_release: app.menu.open(self)
+
+            AwesomeActionButton:
+                text: ' \uF2EA '
+                id: undo_button
+                on_press: app.undo_move(self)
+
+            AwesomeActionButton:
+                text: ' \uF2F9 '
+                id: redo_button
+                on_press: app.redo_move(self)
+
+            AwesomeActionButton:
+                text: ' \uF021 '
+                id: switch_button
+                on_release: app.flip_board()
+
+            # Share (export game transcript)
+            AwesomeActionButton:
+                text: ' \uF1E0 ' if utils.platform == 'android' else ' \uF0CB '
+                id: share_button
+                on_release: app.share()
+
+            # Turn AI on/off
+            AwesomeActionButton:
+                text: ' \uF205 '
+                id: play_button
+                on_release: app.set_study_mode(not app.study_mode)
+
+            AwesomeActionButton:
+                text: ' \uF013 '
+                on_release: app.settings()
+
+
+<EditButton@Button>:
+    markup: True
+    font_name: 'fonts/Font Awesome 5 Free Solid.ttf'
+    font_size: min(sp(24), Window.size[0] / 24)
+    background_normal: 'atlas://data/images/defaulttheme/action_item'
+    background_disabled_normal: 'atlas://data/images/defaulttheme/action_item'
+
+<EditControls>:
+    canvas.before:
+        Color:
+            rgba: 0.85,0.9,0.75,0.45
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    rows: 2
+    cols: 12
+
+    col_default_width: self.size[0] / 12
+    col_force_default: True
+    EditButton:
+        text: '\uF468'
+        on_press: app.edit_start_drag(1, True)
+    EditButton:
+        text: '\uF469'
+        on_press: app.edit_start_drag(2, True)
+    EditButton:
+        text: '\uF46A'
+        on_press: app.edit_start_drag(3, True)
+    EditButton:
+        text: '\uF46B'
+        on_press: app.edit_start_drag(4, True)
+    EditButton:
+        text: '\uF46C'
+        on_press: app.edit_start_drag(5, True)
+    EditButton:
+        text: '\uF46D'
+        on_press: app.edit_start_drag(6, True)
+
+    Widget:
+        # placeholder
+    EditButton:
+        text: '\uF021'
+        on_release: app.edit_flip_board()
+    EditButton:
+        text: '\uF1F8'
+        on_release: app.edit_clear()
+    EditButton:
+        text: '\uF042'
+        on_release: app.edit_flip_turn()
+    EditButton:
+        text: '\uF058'
+        on_release: app.edit_stop(True)
+        id: apply_and_stop
+        disabled: True
+    EditButton:
+        text: '\uF057'
+        on_release: app.edit_stop(False)
+
+    EditButton:
+        text: '[color=000000]\uF468[/color]'
+        on_press: app.edit_start_drag(1, False)
+    EditButton:
+        text: '[color=000000]\uF469[/color]'
+        on_press: app.edit_start_drag(2, False)
+    EditButton:
+        text: '[color=000000]\uF46A[/color]'
+        on_press: app.edit_start_drag(3, False)
+    EditButton:
+        text: '[color=000000]\uF46B[/color]'
+        on_press: app.edit_start_drag(4, False)
+    EditButton:
+        text: '[color=000000]\uF46C[/color]'
+        on_press: app.edit_start_drag(5, False)
+    EditButton:
+        text: '[color=000000]\uF46D[/color]'
+        on_press: app.edit_start_drag(6, False)
+
+
+<PuzzleView>:
+    _container: container
+    _info: info
+    _scroll: scroll
+    cols: 1
+    Label:
+        id: info
+        size_hint_y: 0.1
+
+    ScrollView:
+        id: scroll
+        GridLayout:
+            cols: 1
+            id: container
+            height: root._board_size * root._page_size
+            size_hint_y: None
+            padding: [(root.width - root._board_size) / 2, 0, 0, 0]
+            spacing: sp(12)
+
+    GridLayout
+        cols: 5
+        size_hint: 1, None
+        height: dp(48)
+        AwesomeActionButton:
+            text: '\uF100'
+            disabled: root.prev_page_size == 0
+            on_release: root.prev_page()
+        Widget:
+        AwesomeActionButton:
+            text: 'Play'
+            disabled: root.selection is None
+            on_release: root.play(root.selection.puzzle)
+        Widget:
+        AwesomeActionButton:
+            text: '\uF101'
+            disabled: root.next_page_size == 0
+            on_release: root.next_page()
+
+
+<Selection>:
+    selected: False
+    canvas:
+        Color:
+            rgba: [47 / 255., 167 / 255., 212 / 255., 1.] if self.selected else [0,0,0,0]
+        Rectangle:
+            pos: sp(-2), sp(-2)
+            size: self.width + sp(4), self.height + sp(4)

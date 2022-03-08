@@ -1,0 +1,15 @@
+[submodule "chesswidget"]
+	path = chesswidget
+	url = https://github.com/cristivlas/chesswidget.git
+[submodule "eco"]
+	path = eco
+	url = https://github.com/lichess-org/chess-openings.git
+[submodule "sturddle-chess-engine"]
+	path = sturddle-chess-engine
+	url = https://github.com/cristivlas/sturddle-chess-engine
+[submodule "chess_engine"]
+	path = chess_engine
+	url = https://github.com/cristivlas/sturddle-chess-engine
+[submodule "sturddle_chess_engine"]
+	path = sturddle_chess_engine
+	url = https://github.com/cristivlas/sturddle-chess-engine

@@ -1,0 +1,236 @@
+#:kivy 2.0.0
+#:import utils kivy.utils
+
+
+<OptLabel@FontScalingLabel>:
+    default_background: 0,0,0,0
+    max_font_size: sp(20)
+
+
+<OptCheckBox@CheckBox>:
+    # Force checkbox look for radio behavior
+    background_radio_normal: 'atlas://data/images/defaulttheme/checkbox_off'
+    background_radio_down: 'atlas://data/images/defaulttheme/checkbox_on'
+
+
+<OptGrid@GridLayout>:
+    canvas.before:
+        Color:
+            rgb: [47 / 255., 167 / 255., 212 / 255., 1.]
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgb: .15,.15,.15
+        Rectangle:
+            pos: self.pos[0]+2, self.pos[1]+2
+            size: self.size[0]-4, self.size[1]-4
+
+    cols: 2
+    padding: dp(4)
+
+
+<AppSettings>:
+    cols: 1
+    spacing: 20
+    size_hint: 1, 1
+
+    GridLayout:
+        cols: 2
+
+        OptLabel:
+            text: 'Algebraic Notation'
+        Switch:
+            active: app.engine.notation=='san'
+            on_active: app.engine.set_notation('san' if self.active else 'uci')
+
+        OptLabel:
+            text: 'Engine'
+        Switch:
+            active: not app.study_mode
+            on_active: app.set_study_mode(not app.study_mode)
+
+        OptLabel:
+            text:'Opening Book'
+        Switch:
+            id: book_switch
+            active: app.engine.book != None
+            on_active: app.engine.use_opening_book(self.active)
+
+        OptLabel:
+            text: 'Variable Opening'
+            disabled: not book_switch.active
+        Switch:
+            active: app.engine.variable_strategy
+            on_active: app.engine.variable_strategy = self.active
+            disabled: not book_switch.active
+
+    OptGrid:
+        size_hint_y: 0.7
+
+        OptLabel:
+            text: 'Time / move: ' + app.time_limit_str(limit.value)
+
+        Slider:
+            id: limit
+            min: 0
+            max: app.max_limit
+            step: 1
+            value: app.limit
+            on_touch_up: app.limit = int(self.value)
+            cursor_size: dp(22), dp(22)
+            padding: dp(16)
+
+        OptLabel:
+            text: 'Strength: {level:2d}'.format(level=int(difficulty.value))
+
+        Slider:
+            id: difficulty
+            min: 1
+            max: app.MAX_DIFFICULTY
+            step: 1
+            value: app.difficulty_level
+            on_touch_up: app.set_difficulty_level(self.value, cores)
+            cursor_size: dp(22), dp(22)
+            padding: dp(16)
+
+        OptLabel:
+            text: 'CPU Cores: {cores:2d}'.format(cores=int(cores.value))
+
+        Slider:
+            disabled: app.difficulty_level != app.MAX_DIFFICULTY
+            id: cores
+            min: 1
+            max: app.cpu_cores_max
+            step: 1
+            value: app.cpu_cores
+            on_touch_up: app.cpu_cores = self.value
+            cursor_size: dp(22), dp(22)
+            padding: dp(16)
+
+    RelativeLayout:
+        size_hint: 1, None
+        height: dp(32)
+        AwesomeActionButton:
+            markup: True
+            text: '[font=Roboto]Advanced  [/font]\uF101'
+            on_release: app.advanced_settings()
+            pos_hint: { 'right': 1, 'center_y': 0.5 }
+
+<AdvancedSettings>:
+    cols: 1
+    spacing: 20
+    size_hint: 1, 1
+    GridLayout:
+        cols: 2
+
+        OptLabel:
+            text: 'Clear Hash / Move'
+        Switch:
+            active: app.engine.clear_hash_on_move
+            on_active: app.engine.clear_hash_on_move = self.active
+
+        OptLabel:
+            text: 'Comments'
+        Switch:
+            id: comments
+            active: app.comments
+            on_active: app.comments = self.active
+
+        OptLabel:
+            text: 'Polyglot File'
+        RelativeLayout:
+            Button:
+                text: 'Browse'
+                size_hint: None, None
+                size: sp(88), sp(32)
+                pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
+                on_release: app.select_opening_book()
+
+        OptLabel:
+            text: 'Show Metrics'
+        Switch:
+            active: app.show_hash and app.show_nps
+            on_active: app.show_hash = app.show_nps = self.active
+
+        OptLabel:
+            text: 'Static Exchanges'
+        Switch:
+            active: app.see
+            on_active: app.see = self.active
+
+    OptGrid:
+        size_hint_y: 0.6
+        FontScalingLabel:
+            text: 'Search Algorithm'
+            background: 0,0,0,0
+            color: [47 / 255., 167 / 255., 212 / 255., 1.]
+
+        Widget: # placeholder
+
+        OptLabel:
+            text: 'MTD(f)'
+
+        OptCheckBox:
+            id: mtdf
+            group: 'algo'
+            active: app.engine.algorithm == app.engine.Algorithm.MTDF
+            allow_no_selection: False
+            on_active: app.engine.algorithm = app.engine.Algorithm.MTDF
+
+        OptLabel:
+            text: f'Negamax'
+
+        OptCheckBox:
+            id: negamax
+            group: 'algo'
+            active: app.engine.algorithm == app.engine.Algorithm.NEGAMAX
+            allow_no_selection: False
+            on_active: app.engine.algorithm = app.engine.Algorithm.NEGAMAX
+
+        OptLabel:
+            text: f'Negascout'
+
+        OptCheckBox:
+            id: negascout
+            group: 'algo'
+            active: app.engine.algorithm == app.engine.Algorithm.NEGASCOUT
+            allow_no_selection: False
+            on_active: app.engine.algorithm = app.engine.Algorithm.NEGASCOUT
+
+
+<PolyglotChooser>:
+    _filechooser: filechooser
+    _selected: selected
+
+    cols: 1
+    spacing: 5
+
+    BoxLayout:
+        size_hint_y: None
+        height: dp(22)
+        OptLabel:
+            id: selected
+            text:
+            max_font_size: dp(18)
+
+    OptGrid:
+        FileChooserIconView:
+            anchor_y: 'top'
+            id: filechooser
+            rootpath: '.'
+            filters: ['*.bin']
+            filter_dirs: True
+            on_selection: root._on_selection(*args), app.set_opening_book(*args)
+            selection: [root.selection]
+
+    RelativeLayout:
+        size_hint: 1, 0.15
+        AwesomeActionButton:
+            _app: '[font=Roboto]Application Files [/font]\uF064'
+            _sys: '\uF3E5[font=Roboto] System Files[/font]'
+            markup: True
+            text: self._sys
+            size_hint: None, None
+            size: sp(88), sp(34)
+            on_release: root.switch_data_dir(self)

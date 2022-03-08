@@ -1,0 +1,4 @@
+chess
+kivy
+Cython
+pyautogui

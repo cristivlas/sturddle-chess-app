@@ -1,0 +1,7 @@
+.buildozer
+.vscode
+*.dat
+*.so
+bin/
+build
+__pycache__
