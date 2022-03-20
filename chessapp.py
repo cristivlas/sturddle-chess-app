@@ -777,6 +777,12 @@ class ChessApp(App):
                     san = board.san_and_push(move)
                     if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
                         self.message_box(self.puzzle[0], 'Congrats, correct move!')
+                        self.modal.popup.content._buttons.size_hint = 1,.35
+                        self.modal.popup.content._buttons.add_widget(Button(
+                            text='Another Puzzle', font_size=sp(18), on_release=self.puzzles))
+                        self.modal.popup.content._buttons.add_widget(Button(
+                            text='Play from Here', font_size=sp(18), on_release=
+                            lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
                         move = self.engine.apply(move)
                         self.puzzle = None
                     else:
@@ -1163,6 +1169,11 @@ class ChessApp(App):
 
 
     def puzzles(self, *_):
+        confirm = True
+        if self.modal:
+            confirm = False
+            self.modal.popup.dismiss()
+
         def select_puzzle(puzzle):
             self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
             if self.board_widget.model.turn == self.board_widget.flip:
@@ -1172,7 +1183,10 @@ class ChessApp(App):
             view._popup.dismiss()
 
         def confirm_puzzle_selection(puzzle):
-            self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
+            if confirm:
+                self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
+            else:
+                select_puzzle(puzzle)
 
         def on_selection(_, selected):
             if selected:
