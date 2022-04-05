@@ -94,13 +94,15 @@ def hlink(link):
 CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
-TITLE   = f'Sturddlefish  {Engine.version()}'
-ABOUT   = f"""Powered by
-an [b]Original Chess Engine[/b],
-{hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}
+ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flatico'
+TITLE   = f'Sturddle Chess  {Engine.version()}'
+ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
+{hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
 (C) 2022 [i]cristi.vlasceanu@gmail.com[/i]
+
+{hlink(ICON)}
 """
 #############################################################################
 
@@ -445,8 +447,8 @@ class ChessApp(App):
     icon = 'chess.png'
 
     # Node-per-second limits by "skill-level"
-    NPS_LEVEL = [ 3200, 5000, 6500, 9000, 12000, 15000, 20000, 25000 ]
-    FUZZ =      [ 75,   55,   40,   30,   25,    20,    15,    10    ]
+    NPS_LEVEL = [ 3000, 4500, 5500, 7000, 10000, 15000, 20000, 25000 ]
+    FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
 
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
 
@@ -1071,6 +1073,7 @@ class ChessApp(App):
         self.moves_record.clear()
         # restarting the engine above takes care of making a move for WHITE
         self._set_study_mode(False, auto_move=False)
+        self.update_hash_usage()
 
 
     def undo_move(self, b=None, long_press_delay=0.35):
