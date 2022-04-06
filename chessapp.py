@@ -1560,6 +1560,7 @@ class ChessApp(App):
     def edit_start(self):
         if not self.edit:
             self.engine.pause()
+            self.hash_label.text = ''
             self.edit = EditControls(pos_hint=(0, None), size_hint=(1, 0.1))
             self.edit.flip = self.board_widget.flip
             self.root.add_widget(self.edit, index=2)
@@ -1607,6 +1608,7 @@ class ChessApp(App):
         self.update(self.engine.last_moves()[-1])
         self.engine.update_last_moves()
         if not self.study_mode:
+            self.update_hash_usage()
             self.engine.resume()
 
 
