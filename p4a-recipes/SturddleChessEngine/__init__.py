@@ -64,6 +64,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'attacks.h',
             'captures.cpp',
             'common.h',
+            'config.h',
             'chess.h',
             'chess.cpp',
             'context.h',
