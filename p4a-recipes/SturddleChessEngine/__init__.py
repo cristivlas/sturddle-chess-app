@@ -30,7 +30,7 @@ from distutils.extension import Extension
 setup(
     ext_modules=[Extension('sturddle_chess_engine',
         sources=['sturddle_chess_engine.cpp', 'captures.cpp', 'context.cpp', 'chess.cpp', 'search.cpp'],
-        extra_compile_args=['-Ofast', '-DCYTHON_WITHOUT_ASSERTIONS', '-DNO_ASSERT', '-DNO_PROFILE'],
+        extra_compile_args=['-Ofast', '-DCYTHON_WITHOUT_ASSERTIONS', '-DNO_ASSERT', '-DNO_PROFILE', '-DCALLBACK_PERIOD=512'],
         language='c++')]
 )
 """
