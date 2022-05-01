@@ -447,7 +447,7 @@ class ChessApp(App):
     icon = 'chess.png'
 
     # Node-per-second limits by "skill-level"
-    NPS_LEVEL = [ 3000, 4500, 5500, 7000, 10000, 15000, 20000, 25000 ]
+    NPS_LEVEL = [ 2000, 3000, 4500, 6000, 10000, 15000, 20000, 25000 ]
     FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
 
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
@@ -1398,12 +1398,15 @@ class ChessApp(App):
         """
         @mainthread
         def _timer(*_):
-            s = int((datetime.now() - start_time).total_seconds())
+            s = (datetime.now() - start_time).total_seconds()
+
             if s and self.show_nps:
-                nps = self.nps or self.engine.node_count / s
+                nps = self.nps or (self.engine.node_count / s)
                 self.nps_label.text = f'{int(nps):10d}'
 
+            s = int(s)
             d = self.engine.current_depth()
+
             info = f'Thinking... (depth: {d:2d}) {s//60:02d}:{s%60:02d}'
             self.status_label.text = self.status_turn_color(info)
             self.status_label.texture_update()
@@ -1665,12 +1668,13 @@ class ChessApp(App):
         assert self.difficulty_level < self.MAX_DIFFICULTY
 
         target_nps = self.NPS_LEVEL[self.difficulty_level-1]
-        time_limit = self._time_limit[self.difficulty_level-1] * 1000
+        time_limit = self._time_limit[self._limit] * 1000
 
         while time_limit > millisec and search.nps > target_nps:
             millisec = search.nanosleep(100000)
             self.nps = search.nps
 
+        self.nps = search.nps
 
 
     def set_difficulty_level(self, level, cores_slider=None):
