@@ -101,6 +101,7 @@ ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 
 {hlink(CODE)}
 (C) 2022 [i]cristi.vlasceanu@gmail.com[/i]
+Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
 """
