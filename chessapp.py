@@ -574,8 +574,10 @@ class ChessApp(App):
 
         # Position the widgets that show hash usage and nodes-per-seconds
         def on_size(w, *_):
-            y = (w.height - w.board_size) / 2 - self.nps_label.height - dp(5)
-            self.hash_label.y = self.nps_label.y = y
+            y = (w.height - w.board_size) / 2
+            self.nps_label.y = y - self.nps_label.height - dp(5)
+            self.hash_label.y = y - self.hash_label.height - dp(5)
+
         self.board_widget.bind(size=on_size)
 
         return root
