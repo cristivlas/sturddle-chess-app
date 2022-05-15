@@ -1235,13 +1235,16 @@ class ChessApp(App):
         return self.__study_mode
 
 
-    def set_study_mode(self, value):
+    def set_study_mode(self, value, controls=[]):
         """
         Turn off the AI so the user can study
         and go back and forth through the moves.
         """
         if self.__study_mode != value:
             self._set_study_mode(value)
+
+        for widget in controls:
+            widget.disabled = not value and not self.engine.is_opponents_turn()
 
 
     def _set_study_mode(self, value, auto_move=True):

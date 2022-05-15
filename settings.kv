@@ -49,7 +49,7 @@
             text: 'Engine'
         Switch:
             active: not app.study_mode
-            on_active: app.set_study_mode(not app.study_mode)
+            on_active: app.set_study_mode(not app.study_mode, [difficulty, cores])
 
         # Turn use of opening book on / off
         OptLabel:
@@ -98,8 +98,10 @@
             on_touch_up: app.set_difficulty_level(self.value, cores)
             cursor_size: dp(22), dp(22)
             padding: dp(16)
+            # changing difficulty during search may crash
+            disabled: app.engine.busy
 
-        # Available on highest difficulty level only.
+        # Use multiple cores on highest difficulty level only.
         OptLabel:
             text: 'CPU Cores: {cores:2d}'.format(cores=int(cores.value))
 
@@ -113,6 +115,8 @@
             on_touch_up: app.cpu_cores = self.value
             cursor_size: dp(22), dp(22)
             padding: dp(16)
+            # changing active cores during search may crash
+            disabled: app.engine.busy
 
     RelativeLayout:
         size_hint: 1, None
