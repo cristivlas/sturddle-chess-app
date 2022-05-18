@@ -196,6 +196,8 @@ class FontScalingLabel(Label):
         self.bind(size=self.scale_font)
 
     def scale_font(self, *_):
+        if not self.text:
+            return
         self.font_size = self.max_font_size
         self.texture_update()
         while any([self.texture_size[i] > self.size[i] for i in [0,1]]):
@@ -583,9 +585,8 @@ class ChessApp(App):
         self.board_widget.bind(size=on_size)
 
         def sync_font_sizes(*_):
-            if self.nps_label.text:
-                self.hash_label.font_size = self.nps_label.font_size
-                self.hash_label.texture_update()
+            self.hash_label.font_size = self.nps_label.font_size
+            self.hash_label.texture_update()
 
         self.nps_label.bind(font_resize=sync_font_sizes)
 
