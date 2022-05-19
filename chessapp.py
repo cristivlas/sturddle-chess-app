@@ -185,6 +185,7 @@ class EditControls(GridLayout):
 
 
 class FontScalingLabel(Label):
+    font_resize = NumericProperty(0)
     max_font_size = sp(18)
     auto_wrap = True
     default_background = get_color_from_hex('202020')
@@ -202,6 +203,7 @@ class FontScalingLabel(Label):
                 break
             self.font_size -= 1
             self.texture_update()
+        self.font_resize = self.font_size
 
 
 class Menu(DropDown):
@@ -574,11 +576,18 @@ class ChessApp(App):
 
         # Position the widgets that show hash usage and nodes-per-seconds
         def on_size(w, *_):
-            y = (w.height - w.board_size) / 2
+            y = w.height - w.board_size - self.status.height - self.action.height
             self.nps_label.y = y - self.nps_label.height - dp(5)
             self.hash_label.y = y - self.hash_label.height - dp(5)
 
         self.board_widget.bind(size=on_size)
+
+        def sync_font_sizes(*_):
+            if self.nps_label.text:
+                self.hash_label.font_size = self.nps_label.font_size
+                self.hash_label.texture_update()
+
+        self.nps_label.bind(font_resize=sync_font_sizes)
 
         return root
 
@@ -1168,6 +1177,7 @@ class ChessApp(App):
             self.update(self.engine.last_moves()[-1])
 
         popup = ModalBox(title=title, content=content, size_hint=(0.9, 0.775), on_dismiss=on_close, close_text=close)
+        popup.overlay_color = [0, 0, 0, .5]
         content._popup = popup
         popup.on_open = on_open
         popup.open()
