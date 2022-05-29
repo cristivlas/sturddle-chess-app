@@ -666,7 +666,6 @@ class ChessApp(App):
             self.engine.clear_hash_on_move = store.get('clear_hash', False)
             self.comments = store.get('comments', True)
             self.cpu_cores = store.get('cores', 1)
-            self.see = store.get('see', False)
 
             # Set difficulty after cores, as it resets cores to 1 if level < MAX
             self.set_difficulty_level(int(store.get('level', 1)))
@@ -698,7 +697,6 @@ class ChessApp(App):
             level=self.difficulty_level,
             comments=self.comments,
             cores=self.cpu_cores,
-            see=self.see,
             show_hash=self.show_hash,
             show_nps=self.show_nps,
             clear_hash=self.engine.clear_hash_on_move,
@@ -1728,16 +1726,6 @@ class ChessApp(App):
     @property
     def cpu_cores_max(self):
         return chess_engine.get_param_info()['Threads'][2]
-
-
-    @property
-    def see(self):
-        return chess_engine.get_params()['SEE']
-
-
-    @see.setter
-    def see(self, see):
-        chess_engine.set_param('SEE', int(see))
 
 
 """

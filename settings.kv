@@ -175,16 +175,6 @@
             active: app.show_hash and app.show_nps
             on_active: app.show_hash = app.show_nps = self.active
 
-        # Enable SEE (Static Exchange Evaluation) in node evaluation
-        # (as opposed to "playing through" captures and recaptures).
-        # This setting does not affect capture evaluation during move
-        # re-ordering, which always uses SEE (as of version 0.76)
-        OptLabel:
-            text: 'Static Exchanges'
-        Switch:
-            active: app.see
-            on_active: app.see = self.active
-
     OptGrid:
         size_hint_y: 0.6
         FontScalingLabel:
