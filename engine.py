@@ -135,7 +135,6 @@ class Engine:
         self.search = None
         self.polyglot_file = 'book.bin'
         self.book = None
-        self.silent = False
         self.opponent = chess.WHITE
         self.worker = WorkerThread()
         self.depth_callback = lambda *_: None
@@ -331,7 +330,7 @@ class Engine:
     def make_move(self):
         if self.busy or self.is_game_over():
             return False
-        self.start() # ensure neural network initialized
+        self.start()
         if self.update_callback is None:
             return self.output() # search for move synchronously
 
@@ -373,11 +372,6 @@ class Engine:
         if self.update_callback:
             move = move or self.last_moves()[-1]
             return self.update_callback(move)
-
-        if not self.silent:
-            self.print_board(self.board)
-            if self.is_game_over():
-                print ('Game Over: {}'.format(self.result()))
 
 
     def update_prev_moves(self):
