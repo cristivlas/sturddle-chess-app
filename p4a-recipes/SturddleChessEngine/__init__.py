@@ -30,7 +30,13 @@ from distutils.extension import Extension
 setup(
     ext_modules=[Extension('sturddle_chess_engine',
         sources=['sturddle_chess_engine.cpp', 'captures.cpp', 'context.cpp', 'chess.cpp', 'search.cpp'],
-        extra_compile_args=['-O3', '-DCYTHON_WITHOUT_ASSERTIONS', '-DNO_ASSERT', '-Wno-error', '-DCALLBACK_PERIOD=512'],
+        extra_compile_args=[
+            '-O3',
+            '-DCYTHON_WITHOUT_ASSERTIONS',
+            '-DNO_ASSERT',
+            '-Wno-error',
+            '-DCALLBACK_PERIOD=512'
+        ],
         extra_link_args=['-O3'],
         language='c++')]
 )
@@ -39,7 +45,7 @@ setup(
 NAME = 'SturddleChessEngine'
 
 class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
-    version = '1.1'
+    version = '1.2'
     name = NAME
     cython_args = ['--cplus']
 
@@ -50,7 +56,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
     def get_recipe_env(self, arch):
         env = super().get_recipe_env(arch)
         env['LDFLAGS'] += ' -lc++_shared'
-        env['CFLAGS'] += ' -Wno-unused-label -Wno-unused-variable -Wno-deprecated-declarations -Werror -std=c++17'
+        env['CFLAGS'] += ' -Wno-unused-label -Wno-unused-variable -Wno-deprecated-declarations -std=c++17'
         return env
 
     def should_build(self, arch):
@@ -80,7 +86,9 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
         ]:
             shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', src), dest_dir)
 
+        # submodules:
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'libpopcnt', 'libpopcnt.h'), dest_dir)
+        shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'magic-bits', 'include', 'magic_bits.hpp'), dest_dir)
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'thread-pool', 'thread_pool.hpp'), dest_dir)
 
         with open(path.join(dest_dir, 'setup.py'), 'w') as f:
