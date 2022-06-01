@@ -29,15 +29,25 @@ from distutils.extension import Extension
 
 setup(
     ext_modules=[Extension('sturddle_chess_engine',
-        sources=['sturddle_chess_engine.cpp', 'captures.cpp', 'context.cpp', 'chess.cpp', 'search.cpp'],
-        extra_compile_args=[
-            '-O3',
-            '-DCYTHON_WITHOUT_ASSERTIONS',
-            '-DNO_ASSERT',
-            '-Wno-error',
-            '-DCALLBACK_PERIOD=512'
+        sources=[
+            'sturddle_chess_engine.cpp',
+            'captures.cpp',
+            'context.cpp',
+            'chess.cpp',
+            'search.cpp'
         ],
-        extra_link_args=['-O3'],
+        extra_compile_args=[
+             '-std=c++17',
+             '-O3',
+             '-Wno-unused-label',
+             '-Wno-unused-variable',
+             '-Wno-deprecated-declarations',
+             '-Werror',
+             '-DCYTHON_WITHOUT_ASSERTIONS',
+             '-DNO_ASSERT',
+             '-DCALLBACK_PERIOD=512'
+        ],
+        extra_link_args=['-O3', '-lc++_shared'],
         language='c++')]
 )
 """
@@ -52,12 +62,6 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
     def get_project_dir(self):
         dir = self.ctx.root_dir
         return dir[:dir.index('.buildozer')]
-
-    def get_recipe_env(self, arch):
-        env = super().get_recipe_env(arch)
-        env['LDFLAGS'] += ' -lc++_shared'
-        env['CFLAGS'] += ' -Wno-unused-label -Wno-unused-variable -Wno-deprecated-declarations -std=c++17'
-        return env
 
     def should_build(self, arch):
         return True
