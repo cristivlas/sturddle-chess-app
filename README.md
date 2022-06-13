@@ -10,6 +10,7 @@ Casual Chess App
 - Built-in puzzle collection
 
 ![Alt text](/screenshots/Screenshot_Menu.png?raw=true "Menu")
+![Alt text](/screenshots/Screenshot_Game.png?raw=true "Game")
 ![Alt text](/screenshots/Screenshot_EditMode.png?raw=true "Editor")
 ![Alt text](/screenshots/Screenshot_PNGViewer.png?raw=true "PGN Viewer")
 ![Alt text](/screenshots/Screenshot_Settings.png?raw=true "Settings")
