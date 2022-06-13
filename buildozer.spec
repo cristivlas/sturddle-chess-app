@@ -22,7 +22,7 @@ source.include_exts = py,png,jpg,kv,atlas,bin,csv,tsv,ttf
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = tests,bin,build,build-env,sturddle_chess_engine,__pycache__,p4a-recipes
+source.exclude_dirs = tests,bin,build,build-env,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
