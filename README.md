@@ -8,6 +8,7 @@ Casual Chess App
 - Voice interaction
 - Optional opening book(s)
 - Built-in puzzle collection
+- Built with Kivy and Python Chess
 
 ![Alt text](/screenshots/Screenshot_Menu.png?raw=true "Menu")
 ![Alt text](/screenshots/Screenshot_Game.png?raw=true "Game")
