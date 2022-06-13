@@ -99,7 +99,7 @@ class NLP:
         self._board = chess.Board(fen=fen)
 
         # previous moves serve as context for disambiguating promotions
-        self._moves = prev_moves.copy()
+        self._moves = [move for move in prev_moves if move.promotion]
 
         Logger.debug(f'nlp: text={text}, self._moves={self._moves}')
 
@@ -262,7 +262,6 @@ class NLP:
         r'\bjiwon\b' : 'g1',
         r'\bkingside\b' : 'king side',
         r'\bknights\b' : 'knight',
-        r'\blook\b' : 'rook',
         r'\bmight\b' : 'knight',
         r'\bnight\b' : 'knight',
         r'\bnightstakes\b' : 'knight takes',

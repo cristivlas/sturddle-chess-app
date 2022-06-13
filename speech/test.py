@@ -60,6 +60,7 @@ batch_test_cases = [
     ('2r5/1P6/8/8/1K3k2/1P6/6p1/6N1 w - -', ['c8', 'promote to queen'], ['b7c8q']),
     ('4k3/4p3/8/8/8/1b6/2P1N3/3K4 w - -', ['knight to c3', 'c3'], ['e2c3']),
     ('4k3/4p3/8/8/8/1b6/2P1N3/3K4 w - -', ['night to C3', 'knight to c3', 'c3', 'c2c3'], ['e2c3']),
+    ('r1b1k2r/pp3pbp/1qnp1np1/4p3/2Q1P3/1PN2N2/P1PBBPPP/R3K2R w KQkq -', ['castle', 'castle king side'], ['e1g1'])
 ]
 
 
