@@ -15,6 +15,3 @@ Casual Chess App
 ![Alt text](/screenshots/Screenshot_PNGViewer.png?raw=true "PGN Viewer")
 ![Alt text](/screenshots/Screenshot_Settings.png?raw=true "Settings")
 ![Alt text](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
-
-![Alt text](/screenshots/Screenshot_mac.png?raw=true "macos")
-![Alt text](/screenshots/Screenshot_mac2.png?raw=true "macos-2")
