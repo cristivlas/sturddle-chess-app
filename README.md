@@ -5,7 +5,7 @@ Casual Chess App
 - Built-in board editor
 - Turn AI off / on
 - Copy / paste game in PGN format (including comments)
-- Voice interaction
+- Voice interaction (optional offline speech recognition on desktop via Deepspeech)
 - Optional opening book(s)
 - Built-in puzzle collection
 - Built with Kivy and Python Chess
