@@ -23,7 +23,7 @@ class Node:
     def __init__(self, move, comment=None, label=None):
         self.parent = None
         self.move = move
-        self.comment = comment
+        self.comment = comment.replace('\n', ' ') if comment else comment
         self.label = label
         self.child = None
         self.variations = []

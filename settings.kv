@@ -1,5 +1,6 @@
 #:kivy 2.0.0
 #:import utils kivy.utils
+#:import stt speech.stt.stt
 
 
 <OptLabel@FontScalingLabel>:
@@ -70,6 +71,7 @@
             on_active: app.engine.variable_strategy = self.active
             disabled: not book_switch.active
 
+
     OptGrid:
         size_hint_y: 0.7
 
@@ -136,11 +138,11 @@
 
         # Developer flag: clear the hashtable after making a move.
         # For troubleshooting transposition table aging mechanism.
-        OptLabel:
-            text: 'Clear Hash / Move'
-        Switch:
-            active: app.engine.clear_hash_on_move
-            on_active: app.engine.clear_hash_on_move = self.active
+        # OptLabel:
+        #     text: 'Clear Hash / Move'
+        # Switch:
+        #     active: app.engine.clear_hash_on_move
+        #     on_active: app.engine.clear_hash_on_move = self.active
 
         # The user can paste a PGN into the app (long press, Paste).
         # The PGN may contain commentaries, this option controls
@@ -174,6 +176,23 @@
         Switch:
             active: app.show_hash and app.show_nps
             on_active: app.show_hash = app.show_nps = self.active
+
+        # Voice-related settings
+        OptLabel:
+            text: 'Speak Moves'
+        Switch:
+            active: app.speak_moves
+            on_active: app.speak_moves = self.active
+            disabled: not app.tts_supported
+
+        OptLabel:
+            text: 'Offline Speech Recognition'
+            disabled: not stt.is_supported()
+        Switch:
+            active: stt.prefer_offline
+            on_active: stt.prefer_offline = self.active
+            disabled: not stt.is_offline_supported()
+
 
     OptGrid:
         size_hint_y: 0.6

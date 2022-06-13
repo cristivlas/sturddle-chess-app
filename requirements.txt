@@ -2,3 +2,7 @@ chess
 kivy
 Cython
 pyautogui
+plyer
+pyparsing
+pyaudio
+SpeechRecognition

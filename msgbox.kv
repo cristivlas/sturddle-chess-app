@@ -3,7 +3,7 @@
 
 <ModalBox>:
     _container: container
-    title_size: sp(16)
+    title_size: sp(14)
     GridLayout:
         padding: dp(10)
         cols: 1
@@ -11,10 +11,15 @@
         pos: root.pos
         size: root.size
 
+        #
+        # Title box
+        #
         BoxLayout:
+            id: title_box
             size_hint: 1, None
             height: dp(32)
             Label:
+                id: title
                 text: root.title
                 color: root.title_color
                 size_hint_y: None
@@ -32,6 +37,9 @@
                 size_hint_x: None
                 width: self.texture_size[0] + dp(14)
 
+        #
+        # Separator
+        #
         Widget:
             size_hint_y: None
             height: dp(4)
@@ -42,6 +50,9 @@
                     pos: self.x, self.y + root.separator_height / 2.
                     size: self.width, root.separator_height
 
+        #
+        # Content
+        #
         BoxLayout:
             id: container
 

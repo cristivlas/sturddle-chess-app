@@ -22,6 +22,7 @@ Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'multisample', 16)
 
 import math
+import random
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -31,8 +32,6 @@ from os import path
 from time import sleep
 
 import chess.pgn
-import sturddle_chess_engine as chess_engine
-
 from kivy.app import App
 from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock, mainthread
@@ -54,17 +53,20 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
+from kivy.uix.modalview import ModalView
 from kivy.uix.popup import Popup
-from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex, platform
 
+import sturddle_chess_engine as chess_engine
 from boardwidget import BoardWidget
-from engine import BoardModel, Engine
+from engine import Engine
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
+from puzzleview import PuzzleView
+from speech import english, nlp, stt, tts
 
 try:
     from android.runnable import run_on_ui_thread
@@ -136,7 +138,7 @@ def bold(text):
 
 
 """
-    Draw an arrow on the chess board.
+Draw an arrow on the chess board.
 """
 class Arrow:
     def __init__(self, **kwargs):
@@ -212,20 +214,61 @@ class Menu(DropDown):
     pass
 
 
-"""
-A widget for displaying game transcripts and PGN comments.
-"""
 class Notepad(TextInput):
+    '''
+    Custom widget for displaying game transcripts and PGN comments.
+    '''
     lined = BooleanProperty(False)
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if self.lined:
-            self.bind(size=self._redraw)
-            self.padding[0] = 60
+        super(Notepad, self).__init__(**kwargs)
+
+        def on_lined(*_):
+            if self.lined:
+                self.bind(size=self._redraw)
+                self.padding[0] = 60
+        self.bind(lined=on_lined)
+
         self.bind(size=self._resize)
         self._height_adjusted = False
         self._update_graphics_ev.cancel()
+
+
+    def get_min_height(self, width, lines_max=1000):
+        '''
+        Compute the minimum height required to display the entire
+        text (without scrolling) inside of a box of a given width.
+        '''
+        extents = CoreLabel(
+            font_name=self.font_name,
+            font_size=self.font_size
+        ).get_cached_extents()
+
+        width -= self.padding[0] + self.padding[2]
+
+        num_lines = 1
+        line = ''
+
+        words = self.text.split()
+        while words and num_lines < lines_max:
+            w = words.pop(0)
+            line += w + ' '
+
+            if extents(line)[0] >= width:
+                num_lines += 1
+                line = ''
+
+                # put the word back in the list
+                words.insert(0, w)
+
+        num_lines += bool(line)
+        text_height = extents(self.text)[1]
+
+        return (
+            num_lines * (text_height + self.line_spacing)
+            + self.padding[1]
+            + self.padding[3]
+        )
 
 
     def _redraw(self, *_):
@@ -258,16 +301,32 @@ class Notepad(TextInput):
             super()._update_graphics(*args)
 
 
+class ScrolledPad(ScrollView):
+    '''
+    Scrolled Notebook.
+    '''
+    text = StringProperty()
+    font_name = StringProperty('Roboto-Italic')
+    font_size = NumericProperty(12)
+    readonly = BooleanProperty(True)
+    use_bubble = BooleanProperty(True)
+    background_color = ColorProperty()
+    lined = BooleanProperty(False)
 
-"""
-Widget for selecting the opening book file.
-"""
+    def __init__(self, **kwargs):
+        super(ScrolledPad, self).__init__(**kwargs)
+        self.bind(on_scroll_start=lambda *_:self.ids.text._hide_cut_copy_paste())
+
+
 class PolyglotChooser(GridLayout):
+    '''
+    Widget for selecting the opening book file.
+    '''
     _filechooser = ObjectProperty(None)
     selection = StringProperty('')
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super(PolyglotChooser, self).__init__(**kwargs)
         self.dir = 1
 
     def dismiss(self):
@@ -309,121 +368,8 @@ class PolyglotChooser(GridLayout):
                 view_files('..')
 
 
-class PuzzleCollection:
-    def __init__(self):
-        self._puzzles = []
-        from puzzles import puzzles
-        self._parse(puzzles)
-
-    def _parse(self, epd):
-        i = 0
-        for fields in epd.split('\n'):
-            if not fields:
-                continue # skip empty lines
-            fields = fields.split(';')
-            tokens = fields[0]
-            if ' bm ' in tokens:
-                tokens = tokens.split(' bm ')
-            elif ' am ' in tokens:
-                tokens = tokens.split(' am ')
-
-            fen = tokens[0]
-            solutions = tokens[1].strip().split(' ')
-            id = None
-            for f in fields:
-                f = f.strip()
-                if f.startswith('id '):
-                    id = f.split('id ')[1]
-                    break
-            i += 1
-            self._puzzles.append((id, fen, solutions, i))
-
-    @property
-    def count(self):
-        return len(self._puzzles)
-
-    def get(self, start, count):
-        return self._puzzles[start : start + count]
-
-
-class PuzzleView(GridLayout):
-    _container = ObjectProperty(None)
-    _page_size = NumericProperty(10)
-    _board_size = NumericProperty(sp(250))
-
-    selection = ObjectProperty(None, allownone=True)
-    prev_page_size = NumericProperty(0)
-    next_page_size = NumericProperty(0)
-    play = ObjectProperty(lambda *_:None)
-
-    def __init__(self, index=0, **kwargs):
-        super().__init__(**kwargs)
-        self._collection = PuzzleCollection()
-        self._num_pages = self._collection.count // self._page_size
-        self._page = []
-        self._offset = 0
-
-        if index:
-            self._offset = ((index-1) // self._page_size) * self._page_size
-        self._show_page(self._offset, index)
-
-    def _show_page(self, offset, selection_index=0):
-        self.selection = None
-        self._page = self._collection.get(offset, self._page_size)
-        self.next_page_size = min(self._collection.count - offset - len(self._page), self._page_size)
-        self.prev_page_size = min(self._page_size, offset)
-        self._offset = offset
-
-        self._container.clear_widgets()
-
-        for puzzle in self._page:
-            board_view = BoardWidget(board_image='images/greyboard', grid_color=(0,0,0,0))
-            board_view.set_model(BoardModel(fen=puzzle[1]))
-            board_view.highlight_area = lambda *_:None  # disable highlights
-            board_view.on_touch_move = lambda *_:None   # disable piece dragging
-            if not board_view.model.turn:
-                board_view.rotate()
-            selection = Selection(size_hint=(None, None), size=(self._board_size, self._board_size))
-            selection.add_widget(board_view)
-            selection.puzzle = puzzle
-            selection.bind(on_touch_down=self.on_select)
-            if selection_index == puzzle[3]:
-                selection.selected = True
-                self.selection = selection
-            self._container.add_widget(selection)
-
-        page_num = offset // self._page_size + 1
-        self._info.text = f'Page {page_num:2d} / {self._num_pages:2d}'
-        if self.selection:
-            self._scroll.scroll_to(self.selection, animate=False)
-
-    def next_page(self):
-        self._show_page(self._offset + self._page_size)
-
-    def prev_page(self):
-        self._show_page(self._offset - self._page_size)
-
-    def on_select(self, w, touch):
-        if w.collide_point(*touch.pos):
-            prev = self.selection
-            self.selection = None
-            w.selected ^= True
-            if w.selected:
-                self.selection = w
-            if prev and prev != w:
-                prev.selected = False
-
-
 class Root(GridLayout):
     pass
-
-
-class Selection(RelativeLayout):
-    selected: BooleanProperty(False)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.puzzle = None
 
 
 class no_update_callbacks:
@@ -450,8 +396,13 @@ class no_update_callbacks:
 
 class ChessApp(App):
     icon = 'chess.png'
+    font_awesome = 'fonts/Font Awesome 5 Free Solid.ttf'
 
-    # Node-per-second limits by "skill-level"
+    # Node-per-second limits by "skill-level". The engine does not
+    # implement strength levels, the application layer injects delays
+    # and "fuzzes" the evaluation function (EVAL_FUZZ is an engine
+    # parameter which introduces random errors in the -EVAL_FUZZ, EVAL_FUZZ
+    # interval).
     NPS_LEVEL = [ 2000, 3000, 4500, 6000, 10000, 15000, 20000, 25000 ]
     FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
 
@@ -472,8 +423,11 @@ class ChessApp(App):
         self._search_move = self.engine.search_move
         self.engine.search_move = self.search_move
 
-        self.use_eco(True)
+        self.use_eco(True) # use Encyclopedia of Chess Openings
         self.moves_record = MovesTree()
+        self.english_input = english.Input(self)
+        self.auto_voice = False
+        self.__speak_moves = False
         self.__study_mode = False
         self.edit = None
         self.puzzle = None
@@ -487,10 +441,6 @@ class ChessApp(App):
         self.nps = 0 # nodes per second
         self.show_nps = False
         self.show_hash = False
-
-
-    def exit(self, *_):
-        self.confirm('Exit application and save game', self.stop)
 
 
     def about(self, *_):
@@ -511,17 +461,26 @@ class ChessApp(App):
         with no_update_callbacks(self.engine):
             if self.engine.auto_open(callback):
                 if self._opening:
-                    Clock.schedule_once(lambda *_: self.message_box(title, f'[color=40FFFF][u]{self._opening}[/u][/color]'), 1)
+                    Clock.schedule_once(
+                        lambda *_: self.message_box(
+                            title,
+                            f'[color=40FFFF][u]{self._opening}[/u][/color]'
+                        ), 1.0)
             else:
                 # This should not happen, because engine.can_auto_open() should return False when
                 # the opening book has no suitable moves for the given position, and the UI button
                 # should be disabled -- but just in case...
-                Clock.schedule_once(lambda *_: self.message_box(title, 'No suitable moves were found.'), 1)
+                Clock.schedule_once(
+                    lambda *_: self.message_box(title, 'No suitable moves were found.'), 1)
+
         self.update_button_states()
 
 
     def auto_open(self):
-        self.confirm('Lookup matching sequence in the opening book and make moves for both sides', self._auto_open)
+        self.confirm(
+            'Lookup matching sequence in the opening book and make moves for both sides',
+            self._auto_open)
+
 
     """
     https://stackoverflow.com/questions/43159532/hiding-navigation-bar-on-android
@@ -541,9 +500,11 @@ class ChessApp(App):
 
 
     def build(self):
-        Window.bind(on_request_close=self.on_quit)
         Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_request_close=self.on_quit)
         Window.bind(on_restore=lambda *_: self._android_hide_menu(True))
+        Window.bind(on_touch_down=self.on_touch_down)
+        Window.bind(on_touch_up=self.on_touch_up)
 
         if not is_mobile():
             try:
@@ -561,7 +522,7 @@ class ChessApp(App):
         self.board_widget.set_model(self.engine.board)
 
         # custom fonts and codes for the promotion bubble
-        self.board_widget.set_piece_codes(PIECE_CODES, 'fonts/Font Awesome 5 Free Solid.ttf', close='\uF410')
+        self.board_widget.set_piece_codes(PIECE_CODES, self.font_awesome, close='\uF410')
 
         self.board_widget._copy = self._copy
         self.board_widget._paste = self._paste
@@ -615,11 +576,21 @@ class ChessApp(App):
         return not self.engine.busy and self.game_in_progress()
 
 
-    """
-    Use ECO categorization to match moves played so far against classic openings
-    """
-    def identify_opening(self):
+    def describe_move(self, move):
+        '''
+        return a description of the move in English
+        '''
+        return nlp.describe_move(self.engine.board, move, announce_check=True, announce_capture=True)
 
+
+    def exit(self, *_):
+        self.confirm('Exit application and save game', self.stop)
+
+
+    def identify_opening(self):
+        '''
+        Use ECO categorization to match moves played so far against classic openings
+        '''
         if self.eco is None:
             self.opening.text = ''
         else:
@@ -642,10 +613,10 @@ class ChessApp(App):
             self.update_moves_record(last_move=True)
 
 
-    """
-    Load app state (including game in progress, if any)
-    """
     def load(self):
+        '''
+        Load app state (including game in progress, if any)
+        '''
         if self.store.exists(GAME):
             store = self.store.get(GAME)
             self.engine.opponent = store.get('play_as', True)
@@ -670,15 +641,21 @@ class ChessApp(App):
             # Set difficulty after cores, as it resets cores to 1 if level < MAX
             self.set_difficulty_level(int(store.get('level', 1)))
 
+            # show hash table usage and nodes-per-second
             self.show_hash = store.get('show_hash', False)
             self.show_nps = store.get('show_nps', False)
+
+            # remember last puzzle
             self.last_puzzle = store.get('puzzle', 0) # 1-based index
 
+            self.speak_moves = store.get('speak', False)
+            stt.stt.prefer_offline = store.get('prefer_offline', True)
 
-    """
-    Save app state
-    """
+
     def save(self, *_):
+        '''
+        Serialize app (and pending game) state to 'game.dat'
+        '''
         self.store.put(GAME,
             fen=self.engine.starting_fen(),
             moves=self.engine.board.move_stack,
@@ -700,119 +677,12 @@ class ChessApp(App):
             show_hash=self.show_hash,
             show_nps=self.show_nps,
             clear_hash=self.engine.clear_hash_on_move,
-            puzzle=self.last_puzzle
+            puzzle=self.last_puzzle,
+            speak=self.speak_moves,
+            prefer_offline=stt.stt.prefer_offline,
         )
 
         self.update_button_states()
-
-
-    def on_keyboard(self, window, keycode1, keycode2, text, modifiers):
-        # Ctrl+Z or Android back button
-        undo = keycode1 in [27, 1001] if is_mobile() else (keycode1 == 122 and 'ctrl' in modifiers)
-        if undo:
-            if not self.edit:
-                self.board_widget.hide_bubble()
-                self.undo_move()
-            return True
-
-        if 'ctrl' in modifiers and not self.edit:
-            if keycode1 == 99:
-                if 'shift' in modifiers:
-                    self.copy_fen()
-                elif f := self._copy():
-                    f()
-                return True
-            if keycode1 == 118:
-                if 'shift' in modifiers:
-                    self.paste_fen()
-                elif f := self._paste():
-                    f()
-                return True
-            if keycode1 == 121:
-                self.redo_move()
-                return True
-
-            if keycode1 == 101:
-                self.edit_start()
-                return True
-
-            # Ctrl+P dump game record for debugging purposes
-            if keycode1 == 112:
-                title, _ = self.transcribe()
-                text = self.moves_record.export_pgn() + f' {{ {self.engine.board.epd()} }}'
-                self.text_box(title, text)
-                return True
-
-        if keycode1 == 27:
-            return True # don't close on Escape
-
-
-    def on_pause(self):
-        return True
-
-
-    def on_quit(self, *args, **kwargs):
-        self.engine.cancel()
-        self.engine.stop()
-
-
-    def on_start(self):
-        self._android_hide_menu()
-        self.update(self.engine.last_moves()[-1])
-        self.engine.start()
-        if not self.engine.is_opponents_turn():
-            self.engine.make_move()
-
-
-    def on_resume(self):
-        self._android_hide_menu()
-
-
-    def on_promo(self, move, promo):
-        return self.on_user_move(move, move + chess.piece_symbol(promo))
-
-
-    def on_user_move(self, _, move):
-        self._android_hide_menu()
-
-        if self.edit:
-            return self.edit_apply(move)
-
-        if not self.study_mode:
-            return self.engine.input(move)
-
-        # AI off: puzzle or view mode
-        else:
-            if self.puzzle:
-                move = self.engine.validate_from_uci(move)
-                if move:
-                    board = chess.Board(fen=self.engine.board.epd())
-                    san = board.san_and_push(move)
-                    if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
-                        self.message_box(self.puzzle[0], 'Congrats, correct move!')
-                        self.modal.popup.content._buttons.size_hint = 1,.35
-                        self.modal.popup.content._buttons.add_widget(Button(
-                            text='Another Puzzle', font_size=sp(18), on_release=self.puzzles))
-                        self.modal.popup.content._buttons.add_widget(Button(
-                            text='Play from Here', font_size=sp(18), on_release=
-                            lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
-                        move = self.engine.apply(move)
-                        self.puzzle = None
-                    else:
-                        def wrong(*_):
-                            self.status_label.text = '[b]Try again.[/b]'
-                            self.status_label.background = get_color_from_hex('#E44D2E')
-                            Clock.schedule_once(lambda *_: self.engine.undo(), 2)
-
-                        self.engine.apply(move)
-                        Clock.schedule_once(wrong)
-                        move = None
-            else:
-                move = self.engine.apply(self.engine.validate_from_uci(move))
-
-            if move:
-                self.update_moves_record(last_move=True)
-                return move
 
 
     def on_drag(self, w, piece, square, xy, size):
@@ -836,10 +706,181 @@ class ChessApp(App):
             w.move = str()
 
 
+    def on_keyboard(self, window, keycode1, keycode2, text, modifiers):
+        '''
+        Ctrl+Z: undo
+        Ctrl+Y: redo
+        Ctrl+C: copy game transcript in PGN format to clipboard
+        Ctrl+Shift+C: copy FEN of current position
+        Ctrl+V: paste game
+        Ctrl+Shift+V: paste FEN
+        '''
+        mod = 'meta' if platform == 'macosx' else 'ctrl'
+        shift = 'shift'
+
+        # Ctrl+Z or Android back button
+        undo = keycode1 in [27, 1001] if is_mobile() else (keycode1 == 122 and mod in modifiers)
+        if undo:
+            if not self.edit:
+                self.board_widget.hide_bubble()
+                self.undo_move()
+            return True
+
+        if keycode1 == 32:
+            # spacebar
+            return self.speech_input()
+
+        if mod in modifiers and not self.edit:
+            # copy
+            if keycode1 == 99:
+                if shift in modifiers:
+                    self.copy_fen()
+                elif f := self._copy():
+                    f()
+                return True
+            # paste
+            if keycode1 == 118:
+                if shift in modifiers:
+                    self.paste_fen()
+                elif f := self._paste():
+                    f()
+                return True
+            # redo
+            if keycode1 == 121:
+                self.redo_move()
+                return True
+
+            if keycode1 == 101:
+                self.edit_start()
+                return True
+
+            # Ctrl+P show complete game record for debugging purposes
+            if keycode1 == 112:
+                title, _ = self.transcribe()
+                text = self.moves_record.export_pgn() + f' {{ {self.engine.board.epd()} }}'
+                self.text_box(title, text)
+                return True
+
+        if keycode1 == 27:
+            return True # don't close on Escape
+
+
+    def on_long_press(self, _):
+        self.speech_input()
+
+
+    def speech_input(self):
+        def has_modal():
+            return isinstance(Window.children[0], ModalView)
+
+        if all((
+            self.speak_moves,
+            self.study_mode or self.engine.is_opponents_turn(),
+            not self.menu.attach_to,
+            not self.english_input.is_running(),
+            not self.edit,
+            not has_modal()
+        )):
+            self.english_input.start()
+            return True
+
+
+    def on_pause(self):
+        return True
+
+
+    def on_promo(self, move, promo):
+        return self.on_user_move(move, move + chess.piece_symbol(promo))
+
+
+    def on_quit(self, *args, **kwargs):
+        self.engine.cancel()
+        self.engine.stop()
+
+
+    def on_resume(self):
+        self._android_hide_menu()
+
+
     def on_square(self, w, square):
         assert w == self.board_widget
         if self.edit and not w.move:
             self.edit_toggle_castling_rights(square)
+
+
+    def on_start(self):
+        self._android_hide_menu()
+        self.update(self.engine.last_moves()[-1])
+        self.engine.start()
+        if not self.engine.is_opponents_turn():
+            self.engine.make_move()
+
+
+    def on_touch_down(self, _, touch):
+        """ Trigger long-press event if touched outside the chessboard """
+        if not any((
+            self.board_widget.inside(self.board_widget.to_widget(*touch.pos)),
+            self.action.collide_point(*touch.pos)
+        )):
+            delay = 1 if is_mobile() else 0.5
+            Clock.schedule_once(self.on_long_press, delay)
+
+
+    def on_touch_up(self, _, touch):
+        Clock.unschedule(self.on_long_press)
+
+
+    def on_user_move(self, _, move):
+        self._android_hide_menu()
+
+        if self.edit:
+            return self.edit_apply(move)
+
+        if not self.study_mode:
+            return self.engine.input(move)
+
+        # AI off: we are either in puzzle or viewing mode
+        else:
+            if self.puzzle:
+                move = self.engine.validate_from_uci(move)
+                if move:
+                    board = chess.Board(fen=self.engine.board.epd())
+                    san = board.san_and_push(move)
+                    if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
+
+                        def success(title, *_):
+                            if self.speak_moves:
+                                self.speak(random.choice(['Correct', 'Well done', 'Nice']))
+
+                            if not self.message_box(title, 'Congrats, correct move!'):
+                                return # another modal box pending
+
+                            self.modal.popup.content._buttons.size_hint = 1,.35
+                            self.modal.popup.content._buttons.add_widget(Button(
+                                text='Another Puzzle', font_size=sp(18), on_release=self.puzzles))
+                            self.modal.popup.content._buttons.add_widget(Button(
+                                text='Play from Here', font_size=sp(18), on_release=
+                                lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
+
+                        move = self.engine.apply(move)
+                        Clock.schedule_once(partial(success, self.puzzle[0]))
+                        self.puzzle = None
+
+                    else:
+                        def wrong(*_):
+                            self.status_label.text = '[b]Try again.[/b]'
+                            self.status_label.background = get_color_from_hex('#E44D2E')
+                            Clock.schedule_once(lambda *_: self.engine.undo(), 2)
+
+                        self.engine.apply(move)
+                        Clock.schedule_once(wrong)
+                        move = None
+            else:
+                move = self.engine.apply(self.engine.validate_from_uci(move))
+
+            if move:
+                self.update_moves_record(last_move=True)
+                return move
 
 
     #
@@ -885,7 +926,10 @@ class ChessApp(App):
         if self.engine.is_opponents_turn():
             return [check + self.status_turn_color('Your turn to move.'), background]
 
-        return [self.status_turn_color(f'{COLOR_NAMES[self.engine.board.turn]} to play'), background]
+        return [
+            self.status_turn_color(f'{COLOR_NAMES[self.engine.board.turn]} to play'),
+            background
+        ]
 
 
     """
@@ -969,14 +1013,14 @@ class ChessApp(App):
                 self.hash_label.text = ''
 
 
-    def show_comment(self, comment):
-        if comment and 1 < len(comment):
+    def show_comment(self, comment, max_length=1000):
+        if comment and 1 < len(comment) < max_length:
             comment = comment.replace('\n', ' ')
             # condense whitespaces
-            comment = re.sub('[ \t]+', ' ', comment)
-            comment = comment.strip()
+            comment = re.sub('[ \t]+', ' ', comment).strip()
             if comment[0].islower():
                 comment = '... ' + comment
+
             self.text_bubble(comment)
 
 
@@ -1042,7 +1086,7 @@ class ChessApp(App):
         black = game.headers.get('Black', '?')
         if white != '?' and black != '?':
             date = game.headers.get('Date', '?')
-            if date[0] == '?':
+            if date and date[0] == '?':
                 date = ''
             else:
                 date = ' ' + date.split('.')[0]
@@ -1116,51 +1160,115 @@ class ChessApp(App):
     def _long_press(self, b, action, delay):
         if b:
             accel = 0.9
-            Clock.schedule_once(lambda *_: action(b, delay * accel) if b.state=='down' else None, delay)
+            Clock.schedule_once(
+                lambda *_: action(b, delay * accel) if b.state=='down' else None, delay
+            )
 
 
-    def message_box(self, title, text='', user_widget=None, on_close=lambda _: None, font_size=20, auto_wrap=True):
-        def modal_done(on_close):
+    def message_box(
+            self,
+            title,
+            text='',
+            user_widget=None,
+            on_close=lambda _: None,
+            font_size=20,
+            auto_wrap=True
+        ):
+        '''
+        MessageBox wrapper, enforces exclusivity (only one message box at any time)
+        '''
+        def modal_done(*_):
             if self.modal:
                 on_close(self.modal)
             self.modal = None
+
         if not self.modal:
-            self.modal = MessageBox(title, text, user_widget, on_close=lambda *_: modal_done(on_close), auto_wrap=auto_wrap)
+            self.modal = MessageBox(
+                title,
+                text,
+                user_widget,
+                on_close=modal_done,
+                auto_wrap=auto_wrap
+            )
             self.modal.font_size = font_size
+            return self.modal
 
 
     @staticmethod
-    def _text_view(text, font_size, use_bubble=True, background_color=(1,1,1,1), lined=False):
-        """ Helper for text_box and text_bubble """
-        text = Notepad(text=text, font_size=font_size, readonly=True, font_name='Roboto-Italic',
-                       use_bubble=use_bubble, background_color=background_color, lined=lined)
-        view = ScrollView(do_scroll_x=False, do_scroll_y=True, effect_cls=ScrollEffect)
-        view.add_widget(text)
-        view.bind(on_scroll_start=lambda *_:text._hide_cut_copy_paste())
-        return view, text
+    def _text_view(**kwargs):
+        '''
+        Helper for text_box and text_bubble
+        '''
+        view = ScrolledPad(**kwargs)
+        return view, view.ids.text
 
 
-    def text_box(self, title, text, font_size=20):
-        view, text = self._text_view(text, font_size, background_color=(1,1,.65,1), lined=True)
-        self.message_box(title=title, text='', user_widget=view, on_close=lambda *_:text._hide_handles())
+    def text_box(self, title, text, font_size=sp(16)):
+        view, textbox = self._text_view(
+            text=text,
+            font_size=font_size,
+            background_color=(1,1,.65,1),
+            lined=True
+        )
+        self._modal_box(title, view, on_close=lambda *_:textbox._hide_handles())
 
 
-    def text_bubble(self, text, font_size=20, background_color=(1,1,1,0.5), width=360, max_height=160):
-        if not self.board_widget.bubble_view:
-            view, text = self._text_view(text, font_size, False, background_color)
-            bubble_size = (width, min(max_height, text.minimum_height * 2))
-            bubble = Bubble(size_hint=(None, None), show_arrow=False, size=bubble_size)
-            bubble.add_widget(view)
+    def text_bubble(self, text, font_size=sp(16)):
+        if self.board_widget.width <= 100:
+            return
 
-            # highlight the starting square, so that the bubble *may* leave the destination visible
-            move = self.engine.last_moves()[-1]
-            if move:
-                self.board_widget.highlight_move(move.uci()[:2])
+        if self.board_widget.bubble_view:
+            return # there can be only one!
 
-            self.board_widget.show_bubble(bubble, auto_dismiss=True, on_dismiss=lambda *_:text._hide_handles())
+        size_ratio = [.75, .90]
+
+        width = self.board_widget.width * size_ratio[0]
+
+        view, textpad = self._text_view(
+            text=text,
+            font_size=font_size,
+            use_bubble=False,
+            background_color=(1,1,1,0.5),
+            width=width,
+        )
+        bubble = Bubble(
+            size_hint=(None, None),
+            show_arrow=False,
+            width=width,
+            height=min(
+                textpad.get_min_height(width),
+                self.board_widget.height * size_ratio[1]
+            )
+        )
+        bubble.add_widget(view)
+
+        self.board_widget.show_bubble(
+            bubble,
+            auto_dismiss=True,
+            on_dismiss=lambda *_:textpad._hide_handles()
+        )
+
+        # highlight the starting square, so that
+        # the bubble may leave the destination visible
+        if move := self.engine.last_moves()[-1]:
+            self.board_widget.highlight_move(move.uci()[:2])
+
+
+    def touch_hint(self, text):
+        action = 'Touch' if is_mobile() else 'Click'
+        self.text_bubble(f'{action} {text}', font_size=dp(20))
+
+        def hide(*_):
+            if self.board_widget.bubble_view:
+                self.board_widget.bubble_view.dismiss()
+
+        Clock.schedule_once(hide, 3)
 
 
     def confirm(self, text, yes_action, no_action = None):
+        '''
+        Show a message box asking the user to confirm an action.
+        '''
         def callback(msgbox):
             if msgbox.value == 'Yes':
                 return yes_action()
@@ -1170,12 +1278,20 @@ class ChessApp(App):
         self.message_box(title='Confirm', text=text + '?', on_close=callback)
 
 
-    def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None):
-        def on_close(*_):
-            self.save()
-            self.update(self.engine.last_moves()[-1])
+    def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda:None):
 
-        popup = ModalBox(title=title, content=content, size_hint=(0.9, 0.775), on_dismiss=on_close, close_text=close)
+        def dismiss(*_):
+            self.save()
+            on_close()
+            self.update(self.engine.last_moves()[-1], show_comment=False)
+
+        popup = ModalBox(
+            title=title,
+            content=content,
+            size_hint=(0.9, 0.775),
+            on_dismiss=dismiss,
+            close_text=close
+        )
         popup.overlay_color = [0, 0, 0, .5]
         content._popup = popup
         popup.on_open = on_open
@@ -1184,24 +1300,19 @@ class ChessApp(App):
 
 
     def puzzles(self, *_):
-        confirm = True
-        if self.modal:
-            confirm = False
-            self.modal.popup.dismiss()
-
+        '''
+        Show modal view with a selection of puzzles.
+        '''
         def select_puzzle(puzzle):
             self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
             if self.board_widget.model.turn == self.board_widget.flip:
                 self.flip_board()
             self.puzzle = puzzle
-            self.lsat_puzzle = puzzle[3]
+            self.last_puzzle = puzzle[3]
             view._popup.dismiss()
 
         def confirm_puzzle_selection(puzzle):
-            if confirm:
-                self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
-            else:
-                select_puzzle(puzzle)
+            self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
 
         def on_selection(_, selected):
             if selected:
@@ -1218,7 +1329,17 @@ class ChessApp(App):
 
 
     def settings(self, *_):
-        self._modal_box('Settings', AppSettings())
+        speak_moves = [self.speak_moves]
+
+        def voice():
+            if speak_moves[0] != self.speak_moves:
+                speak_moves[0] = self.speak_moves
+                self.speak('Voice on' if self.speak_moves else 'Voice off')
+
+                if self.speak_moves:
+                    self.touch_hint('anywhere outside the board and hold to speak.')
+
+        self._modal_box('Settings', AppSettings(), on_close=voice)
 
 
     def advanced_settings(self, *_):
@@ -1240,15 +1361,32 @@ class ChessApp(App):
 
 
     @property
+    def speak_moves(self):
+        return self.__speak_moves
+
+
+    @speak_moves.setter
+    def speak_moves(self, speak):
+        if speak and platform == 'android':
+            from android.permissions import Permission, request_permissions
+            request_permissions([Permission.RECORD_AUDIO])
+
+        self.__speak_moves = speak
+
+
+    @property
     def study_mode(self):
         return self.__study_mode
 
 
     def set_study_mode(self, value, controls=[]):
-        """
-        Turn off the AI so the user can study
-        and go back and forth through the moves.
-        """
+        '''
+        Turn off the chess engine (AI) so the user can go back and forth through the moves.
+
+        Study mode is automatically enabled when pasting a game (PGN format) or FEN into
+        the app. Copy-paste functionality is activated by long-presses (anywhere on the
+        chessboard) and with the usual ctrl-c/ctrl-v key combos when running on desktop.
+        '''
         if self.__study_mode != value:
             self._set_study_mode(value)
 
@@ -1347,7 +1485,7 @@ class ChessApp(App):
 
 
     """
-        Draw opening moves hints on the board widget canvas
+    Draw opening moves hints on the board widget canvas
     """
     def _move_hints(self, board, entries, redraw=True):
         if redraw:
@@ -1397,53 +1535,94 @@ class ChessApp(App):
                 Arrow(
                     from_xy=move.from_xy,
                     to_xy=[x + s / 2 for x, s in zip(move.to_xy, piece_size)],
-                    # color=(0.95, 0.25, 0, 0.45) if is_capture else (0.25, 0.75, 0, 0.45),
                     color=(0.25, 0.75, 0, 0.45),
                     width=square_size / 7.5,
                     outline_color=(1, 1, 0.5, 0.75),
                     outline_width=2)
 
-    """
-    Engine.search_move wrapper. Set up timer to handle time info and custom draws.
-    """
+
+
+    def speak(self, message):
+        tts.speak(message, stt.stt)
+
+
     def search_move(self):
         self.nps = 0
-        """
-        Show elapsed time and other info.
-        """
-        @mainthread
-        def _timer(*_):
-            s = (datetime.now() - start_time).total_seconds()
+        start_time = datetime.now()
 
-            if s and self.show_nps:
-                nps = self.nps or (self.engine.node_count / s)
+        def _update_status(*_):
+            '''
+            Clock-driven callback.
+            '''
+            seconds = (datetime.now() - start_time).total_seconds()
+
+            if seconds and self.show_nps:
+                nps = self.nps or (self.engine.node_count / seconds)
                 self.nps_label.text = f'{int(nps):10d}'
 
-            s = int(s)
-            d = self.engine.current_depth()
+            minutes = int(seconds) // 60
+            seconds = int(seconds) % 60
+            depth = self.engine.current_depth()
 
-            info = f'Thinking... (depth: {d:2d}) {s//60:02d}:{s%60:02d}'
+            info = f'Thinking... (depth: {depth:2d}) {minutes:02d}:{seconds:02d}'
+
             self.status_label.text = self.status_turn_color(info)
             self.status_label.texture_update()
+
             if search := self.engine.search:
                 self.progress.value = search.eval_depth
 
-        start_time = datetime.now()
-        event = Clock.schedule_interval(_timer, 0.1)
-
-        try:
-            return self._search_move()
-        finally:
+        def _refresh():
+            '''
+            Schedule a redraw before exiting the TimerContext
+            '''
             self.progress.value = 0
-            event.cancel()
             Clock.schedule_once(lambda *_: self.board_widget.redraw_board())
 
+        class TimerContext:
+            def __init__(self):
+                self._start_time = datetime.now()
+                self._event = Clock.schedule_interval(_update_status, 0.1)
 
-    """
-        Share game transcript in PGN format.
-        See https://en.wikipedia.org/wiki/Portable_Game_Notation
-    """
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                self._event.cancel()
+                _refresh()
+
+
+        with TimerContext() as ctxt:
+            # call the chess engine
+            move = self._search_move()
+
+            ctxt._event.cancel()
+
+            if move and self.speak_moves:
+                self.speak(self.describe_move(move))
+
+            return move
+
+
+    @property
+    def stt_supported(self):
+        return stt.is_supported()
+
+
+    @property
+    def tts_supported(self):
+        return True
+
+
     def share(self):
+        '''
+        Share game transcript in PGN format (https://en.wikipedia.org/wiki/Portable_Game_Notation).
+
+        On Android the user chooses which app to use (email, text, etc).
+
+        On non-Android platforms pop up a Notebook with the game transcript,
+        and the use can copy-and-paste manually.
+        '''
         title, text = self.transcribe()
         if platform == 'android':
             try:
@@ -1469,19 +1648,20 @@ class ChessApp(App):
         return label or ('Puzzle' if self.puzzle else 'View') + VIEW_MODE
 
 
-    """
-    Update the self.moves_record tree with current moves variation
-    """
     def update_moves_record(self, last_move):
+        '''
+        Update the self.moves_record tree with current moves variation.
+        '''
         self.moves_record.add_moves(self.engine.board)
         if last_move:
             self.moves_record.pop()
 
 
-    """
-    Populate engine's redo list with moves from the self.moves_record tree
-    """
     def update_redo_list(self):
+        '''
+        Populate the redo list with moves from the self.moves_record tree.
+        '''
+
         current = self.moves_record.current
 
         if current and current.move:
@@ -1578,6 +1758,7 @@ class ChessApp(App):
     def edit_start(self):
         if not self.edit:
             self.engine.pause()
+            self.english_input.stop()
             self.hash_label.text = ''
             self.edit = EditControls(pos_hint=(0, None), size_hint=(1, 0.1))
             self.edit.flip = self.board_widget.flip
@@ -1586,9 +1767,7 @@ class ChessApp(App):
             self.cancel_puzzle()
             self.update_move(None, None)
             self.update()
-
-            action = 'Touch' if is_mobile() else 'Click'
-            self.text_bubble(action + ' corners to modify castling rights.')
+            self.touch_hint('corners to modify castling rights.')
 
 
     def edit_stop(self, apply=False):
@@ -1664,8 +1843,12 @@ class ChessApp(App):
         return self._time_limit[int(limit)]
 
 
-    """ Display time limit in settings dialog """
     def time_limit_str(self, limit):
+        '''
+        Convert time limit to friendly string representation.
+
+        Used in settings.kv
+        '''
         limit = self.time_limit(limit)
         if limit <= 0:
             return 'Unlimited'
@@ -1675,10 +1858,15 @@ class ChessApp(App):
         return f'{limit:2d} min'
 
 
-    """
-    Dumb down the engine by inserting delays
-    """
     def search_callback(self, search, millisec):
+        '''
+        The engine itself does not implement strength levels, it is
+        done here (at the application level) instead, by using this
+        callback to introduce delays.
+
+        This works in conjuction with the EVAL_FUZZ engine parameter
+        (which introduces small random erros in the eval function).
+        '''
         # no delays at MAX_DIFFICULTY
         assert self.difficulty_level < self.MAX_DIFFICULTY
 
@@ -1726,17 +1914,3 @@ class ChessApp(App):
     @property
     def cpu_cores_max(self):
         return chess_engine.get_param_info()['Threads'][2]
-
-
-"""
-Workaround for rare, intermittent Builder.sync() crashes.
-"""
-class __EH(ExceptionHandler):
-    def handle_exception(self, inst):
-        Logger.exception(f'Exception caught by ExceptionHandler')
-        if isinstance(inst, TypeError):
-            return ExceptionManager.PASS
-        quit()
-
-
-ExceptionManager.add_handler(__EH())

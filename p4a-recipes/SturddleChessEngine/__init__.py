@@ -42,7 +42,6 @@ setup(
              '-Wno-unused-label',
              '-Wno-unused-variable',
              '-Wno-deprecated-declarations',
-             '-Werror',
              '-DCYTHON_WITHOUT_ASSERTIONS',
              '-DNO_ASSERT',
              '-DCALLBACK_PERIOD=512'
@@ -72,6 +71,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
         makedirs (dest_dir)
         for src in [
             '__init__.pyx',
+            'attack_tables.h',
             'attacks.h',
             'captures.cpp',
             'common.h',
@@ -85,6 +85,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'search.h',
             'search.cpp',
             'tables.h',
+            'thread_pool.hpp',
             'utility.h',
             'zobrist.h'
         ]:
@@ -93,7 +94,6 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
         # submodules:
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'libpopcnt', 'libpopcnt.h'), dest_dir)
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'magic-bits', 'include', 'magic_bits.hpp'), dest_dir)
-        shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'thread-pool', 'thread_pool.hpp'), dest_dir)
 
         with open(path.join(dest_dir, 'setup.py'), 'w') as f:
             f.write(setup)

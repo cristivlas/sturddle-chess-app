@@ -23,18 +23,24 @@ from os import path, walk
 import chess
 import chess.pgn
 
-"""
- Identify openings using entries from
-    The Encyclopaedia of Chess Openings
-    https://en.wikipedia.org/wiki/Encyclopaedia_of_Chess_Openings
-    https://github.com/niklasf/eco
-"""
+
 class ECO:
+    '''
+    Wrapper for: https://github.com/niklasf/eco
+
+    Identify openings using entries from The Encyclopaedia of Chess Openings
+    https://en.wikipedia.org/wiki/Encyclopaedia_of_Chess_Openings
+    '''
+
     def __init__(self):
-        """ read TSV files and index by FEN """
-        self.db = {}
+        '''
+        Read TSV files and index by FEN and name.
+        '''
+        self.by_fen = {}
+
         for fname in self.tsv_files():
             self.read_tsv_file(fname)
+
 
     def tsv_files(self):
         for dir, _subdirs, files in walk('eco/dist'):
@@ -42,23 +48,32 @@ class ECO:
                 if f.endswith('.tsv'):
                     yield path.join(dir, f)
 
+
     def read_tsv_file(self, fname):
         with open(fname) as f:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
-                self.db[row['epd']] = row
+                self.by_fen[row['epd']] = row
+
 
     def lookup(self, board, transpose=False):
-        row = self.db.get(board.epd(), None)
+        '''
+        Lookup by board position (FEN)
+        '''
+        row = self.by_fen.get(board.epd(), None)
         if row is None and board._stack:
             prev = chess.Board()
             board._stack[-1].restore(prev)
-            row = self.db.get(prev.epd(), None)
+            row = self.by_fen.get(prev.epd(), None)
 
         if row and not transpose:
             pgn = chess.pgn.read_game(io.StringIO(row['pgn']))
             for i, move in enumerate(pgn.mainline_moves()):
                 if i >= len(board.move_stack) or move != board.move_stack[i]:
                     return None
-
             return row
+
+
+    def openings(self):
+        for _, v in self.by_fen.items():
+            yield v

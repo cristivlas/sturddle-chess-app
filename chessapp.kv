@@ -21,7 +21,7 @@
 
 
 <AwesomeActionButton@ActionButton>:
-    font_name: 'fonts/Font Awesome 5 Free Solid.ttf'
+    font_name: app.font_awesome
     font_size: sp(20)
     background_disabled_normal: self.background_normal
     minimum_width: sp(80)
@@ -29,7 +29,7 @@
 
 <AwesomeLabel@Label>:
     font_size: dp(20)
-    font_name: 'fonts/Font Awesome 5 Free Solid.ttf'
+    font_name: app.font_awesome
     markup: True
     halign: 'left'
     text_size: self.width, None
@@ -48,6 +48,7 @@
 <Menu>:
     auto_width: False
     width: min(sp(250), Window.size[0] / 2)
+
     canvas.before:
         Color:
             rgba: utils.get_color_from_hex('#303030d0')
@@ -344,7 +345,7 @@
             padding: [(root.width - root._board_size) / 2, 0, 0, 0]
             spacing: sp(12)
 
-    GridLayout
+    GridLayout:
         cols: 5
         size_hint: 1, None
         height: dp(48)
@@ -372,3 +373,35 @@
         Rectangle:
             pos: sp(-2), sp(-2)
             size: self.width + sp(4), self.height + sp(4)
+
+#
+# Layout for Natural Language input box
+#
+<LanguageInput>:
+    cols: 1
+    rows: 2
+    TextInput:
+        id: text
+        multiline: False
+        use_handles: False
+        size_hint_y: 0.5
+
+
+#:import ScrollEffect kivy.effects.scroll.ScrollEffect
+<ScrolledPad>:
+    ScrollView:
+        id: scroll
+        do_scroll_x: False
+        do_scroll_y: True
+        effect_cls: ScrollEffect
+
+        Notepad:
+            id: text
+            width: root.width
+            text: root.text
+            font_name: root.font_name
+            font_size: root.font_size
+            readonly: root.readonly
+            use_bubble: root.use_bubble
+            background_color: root.background_color
+            lined: root.lined

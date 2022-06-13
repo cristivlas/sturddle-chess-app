@@ -24,6 +24,7 @@ from threading import Event
 import chess
 import chess.pgn
 import chess.polyglot
+from kivy.logger import Logger
 
 from sturddle_chess_engine import *
 from worker import Locking, WorkerThread
@@ -82,8 +83,17 @@ class BoardModel(chess.Board, Locking):
 
 
     def push_with_format(self, move, notation):
+        '''
+        Format move to string and push to the board.
+
+        Return formatted string representation of the move.
+
+        No need for @synchronized: both push and san_and_push are decorated.
+        '''
+        assert self.is_legal(move)
         if notation == 'san':
             return self.san_and_push(move)
+
         move_str = format_move(self, move)
         self.push(move)
         return move_str
@@ -98,6 +108,11 @@ class BoardModel(chess.Board, Locking):
     # override
     def _push_capture(self, move, capture_square, piece_type, was_promoted):
         self._captures[self.turn].append(piece_type)
+
+
+    @Locking.synchronized
+    def san_and_push(self, move):
+        return super().san_and_push(move)
 
 
 class Timer:
@@ -163,7 +178,9 @@ class Engine:
 
     def _apply(self, move):
         move_str = self.push_with_format(move) # san or uci
-        self.update(move, move_str)
+        if move_str:
+            self.update(move, move_str)
+
         if self.clear_hash_on_move:
             clear_hashtable()
 
@@ -267,27 +284,17 @@ class Engine:
                 pass
 
 
+    def is_promotion(self, move):
+        return any((m.promotion for m in self.board.generate_legal_moves(
+            chess.BB_SQUARES[move.from_square],
+            chess.BB_SQUARES[move.to_square]))
+        )
+
+
     def _find_move(self, move, promotion=None):
 
-        _promo_rank = [chess.BB_RANK_1, chess.BB_RANK_8]
-        _from_rank = [chess.BB_RANK_2, chess.BB_RANK_7]
-
-        def _maybe_promotion():
-            if chess.BB_SQUARES[move.from_square] & _from_rank[self.board.turn] & self.board.pawns == 0:
-                return False # moving piece is not a pawn or not moving from correct rank
-            if not chess.BB_SQUARES[move.to_square] & _promo_rank[self.board.turn]:
-                return False # destination rank is not target for promotion
-            if self.board.occupied_co[not self.board.turn] & chess.BB_SQUARES[move.from_square]:
-                return False # it is not this piece's turn to move
-            if self.board.occupied_co[self.board.turn] & chess.BB_SQUARES[move.to_square]:
-                return False # the destination square is occupied by a piece of same color
-            if self.board.is_capture(move):
-                return move.to_square in self.board.attacks(move.from_square)
-            else:
-                return chess.square_file(move.from_square)==chess.square_file(move.to_square)
-
         def _get_promotion():
-            if promotion is None and self.promotion_callback and _maybe_promotion():
+            if promotion is None and self.promotion_callback and self.is_promotion(move):
                 # extra validation, in case pawn is pinned
                 board = chess.Board(fen=self.board.fen())
                 board.remove_piece_at(move.from_square)
@@ -330,6 +337,7 @@ class Engine:
     def make_move(self):
         if self.busy or self.is_game_over():
             return False
+
         self.start()
         if self.update_callback is None:
             return self.output() # search for move synchronously
@@ -348,7 +356,11 @@ class Engine:
 
 
     def push_with_format(self, move):
-        return self.board.push_with_format(move, self.notation)
+        if not self.board.is_legal(move):
+            Logger.warning(f'push_with_format: {move} is not legal')
+            self.update_callback()
+        else:
+            return self.board.push_with_format(move, self.notation)
 
 
     def update_last_moves(self):
