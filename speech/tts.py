@@ -44,7 +44,6 @@ elif platform == 'android':
     from jnius import PythonJavaClass, autoclass, java_method
 
     activity = autoclass('org.kivy.android.PythonActivity').mActivity
-    Locale = autoclass('java.util.Locale')
     TextToSpeech = autoclass('android.speech.tts.TextToSpeech')
 
     class OnInitListener(PythonJavaClass):
@@ -53,9 +52,8 @@ elif platform == 'android':
 
         @java_method('(I)V')
         def onInit(self, status):
-            if status != TextToSpeech.ERROR:
-                OnInitListener.status = instance.setLanguage(Locale.forLanguageTag('en-US'))
-                Logger.info(f'tts: OnInit status={self.status}')
+            OnInitListener.status = status
+            Logger.info(f'tts: OnInit status={self.status}')
 
     listener = OnInitListener()
     instance = TextToSpeech(activity, listener)

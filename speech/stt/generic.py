@@ -27,7 +27,7 @@ from kivy.logger import Logger
 from .base import STT
 from .data import phonetic
 
-DEEPSPEECH_MODEL_URL = 'https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.tflite'
+DEEPSPEECH_URL = 'https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.tflite'
 DEEPSPEECH_MODEL = 'deepspeech-0.9.3-models.tflite'
 DEEPSPEECH_SCORER = 'chess.scorer'
 
@@ -57,8 +57,9 @@ class GenericSTT(STT):
         if not os.path.exists(model_path):
             Logger.info(f'stt: file not found: {os.path.realpath(model_path)}')
             try:
-                Logger.info(f'stt: downloading {DEEPSPEECH_MODEL_URL}')
-                wget.download(DEEPSPEECH_MODEL_URL, out=model_path)
+                Logger.info(f'stt: downloading {DEEPSPEECH_URL}')
+                wget.download(DEEPSPEECH_URL, out=model_path)
+                print()
             except Exception as e:
                 Logger.error(f'stt: download failed: {e}')
                 return

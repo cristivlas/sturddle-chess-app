@@ -76,11 +76,8 @@ try:
     AndroidView = autoclass('android.view.View')
     AndroidPythonActivity = autoclass('org.kivy.android.PythonActivity')
 
-    Logger.debug(
-        'Application runs on Android, API level {0}'.format(
-            android_api_version.SDK_INT
-        )
-    )
+    Logger.info(f'API: level={android_api_version.SDK_INT}')
+
 except ImportError:
     def run_on_ui_thread(func):
         def wrapper(*args):
