@@ -1302,7 +1302,16 @@ class ChessApp(App):
     def puzzles(self, *_):
         '''
         Show modal view with a selection of puzzles.
+
         '''
+        confirm = True
+
+        # There may be an active confirmation dialog if a previous puzzle got
+        # solved correctly, and the app asks 'Another puzzle or play from here?'
+        if self.modal:
+            confirm = False
+            self.modal.popup.dismiss()
+
         def select_puzzle(puzzle):
             self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
             if self.board_widget.model.turn == self.board_widget.flip:
@@ -1312,7 +1321,10 @@ class ChessApp(App):
             view._popup.dismiss()
 
         def confirm_puzzle_selection(puzzle):
-            self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
+            if confirm:
+                self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
+            else:
+                select_puzzle(puzzle)
 
         def on_selection(_, selected):
             if selected:
