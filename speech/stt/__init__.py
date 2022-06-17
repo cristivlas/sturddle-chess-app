@@ -20,6 +20,8 @@ from kivy.utils import platform
 
 if platform == 'android':
     from .android import AndroidSTT as STT
+elif platform == 'ios':
+    from .base import STT
 else:
     from .generic import GenericSTT as STT
 

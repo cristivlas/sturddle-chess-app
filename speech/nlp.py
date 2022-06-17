@@ -262,6 +262,7 @@ class NLP:
         r'\bjiwon\b' : 'g1',
         r'\bkingside\b' : 'king side',
         r'\bknights\b' : 'knight',
+        r'\blook\b' : 'rook',
         r'\bmight\b' : 'knight',
         r'\bnight\b' : 'knight',
         r'\bnightstakes\b' : 'knight takes',
