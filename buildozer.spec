@@ -22,14 +22,14 @@ source.include_exts = py,png,jpg,kv,atlas,bin,csv,tsv,ttf
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = tests,bin,build,build-env,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots
+source.exclude_dirs = tests,bin,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
-source.exclude_patterns = license,images/*/*.jpg,build.py,
+source.exclude_patterns = license,log,images/*/*.jpg,build.py,speech/stt/data/*
 
 # (str) Application versioning (method 1)
-# version = 0.60
+# version =
 
 # (str) Application versioning (method 2)
 version.regex = __version__ = ['"](.*)['"]
