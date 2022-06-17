@@ -17,7 +17,7 @@ Casual Chess App
 ![Alt text](/screenshots/Screenshot_Settings.png?raw=true "Settings")
 ![Alt text](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
 
-# Build on desktop
+# Build on desktop (requires Python3.8 or higher)
 ```
 git clone --recursive https://github.com/cristivlas/sturddle-chess-app sturddle
 cd sturddle
