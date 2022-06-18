@@ -28,7 +28,10 @@ from kivy.logger import Logger
 from .base import STT
 from .data import phonetic
 
-DEEPSPEECH_URL = 'https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.tflite'
+DEEPSPEECH_URL = (
+'https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.tflite'
+)
+
 DEEPSPEECH_MODEL = 'deepspeech-0.9.3-models.tflite'
 DEEPSPEECH_SCORER = 'chess.scorer'
 
@@ -45,8 +48,8 @@ class GenericSTT(STT):
 
         self._model = self._init_deepspeech()
 
-        self._start_sound = self._load_sound('start.mp3')
-        self._stop_sound = self._load_sound('stop.mp3')
+        self._start_sound = self._load_sound('start.mp3', 0.5)
+        self._stop_sound = self._load_sound('stop.mp3', 0.5)
 
 
     def _init_deepspeech(self):
@@ -155,5 +158,8 @@ class GenericSTT(STT):
         return True
 
 
-    def _load_sound(self, filename):
-        return SoundLoader.load(os.path.join(os.path.dirname(__file__), filename))
+    def _load_sound(self, filename, volume=1):
+        sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), filename))
+        if sound:
+           sound.volume = volume
+        return sound

@@ -392,7 +392,7 @@ class no_update_callbacks:
 
 
 class ChessApp(App):
-    icon = 'chess.png'
+    icon = 'images/chess.png'
     font_awesome = 'fonts/Font Awesome 5 Free Solid.ttf'
 
     # Node-per-second limits by "skill-level". The engine does not
@@ -407,6 +407,7 @@ class ChessApp(App):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         chess.pgn.LOGGER.setLevel(50)
         self.modal = None
         self.store = DictStore('game.dat')
