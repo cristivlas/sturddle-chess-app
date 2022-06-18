@@ -4,7 +4,7 @@ file_mapping = {
     'b': ['bee', 'bravo'],
     'c': ['cee', 'charlie'],
     'd': ['dee', 'delta'],
-    'e': ['ee', 'eey', 'echo'],
+    'e': ['ee', 'echo'],
     'f': ['ef', 'eff', 'foxtrot'],
     'g': ['gee', 'golf'],
     'h': ['aitch', 'hotel'],

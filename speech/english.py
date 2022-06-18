@@ -16,20 +16,23 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
+import os
 import random
 import weakref
 from functools import partial
 
 from kivy.clock import Clock
+from kivy.core.audio import SoundLoader
 from kivy.logger import Logger
 from kivy.properties import *
 from kivy.uix.actionbar import ActionButton
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
 
+from . import tts
 from .nlp import NLP, describe_move
 from .stt import stt
-from . import tts
+
 
 class LanguageInput(GridLayout):
     @property
@@ -49,6 +52,10 @@ class Input:
         self._error = ''
         self._text = ''
         self._results = []
+        # play audible feedback when command is understood
+        self._ok_sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), 'ok.mp3'))
+        if self._ok_sound:
+            self._ok_sound.volume = 0.5
 
 
     def is_running(self):
@@ -181,6 +188,8 @@ class Input:
         stt.stop()
 
         if self._select_move(list(moves)):
+            if self._ok_sound:
+                self._ok_sound.play()
             return self.stop()
 
         self._start_stt()

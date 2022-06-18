@@ -22,6 +22,7 @@ import re
 import numpy as np
 import speech_recognition as sr
 import wget
+from kivy.core.audio import SoundLoader
 from kivy.logger import Logger
 
 from .base import STT
@@ -43,6 +44,9 @@ class GenericSTT(STT):
         self._cancel = None
 
         self._model = self._init_deepspeech()
+
+        self._start_sound = self._load_sound('start.mp3')
+        self._stop_sound = self._load_sound('stop.mp3')
 
 
     def _init_deepspeech(self):
@@ -126,11 +130,17 @@ class GenericSTT(STT):
 
         self._cancel = self._sr.listen_in_background(sr.Microphone(), callback, self.time_limit)
 
+        if self._start_sound:
+            self._start_sound.play()
+
 
     def _stop(self):
         if self._cancel:
             self._cancel(wait_for_stop=False)
             self._cancel = None
+
+            if self._stop_sound:
+                self._stop_sound.play()
 
 
     def _is_listening(self):
@@ -143,3 +153,7 @@ class GenericSTT(STT):
 
     def _is_supported(self):
         return True
+
+
+    def _load_sound(self, filename):
+        return SoundLoader.load(os.path.join(os.path.dirname(__file__), filename))
