@@ -1,5 +1,5 @@
-Linux & Windows
-===============
+Linux, Windows, Mac
+===================
 git clone --recurse-submodules https://github.com/cristivlas/sturddle-chess-app.git
 cd sturddle-chess-app
 python3 -m pip install -r requirements.txt

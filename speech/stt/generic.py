@@ -25,8 +25,8 @@ import wget
 from kivy.core.audio import SoundLoader
 from kivy.logger import Logger
 
+from . import phonetic
 from .base import STT
-from .data import phonetic
 
 DEEPSPEECH_URL = (
 'https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.tflite'
