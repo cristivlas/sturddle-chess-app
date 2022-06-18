@@ -119,7 +119,7 @@ class GenericSTT(STT):
                 self.results_callback([text])
 
             except sr.UnknownValueError:
-                self._stop()
+                pass
 
             except sr.RequestError as e:
                 error = e

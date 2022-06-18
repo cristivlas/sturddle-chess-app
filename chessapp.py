@@ -66,7 +66,7 @@ from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleView
-from speech import english, nlp, stt, tts
+from speech import voice, nlp, stt, tts
 
 try:
     from android.runnable import run_on_ui_thread
@@ -423,7 +423,7 @@ class ChessApp(App):
 
         self.use_eco(True) # use Encyclopedia of Chess Openings
         self.moves_record = MovesTree()
-        self.english_input = english.Input(self)
+        self.voice_input = voice.Input(self)
         self.auto_voice = False
         self.__speak_moves = False
         self.__study_mode = False
@@ -775,11 +775,11 @@ class ChessApp(App):
             self.speak_moves,
             self.study_mode or self.engine.is_opponents_turn(),
             not self.menu.attach_to,
-            not self.english_input.is_running(),
+            not self.voice_input.is_running(),
             not self.edit,
             not has_modal()
         )):
-            self.english_input.start()
+            self.voice_input.start()
             return True
 
 
@@ -1341,7 +1341,7 @@ class ChessApp(App):
     def settings(self, *_):
         speak_moves = [self.speak_moves]
 
-        def voice():
+        def _voice():
             if speak_moves[0] != self.speak_moves:
                 speak_moves[0] = self.speak_moves
                 self.speak('Voice on' if self.speak_moves else 'Voice off')
@@ -1349,7 +1349,7 @@ class ChessApp(App):
                 if self.speak_moves:
                     self.touch_hint('anywhere outside the board and hold to speak.')
 
-        self._modal_box('Settings', AppSettings(), on_close=voice)
+        self._modal_box('Settings', AppSettings(), on_close=_voice)
 
 
     def advanced_settings(self, *_):
@@ -1553,7 +1553,7 @@ class ChessApp(App):
 
 
     def speak(self, message):
-        tts.speak(message, stt.stt)
+        tts.speak(message.capitalize(), stt.stt)
 
 
     def search_move(self):
@@ -1768,7 +1768,7 @@ class ChessApp(App):
     def edit_start(self):
         if not self.edit:
             self.engine.pause()
-            self.english_input.stop()
+            self.voice_input.stop()
             self.hash_label.text = ''
             self.edit = EditControls(pos_hint=(0, None), size_hint=(1, 0.1))
             self.edit.flip = self.board_widget.flip
