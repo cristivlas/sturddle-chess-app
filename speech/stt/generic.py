@@ -159,7 +159,9 @@ class GenericSTT(STT):
 
 
     def _load_sound(self, filename, volume=1):
-        sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), filename))
-        if sound:
-           sound.volume = volume
-        return sound
+        try:
+            if sound := SoundLoader.load(os.path.join(os.path.dirname(__file__), filename)):
+                sound.volume = volume
+                return sound
+        except:
+            pass

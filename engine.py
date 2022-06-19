@@ -459,7 +459,7 @@ class Engine:
 
         with Timer() as timer:
             move, score = self.search.search()
-        self.log(f'search time: {timer.info} min')
+        self.log(f'search time: {timer.info}')
 
         search = self.search
         self.search = None

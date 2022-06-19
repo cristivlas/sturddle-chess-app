@@ -52,8 +52,12 @@ class Input:
         self._error = ''
         self._text = ''
         self._results = []
-        # play audible feedback when command is understood
-        self._ok_sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), 'ok.mp3'))
+
+        try:
+            # play audible feedback when command is understood
+            self._ok_sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), 'ok.mp3'))
+        except:
+            self._ok_sound = None
         if self._ok_sound:
             self._ok_sound.volume = 0.5
 

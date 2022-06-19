@@ -1553,7 +1553,7 @@ class ChessApp(App):
 
 
     def speak(self, message):
-        tts.speak(message.capitalize(), stt.stt)
+        tts.speak(message, stt.stt)
 
 
     def search_move(self):
