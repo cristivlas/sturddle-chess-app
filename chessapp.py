@@ -1448,18 +1448,26 @@ class ChessApp(App):
         self.board_widget.show_promotion_bubble(move, self.on_promo)
 
 
+    @staticmethod
+    def _clipboard():
+        try:
+            return Clipboard.paste()
+        except Exception as e:
+            Logger.warning(f'_clipboard: {e}')
+
+
     """ Paste PGN string from clipboard """
     def paste(self, *_):
-        self.load_pgn(StringIO(Clipboard.paste()), 'game')
+        self.load_pgn(StringIO(self._clipboard()), 'game')
 
 
     def paste_fen(self, *_):
-        if text := Clipboard.paste():
+        if text := self._clipboard():
             self.load_pgn(StringIO(f'[FEN "{text}"]'), 'position')
 
 
     def validate_clipboard(self):
-        if text := Clipboard.paste():
+        if text := self._clipboard():
             if game := chess.pgn.read_game(StringIO(text)):
                 return game.mainline_moves() or game.headers.get('FEN', None)
 
