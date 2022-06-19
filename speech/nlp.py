@@ -238,6 +238,7 @@ class NLP:
     Corrections for some common mistakes in speech recognition.
     '''
     corrections = {
+        r'\b284\b' : 'to a4',
         r'\b288\b' : 'to h8',
         r'\bage\s*([1-8])' : r'h\1',
         r'\banyone\b' : 'e1',
