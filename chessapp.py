@@ -795,6 +795,13 @@ class ChessApp(App):
         self.engine.cancel()
         self.engine.stop()
 
+        if platform == 'macosx':
+            # hide python launcher from dock
+            from AppKit import NSApp
+            view = NSApp().dockTile().contentView()
+            view.setHidden_(True)
+            view.removeFromSuperview()
+
 
     def on_resume(self):
         self._android_hide_menu()
