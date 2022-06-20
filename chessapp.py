@@ -704,6 +704,16 @@ class ChessApp(App):
             w.move = str()
 
 
+    def _on_keyboard_settings(self, *_):
+        '''
+        Disable built-in Kivy settings.
+
+        TODO: consider integrating own Setting within Kivy's design;
+        TODO: consider persisting setting and PGN games in INI file.
+        '''
+        pass
+
+
     def on_keyboard(self, window, keycode1, keycode2, text, modifiers):
         '''
         Ctrl+Z: undo
@@ -1898,7 +1908,7 @@ class ChessApp(App):
         target_nps = self.NPS_LEVEL[self.difficulty_level-1]
         time_limit = self._time_limit[self._limit] * 1000
 
-        while time_limit > millisec and search.nps > target_nps:
+        while time_limit > millisec > 0 and search.nps > target_nps:
             millisec = search.nanosleep(100000)
             self.nps = search.nps
 
