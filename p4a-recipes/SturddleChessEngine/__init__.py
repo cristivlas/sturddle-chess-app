@@ -80,7 +80,6 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'chess.cpp',
             'context.h',
             'context.cpp',
-            'intrusive.h',
             'shared_hash_table.h',
             'search.h',
             'search.cpp',

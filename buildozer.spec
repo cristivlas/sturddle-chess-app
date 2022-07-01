@@ -19,10 +19,10 @@ source.include_exts = py,png,jpg,kv,atlas,bin,csv,tsv,ttf
 #source.include_patterns = assets/*,images/*.png
 
 # (list) Source files to exclude (let empty to not exclude anything)
-source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3
+source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = tests,bin,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots
+source.exclude_dirs = tests,bin,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots,venv
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
