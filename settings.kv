@@ -118,7 +118,7 @@
             cursor_size: dp(22), dp(22)
             padding: dp(16)
             # changing active cores during search may crash
-            disabled: app.engine.busy
+            disabled: app.engine.busy or app.difficulty_level < app.MAX_DIFFICULTY
 
     RelativeLayout:
         size_hint: 1, None
