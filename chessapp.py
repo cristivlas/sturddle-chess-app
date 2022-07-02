@@ -16,6 +16,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
+# workaround nspaste throwing index errors on macos
+import os
+os.environ['KIVY_CLIPBOARD']='sdl2'
+
 from kivy.config import Config
 
 Config.set('graphics', 'resizable', False)
@@ -389,6 +393,20 @@ class no_update_callbacks:
 
         # ...and perform one single update
         self._update(self._move)
+
+
+def _to_clipboard(text):
+    try:
+        return Clipboard.copy(text)
+    except Exception as e:
+        Logger.warning(f'_to_clipboard: {e}')
+
+
+def _from_clipboard():
+    try:
+        return Clipboard.paste()
+    except Exception as e:
+        Logger.warning(f'_from_clipboard: {e}')
 
 
 class ChessApp(App):
@@ -1458,37 +1476,29 @@ class ChessApp(App):
         self.board_widget.show_promotion_bubble(move, self.on_promo)
 
 
-    @staticmethod
-    def _clipboard():
-        try:
-            return Clipboard.paste()
-        except Exception as e:
-            Logger.warning(f'_clipboard: {e}')
-
-
     """ Paste PGN string from clipboard """
     def paste(self, *_):
-        self.load_pgn(StringIO(self._clipboard()), 'game')
+        self.load_pgn(StringIO(_from_clipboard()), 'game')
 
 
     def paste_fen(self, *_):
-        if text := self._clipboard():
+        if text := _from_clipboard():
             self.load_pgn(StringIO(f'[FEN "{text}"]'), 'position')
 
 
     def validate_clipboard(self):
-        if text := self._clipboard():
+        if text := _from_clipboard():
             if game := chess.pgn.read_game(StringIO(text)):
                 return game.mainline_moves() or game.headers.get('FEN', None)
 
 
     def copy_fen(self):
-        Clipboard.copy(self.board_widget.model.epd())
+        _to_clipboard(self.board_widget.model.epd())
 
 
     def _copy(self):
         if not self.edit and self.game_in_progress():
-            return lambda *_: Clipboard.copy(self.transcribe()[1])
+            return lambda *_: _to_clipboard(self.transcribe()[1])
 
 
     def _paste(self):
