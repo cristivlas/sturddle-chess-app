@@ -105,6 +105,8 @@ class MovesTree:
 
     def rewind(self):
         self.current = self.head
+        if self.current:
+            self.current_comment = self.current.comment
 
     def export_pgn(self):
         if self.pgn is None:

@@ -206,7 +206,7 @@ class FontScalingLabel(Label):
         while any([self.texture_size[i] > self.size[i] for i in [0,1]]):
             if self.font_size <= 1:
                 break
-            self.font_size -= 1
+            self.font_size -= dp(1)
             self.texture_update()
         self.font_resize = self.font_size
 
@@ -1107,10 +1107,21 @@ class ChessApp(App):
         self.engine.set_fen(fen)
         name = self._game_name(node)
         self.moves_record = MovesTree.import_pgn(node, name, fen=fen)
-        self.show_comment(node.comment)
+        rewind = False
+
         with no_update_callbacks(self.engine):
             while self.moves_record.current_move:
                 self.engine.apply(self.moves_record.pop())
+
+            # rewind to beginning
+            if node.headers.get('Event', '?').strip() != '?':
+                rewind = True
+                while self.can_undo():
+                    self.undo_move()
+
+        if rewind:
+            self.update()
+
         Logger.info(f'load_pgn: {name}')
 
 
@@ -1441,7 +1452,7 @@ class ChessApp(App):
 
     def _set_study_mode(self, value, auto_move=True):
         self.__study_mode = value
-        self.update(self.engine.last_moves()[-1])
+        self.update(self.engine.last_moves()[-1], show_comment=False)
         if value:
             self.undo_button.text = ' \uf053 '
             self.redo_button.text = ' \uf054 '
@@ -1847,7 +1858,7 @@ class ChessApp(App):
         self.board_widget.set_model(self.engine.board)
         self.root.remove_widget(self.edit)
         self.edit = None
-        self.update(self.engine.last_moves()[-1])
+        self.update(self.engine.last_moves()[-1], show_comment=False)
         self.engine.update_last_moves()
         if not self.study_mode:
             self.update_hash_usage()
