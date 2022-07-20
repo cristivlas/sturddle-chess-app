@@ -617,7 +617,11 @@ class ChessApp(App):
 
 
     def format_opening(self, opening_name):
-        opening_name = f'[i][ref=https://www.google.com/search?q="{opening_name}"][b]{opening_name}[/b][/ref][/i]'
+        opening = opening_name
+        if not opening.endswith(' Opening'):
+            opening += ' Opening'
+
+        opening_name = f'[i][ref=https://www.google.com/search?q={opening}][b]{opening_name}[/b][/ref][/i]'
         self.opening.text = opening_name
 
 
@@ -1759,8 +1763,10 @@ class ChessApp(App):
 
 
     def edit_clear(self):
-        self.board_widget.model.clear()
-        self.update()
+        def clear():
+            self.board_widget.model.clear()
+            self.update()
+        self.confirm('Clear the board', clear)
 
 
     def edit_toggle_castling_rights(self, square):
