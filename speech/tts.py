@@ -31,6 +31,7 @@ from plyer.utils import whereis_exe
 Bypass plyer.tts because: it has no stop(); the Android impl is buggy.
 '''
 _scheduled = [None]
+_speaking = [False]
 
 
 if platform == 'ios':
@@ -55,12 +56,13 @@ elif platform == 'android':
             OnInitListener.status = status
             Logger.info(f'tts: OnInit status={self.status}')
 
+
     listener = OnInitListener()
     instance = TextToSpeech(activity, listener)
 
 
     def _speak(message, *_):
-        Logger.info(f'tts: _speak OnInitListener.status={OnInitListener.status}')
+        Logger.debug(f'tts: _speak OnInitListener.status={OnInitListener.status}')
 
         if OnInitListener.status is None:
             # initialization pending, retry later
@@ -70,7 +72,7 @@ elif platform == 'android':
         else:
             if OnInitListener.status >= 0:
                 status = instance.speak(message, TextToSpeech.QUEUE_FLUSH, None)
-                Logger.info(f'tts speak({message})={status}')
+                Logger.debug(f'tts speak({message})={status}')
             else:
                 Logger.error(f'tts: OnInitListener.status={OnInitListener.status}')
 
@@ -78,12 +80,14 @@ elif platform == 'android':
 
 else:
     def _subprocess(args):
+        _scheduled[0] = None
+        _speaking[0] = True
         p = subprocess.Popen(args)
 
         def background_wait(p):
             p.wait()
             Logger.info(f'stt: {p}')
-            _scheduled[0] = None
+            _speaking[0] = False
 
         thread = threading.Thread(target=background_wait, args=(p,))
         # exit abnormally if main thread is terminated
@@ -99,17 +103,18 @@ else:
 
 
 def is_speaking():
-    if _scheduled[0]:
-        return True
-
     if platform == 'android':
         return instance.isSpeaking()
+
+    return _speaking[0]
 
 
 def speak(message, stt, *_):
     assert(message)
 
     if is_speaking() or stt.is_listening():
+        if _scheduled[0]:
+            Clock.unschedule(_scheduled[0])
         _scheduled[0] = Clock.schedule_once(partial(speak, message, stt), 0.1)
 
     else:
