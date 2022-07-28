@@ -41,6 +41,11 @@ class ModalBox(ModalView):
     separator_height = NumericProperty(dp(2))
     _container = ObjectProperty(None)
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # self.background = ''
+        # self.background_color = 0,0,0,0
+
     def add_widget(self, widget, *args, **kwargs):
         if self._container:
             if self.content:
@@ -112,6 +117,7 @@ class MessageBox:
             on_dismiss=on_close,
             pos_hint={'center_x':.5, 'center_y':.5},
             size_hint=(0.8, 0.325),
-            title=title
+            title=title,
+            overlay_color=[0, 0, 0, .65],
         )
         self.popup.open()

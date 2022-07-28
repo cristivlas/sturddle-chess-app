@@ -133,10 +133,8 @@ class Timer:
         return (datetime.now() - self.start).total_seconds()
 
 
-SearchAlgorithm = [
-    [MTDf, Negamax, Negascout],
-    [MTDf_i, Negamax_i, Negascout_i],
-]
+SearchAlgorithm = [MTDf_i, Negamax_i, Negascout_i]
+
 
 
 class Engine:
@@ -167,10 +165,6 @@ class Engine:
         self.time_limit = 10
         self.depth_limit = 100
         self.algorithm = Engine.Algorithm.MTDF
-        self.depth = 5
-        self.use_time_limit = True # otherwise use max depth
-        # self.debug_info = {} # add debug info as comments in PGN
-        self.debug_info = None
         self.hashfull = 0
         self.clear_hash_on_move = False
         self.node_count = 0
@@ -438,23 +432,16 @@ class Engine:
             except:
                 pass
 
-        if self.use_time_limit:
-            time_limit = self.time_limit
-            depth = self.depth_limit
-        else:
-            time_limit = 0
-            depth = self.depth
-
         #
         # instantiate search algorithm
         #
-        self.search = SearchAlgorithm[self.use_time_limit][self.algorithm](
+        self.search = SearchAlgorithm[self.algorithm](
             self.board,
-            depth=depth,
-            time_limit=time_limit,
-            callback=self.search_callback,
-            iteration_callback=self.iteration_callback,
-            threads_report=self._update_node_count
+            depth = self.depth_limit,
+            time_limit = self.time_limit,
+            callback = self.search_callback,
+            iteration_callback = self.iteration_callback,
+            threads_report = self._update_node_count
             )
 
         with Timer() as timer:
@@ -467,9 +454,6 @@ class Engine:
         # user has cancelled the search?
         if search.is_cancelled:
             return None
-
-        if self.debug_info != None:
-            self.debug_info[move] = f'{search.current_depth}: {score} {search.trace()}'
 
         return move
 
@@ -522,9 +506,6 @@ class Engine:
         if not self.busy:
             self.board = BoardModel()
             self.redo_list.clear()
-
-            if self.debug_info != None:
-                self.debug_info.clear()
 
             clear_hashtable()
             self.hashfull = 0
@@ -604,9 +585,6 @@ class Engine:
         node, board = game, chess.Board(fen)
         for move in self.board.move_stack:
             node = node.add_variation(move)
-
-            if self.debug_info:
-                node.comment = self.debug_info.get(move, None)
 
             board.push(move)
 

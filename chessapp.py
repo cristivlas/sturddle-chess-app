@@ -416,11 +416,13 @@ class ChessApp(App):
     # Node-per-second limits by "skill-level". The engine does not
     # implement strength levels, the application layer injects delays
     # and "fuzzes" the evaluation function (EVAL_FUZZ is an engine
-    # parameter which introduces random errors in the -EVAL_FUZZ, EVAL_FUZZ
-    # interval).
-    NPS_LEVEL = [ 2000, 3000, 4500, 6000, 10000, 15000, 20000, 25000 ]
+    # parameter which introduces random errors in the closed interval
+    # [-EVAL_FUZZ, EVAL_FUZZ]
+    # ----------------------------------------------------------------
+    NPS_LEVEL = [ 1500, 2500, 4000, 6000, 10000, 15000, 20000, 25000 ]
     FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
-
+    MAX_DEPTH = [  5,    7,    9,   13,   17,    21,    25,    30    ]
+    # ----------------------------------------------------------------
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
 
     def __init__(self, **kwargs):
@@ -652,7 +654,6 @@ class ChessApp(App):
             self.engine.set_notation(store.get('notation', 'san'))
             self.load_game_study(store)
             self.limit = store.get('limit', self._limit)
-            self.engine.depth = store.get('depth', self.engine.depth)
             self.engine.algorithm = store.get('algo', Engine.Algorithm.MTDF)
             self.engine.clear_hash_on_move = store.get('clear_hash', False)
             self.comments = store.get('comments', True)
@@ -687,7 +688,6 @@ class ChessApp(App):
             polyglot=self.engine.polyglot_file,
             var_strategy=self.engine.variable_strategy,
             limit=self.limit,
-            depth=self.engine.depth,
             notation=self.engine.notation,
             use_eco=(self.eco != None),
             algo=self.engine.algorithm,
@@ -1334,13 +1334,13 @@ class ChessApp(App):
             self.update(self.engine.last_moves()[-1], show_comment=False)
 
         popup = ModalBox(
-            title=title,
-            content=content,
-            size_hint=(0.9, 0.775),
-            on_dismiss=dismiss,
-            close_text=close
+            title = title,
+            content = content,
+            size_hint = (0.9, 0.775),
+            on_dismiss = dismiss,
+            close_text = close,
+            overlay_color = [0, 0, 0, .5],
         )
-        popup.overlay_color = [0, 0, 0, .5]
         content._popup = popup
         popup.on_open = on_open
         popup.open()
@@ -1948,8 +1948,10 @@ class ChessApp(App):
             self.delay = 0
             if level >= len(self.FUZZ):
                 chess_engine.set_param('EVAL_FUZZ', 0)
+                chess_engine.depth_limit = 100
             else:
                 chess_engine.set_param('EVAL_FUZZ', self.FUZZ[level])
+                chess_engine.depth_limit = self.MAX_DEPTH[level]
 
             if level == self.MAX_DIFFICULTY:
                 self.engine.search_callback = None
