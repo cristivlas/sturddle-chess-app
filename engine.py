@@ -152,6 +152,7 @@ class Engine:
         self.worker = WorkerThread()
         self.depth_callback = lambda *_: None
         self.promotion_callback = None
+        self.score_callback = lambda *_: None
         self.search_callback = None
         self.update_callback = update_callback
         self.update_move_callback = update_move_callback
@@ -424,14 +425,10 @@ class Engine:
     def search_move(self):
         if self.book:
             try:
-                move = self.search_opening(self.board.base_copy())
-                if move:
-                    turn_name = chess.COLOR_NAMES[self.board.turn]
-                    self.log(f'{turn_name}: [{move}] found in {self.polyglot_file}')
+                if move := self.search_opening(self.board.base_copy()):
                     return move
             except:
                 pass
-
         #
         # instantiate search algorithm
         #
@@ -446,9 +443,10 @@ class Engine:
 
         with Timer() as timer:
             move, score = self.search.search()
-        self.log(f'search time: {timer.info}')
 
         search = self.search
+        self.score_callback(search, self.board.turn, score)
+
         self.search = None
 
         # user has cancelled the search?

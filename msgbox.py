@@ -41,11 +41,6 @@ class ModalBox(ModalView):
     separator_height = NumericProperty(dp(2))
     _container = ObjectProperty(None)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # self.background = ''
-        # self.background_color = 0,0,0,0
-
     def add_widget(self, widget, *args, **kwargs):
         if self._container:
             if self.content:

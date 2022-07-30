@@ -1,4 +1,8 @@
 puzzles="""
+r2kr3/nR1p2pp/R7/3NPP2/2P5/6P1/3q1nKP/Q7 w - - bm Rxd7+; id "STURDDLE.001";
+2R5/4bppk/1p1p4/5R1P/4PQ2/5P2/r4q1P/7K w - - bm Qh6+; id "STURDDLE.002";
+r3Rb1k/8/p2p1q1p/3n1bN1/Pn5Q/6RP/1p3PPK/1B6 w - - bm Nf7+; id "STURDDLE.003";
+r1b1r3/np1p3p/p4k2/6N1/2P1Bn1q/2N5/R2P2PP/QR5K w - - bm Nd5+; id "STURDDLE.004";
 2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - - bm Qg6; id "WAC.001";
 8/7p/5k2/5p2/p1p2P2/Pr1pPK2/1P1R3P/8 b - - bm Rxb2; id "WAC.002";
 5rk1/1ppb3p/p1pb4/6q1/3P1p1r/2P1R2P/PP1BQ1P1/5RKN w - - bm Rg3; id "WAC.003";

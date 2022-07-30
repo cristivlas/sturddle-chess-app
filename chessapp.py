@@ -235,7 +235,7 @@ class Notepad(TextInput):
         self._update_graphics_ev.cancel()
 
 
-    def get_min_height(self, width, lines_max=1000):
+    def get_bounding_box(self, width, lines_max=500):
         '''
         Compute the minimum height required to display the entire
         text (without scrolling) inside of a box of a given width.
@@ -245,7 +245,7 @@ class Notepad(TextInput):
             font_size=self.font_size
         ).get_cached_extents()
 
-        width -= self.padding[0] + self.padding[2]
+        padding = self.padding[0] + self.padding[2]
 
         num_lines = 1
         line = ''
@@ -255,17 +255,23 @@ class Notepad(TextInput):
             w = words.pop(0)
             line += w + ' '
 
-            if extents(line)[0] >= width:
+            if extents(line)[0] + padding >= width:
                 num_lines += 1
                 line = ''
 
                 # put the word back in the list
                 words.insert(0, w)
 
-        num_lines += bool(line)
+        if line:
+            if num_lines == 1:
+                width = extents(line)[0] + padding
+
+            num_lines += 1
+
         text_height = extents(self.text)[1]
 
         return (
+            width,
             num_lines * (text_height + self.line_spacing)
             + self.padding[1]
             + self.padding[3]
@@ -435,6 +441,7 @@ class ChessApp(App):
         self.engine = Engine(self.update, self.update_move, Logger.info)
         self.engine.depth_callback = self.update_hash_usage
         self.engine.promotion_callback = self.get_promotion_type
+        self.engine.score_callback = self.score_callback
         self.engine.search_callback = self.search_callback
 
         # wrap engine search
@@ -1279,12 +1286,14 @@ class ChessApp(App):
             background_color=(1,1,1,0.5),
             width=width,
         )
+        bbox = textpad.get_bounding_box(width)
+
         bubble = Bubble(
             size_hint=(None, None),
             show_arrow=False,
-            width=width,
+            width=bbox[0],
             height=min(
-                textpad.get_min_height(width),
+                max(bbox[1], font_size),
                 self.board_widget.height * size_ratio[1]
             )
         )
@@ -1298,6 +1307,7 @@ class ChessApp(App):
 
         # highlight the starting square, so that
         # the bubble may leave the destination visible
+
         if move := self.engine.last_moves()[-1]:
             self.board_widget.highlight_move(move.uci()[:2])
 
@@ -1918,6 +1928,36 @@ class ChessApp(App):
             return f'{limit:2d} sec'
         limit //= 60
         return f'{limit:2d} min'
+
+
+    @mainthread
+    def score_callback(self, search, color, score):
+        def san(board, uci):
+            try:
+                return board.san_and_push(chess.Move.from_uci(uci))
+            except:
+                return ''
+
+        def format_pv(pv):
+            if self.engine.notation == 'san':
+                board = search.context.board().copy()
+                pv = [san(board, uci) for uci in pv]
+            return ' '.join(pv[1:])
+
+        pv = search.get_pv()
+
+        if self.comments and score != None and len(pv) > 1:
+            if score > chess_engine.SCORE_MATE_HIGH:
+                mate = (chess_engine.SCORE_CHECKMATE - score) // 2
+                score = f'+M{mate}'
+            elif score < chess_engine.SCORE_MATE_LOW:
+                mate = (chess_engine.SCORE_CHECKMATE + score) // 2
+                score = f'-M{mate}'
+            else:
+                score = f'{score/100:.1f}'
+
+            text = f'Evaluation for {COLOR_NAMES[color]}: {score} [{format_pv(pv)}]'
+            self.show_comment(text)
 
 
     def search_callback(self, search, millisec):
