@@ -1957,10 +1957,10 @@ class ChessApp(App):
 
         if self.comments and score != None and len(pv) > 1:
             if score > chess_engine.SCORE_MATE_HIGH:
-                mate = (chess_engine.SCORE_CHECKMATE - score) // 2
+                mate = max(chess_engine.SCORE_CHECKMATE - score, len(pv)) // 2
                 score = f'+M{mate}'
             elif -chess_engine.SCORE_CHECKMATE <= score < chess_engine.SCORE_MATE_LOW:
-                mate = (chess_engine.SCORE_CHECKMATE + score) // 2
+                mate = max(chess_engine.SCORE_CHECKMATE + score, len(pv)) // 2
                 score = f'-M{mate}'
             else:
                 score = f'{score/100:.1f}'
