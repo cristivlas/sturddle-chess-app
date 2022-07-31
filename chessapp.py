@@ -457,8 +457,7 @@ class ChessApp(App):
         self.edit = None
         self.puzzle = None
         self.last_puzzle = 0
-        self.comments = True # show PGN comments in view mode?
-
+        self.comments = False
         self._time_limit = [ 1, 3, 5, 10, 15, 30, 60, 180, 300, 600, 900 ]
         self.limit = 1
         self.delay = 0
@@ -663,7 +662,7 @@ class ChessApp(App):
             self.limit = store.get('limit', self._limit)
             self.engine.algorithm = store.get('algo', Engine.Algorithm.MTDF)
             self.engine.clear_hash_on_move = store.get('clear_hash', False)
-            self.comments = store.get('comments', True)
+            self.comments = store.get('comments', False)
             self.cpu_cores = store.get('cores', 1)
 
             # Set difficulty after cores, as it resets cores to 1 if level < MAX
@@ -1112,6 +1111,7 @@ class ChessApp(App):
         except ValueError as e:
             Logger.error(f'load_pgn: {e}')
             return
+
         self.engine.pause(cancel=True)
         self.start_new_game(auto_move=False)
         self.set_study_mode(True)
@@ -1129,6 +1129,15 @@ class ChessApp(App):
                 rewind = True
                 while self.can_undo():
                     self.undo_move()
+
+        def turn_comments_on():
+            self.comments = True
+
+        if self.moves_record.have_comments and not self.comments:
+            self.confirm(
+                'This game contains comments, do you want to see them',
+                turn_comments_on
+            )
 
         if rewind:
             self.update()
@@ -1956,7 +1965,7 @@ class ChessApp(App):
             else:
                 score = f'{score/100:.1f}'
 
-            text = f'Evaluation for {COLOR_NAMES[color]}: {score} [{format_pv(pv)}]'
+            text = f"{COLOR_NAMES[color]}'s score: {score} ({format_pv(pv)})"
             self.show_comment(text)
 
 

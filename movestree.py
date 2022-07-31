@@ -44,10 +44,13 @@ class Node:
         return self.move.uci() == node.move.uci()
 
 
-def _clone(node, label=None):
+def _clone(node, label, have_comments):
+    if node.comment:
+        have_comments[0] = True
+
     new_node = Node(move=node.move, comment=node.comment, label=label)
     for child in node.variations:
-        new_node.add(_clone(child, label))
+        new_node.add(_clone(child, label, have_comments))
     return new_node
 
 
@@ -84,6 +87,7 @@ class MovesTree:
     def clear(self):
         self.head = self.current = Node(None)
         self.current_comment = None
+        self.have_comments = False
         self.pgn = None
         self.fen = None
 
@@ -125,6 +129,9 @@ class MovesTree:
     def import_pgn(node, label=None, select_variation_callback=None, fen=None):
         tree = MovesTree(select_variation_callback, fen)
         if node:
-            tree.current = tree.head = _clone(node, label)
+            have_comments = [False]
+            tree.current = tree.head = _clone(node, label, have_comments)
             tree.pop() # make self.current point to the first move
+            tree.have_comments = have_comments[0]
+
         return tree
