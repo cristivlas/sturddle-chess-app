@@ -1959,7 +1959,7 @@ class ChessApp(App):
             if score > chess_engine.SCORE_MATE_HIGH:
                 mate = (chess_engine.SCORE_CHECKMATE - score) // 2
                 score = f'+M{mate}'
-            elif score < chess_engine.SCORE_MATE_LOW:
+            elif -chess_engine.SCORE_CHECKMATE <= score < chess_engine.SCORE_MATE_LOW:
                 mate = (chess_engine.SCORE_CHECKMATE + score) // 2
                 score = f'-M{mate}'
             else:
