@@ -1965,7 +1965,7 @@ class ChessApp(App):
             else:
                 score = f'{score/100:.1f}'
 
-            text = f"{COLOR_NAMES[color]}'s score: {score} ({format_pv(pv)})"
+            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
             self.show_comment(text)
 
 

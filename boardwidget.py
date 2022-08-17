@@ -20,6 +20,7 @@ from functools import partial
 
 import chess
 from kivy.core.image import Image as CoreImage
+from kivy.core.window import Window
 from kivy.graphics import *
 from kivy.properties import *
 from kivy.metrics import *
@@ -181,8 +182,12 @@ class BoardWidget(AtlasChessWidget):
         for promotion choices, Copy/Paste buttons, game commentary.
     """
     def show_bubble(self, bubble, auto_dismiss=False, on_dismiss=lambda *_:None):
-         # avoid showing the bubble during the app's initial size calculation
+        # avoid showing the bubble during the app's initial size calculation
         if any((i <= 100 for i in self.size)):
+            return
+
+        # Do not show the bubble if there's a modal view active
+        if isinstance(Window.children[0], ModalView):
             return
 
         # calculate pos_hint
