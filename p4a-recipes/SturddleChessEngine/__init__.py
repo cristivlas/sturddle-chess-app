@@ -34,17 +34,20 @@ setup(
             'captures.cpp',
             'context.cpp',
             'chess.cpp',
-            'search.cpp'
+            'search.cpp',
+            'misc.cpp',
+            'nnue.cpp',
         ],
         extra_compile_args=[
-             '-std=c++17',
-             '-O3',
-             '-Wno-unused-label',
-             '-Wno-unused-variable',
-             '-Wno-deprecated-declarations',
-             '-DCYTHON_WITHOUT_ASSERTIONS',
-             '-DNO_ASSERT',
-             '-DCALLBACK_PERIOD=512'
+            '-std=c++17',
+            '-O3',
+            '-Wno-unused-label',
+            '-Wno-unused-variable',
+            '-Wno-deprecated-declarations',
+            '-DCYTHON_WITHOUT_ASSERTIONS',
+            '-DNO_ASSERT',
+            '-DCALLBACK_PERIOD=512',
+            '-DWITH_NNUE',
         ],
         extra_link_args=['-O3', '-lc++_shared'],
         language='c++')]
@@ -86,7 +89,12 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'tables.h',
             'thread_pool.hpp',
             'utility.h',
-            'zobrist.h'
+            'zobrist.h',
+            'nnue-probe/src/auto.h',
+            'nnue-probe/src/misc.cpp',
+            'nnue-probe/src/misc.h',
+            'nnue-probe/src/nnue.cpp',
+            'nnue-probe/src/nnue.h',
         ]:
             shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', src), dest_dir)
 
