@@ -39,6 +39,7 @@ setup(
             'nnue.cpp',
         ],
         extra_compile_args=[
+            '-mfpu=neon',
             '-std=c++17',
             '-O3',
             '-Wno-unused-label',
