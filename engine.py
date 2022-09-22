@@ -191,10 +191,10 @@ class Engine:
         return bool(self.search)
 
 
-    def iteration_callback(self, search_instance, node, score):
+    def iteration_callback(self, search_instance, node, score, n_nodes, nps, ms):
         pv = node.get_pv()
         depth = search_instance.current_depth
-        knps = search_instance.nps / 1000
+        knps = nps / 1000
         self.hashfull = get_hash_full()
         self.depth_callback()
         self.log(f'{chess.COLOR_NAMES[self.board.turn]} / {depth}: {score/100 :.2f} {knps:.2f} kNps {pv}')
@@ -437,7 +437,7 @@ class Engine:
             depth = self.depth_limit,
             time_limit = self.time_limit,
             callback = self.search_callback,
-            iteration_callback = self.iteration_callback,
+            iteration_cb = self.iteration_callback,
             threads_report = self._update_node_count
             )
 
