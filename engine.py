@@ -29,7 +29,6 @@ from kivy.logger import Logger
 from sturddle_chess_engine import *
 from worker import Locking, WorkerThread
 
-VERSION = version()
 
 
 def format_move(board, move):
@@ -610,11 +609,6 @@ class Engine:
             except FileNotFoundError:
                 pass
         self.book = None
-
-
-    @staticmethod
-    def version():
-        return VERSION
 
 
     @staticmethod

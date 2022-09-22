@@ -98,7 +98,6 @@ CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
 ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flatico'
-TITLE   = f'Sturddle Chess  {Engine.version()}'
 ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
@@ -434,6 +433,15 @@ class ChessApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # Android kludge. The NNUE file is installed in the app files
+        # folder, while the chess engine goes into the site bundle.
+        # The engine module looks for the NNUE file in its own folder :(
+
+        if not chess_engine.nnue_ok() and platform == 'android':
+            app_files = os.path.join(self.user_data_dir, 'app', '')
+            Logger.info(f'nnue_init({app_files})')
+            chess_engine.nnue_init(app_files)
+
         chess.pgn.LOGGER.setLevel(50)
         self.modal = None
         self.store = DictStore('game.dat')
@@ -468,6 +476,7 @@ class ChessApp(App):
 
 
     def about(self, *_):
+        TITLE = f'Sturddle Chess {chess_engine.version()}'
         self.message_box(TITLE, ABOUT, Image(source=IMAGE), auto_wrap=False)
         self.modal.popup.size_hint=(.9, .35)
         self.modal.popup.message_max_font_size = sp(14)
