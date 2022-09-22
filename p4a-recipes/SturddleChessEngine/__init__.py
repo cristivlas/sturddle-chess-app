@@ -48,6 +48,7 @@ setup(
             '-DCYTHON_WITHOUT_ASSERTIONS',
             '-DNO_ASSERT',
             '-DCALLBACK_PERIOD=512',
+            '-DEVAL_FUZZ_ENABLED',
             '-DWITH_NNUE',
         ],
         extra_link_args=['-O3', '-lc++_shared'],
