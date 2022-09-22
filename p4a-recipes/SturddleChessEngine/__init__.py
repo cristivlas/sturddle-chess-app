@@ -26,6 +26,9 @@ import sh
 
 setup = """from distutils.core import setup
 from distutils.extension import Extension
+from datetime import datetime
+
+build_stamp = datetime.now().strftime('%m%d%y.%H%M')
 
 setup(
     ext_modules=[Extension('sturddle_chess_engine',
@@ -39,6 +42,7 @@ setup(
             'nnue.cpp',
         ],
         extra_compile_args=[
+            '-fvisibility=hidden',
             '-mfpu=neon',
             '-std=c++17',
             '-O3',
@@ -50,6 +54,8 @@ setup(
             '-DCALLBACK_PERIOD=512',
             '-DEVAL_FUZZ_ENABLED',
             '-DWITH_NNUE',
+            '-DBUILD_STAMP=' + build_stamp,
+            '-DPyMODINIT_FUNC=__attribute__((visibility("default"))) extern "C" PyObject*',
         ],
         extra_link_args=['-O3', '-lc++_shared'],
         language='c++')]
@@ -59,7 +65,7 @@ setup(
 NAME = 'SturddleChessEngine'
 
 class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
-    version = '1.2'
+    version = '1.3'
     name = NAME
     cython_args = ['--cplus']
 
