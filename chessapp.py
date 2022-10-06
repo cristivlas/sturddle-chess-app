@@ -1419,7 +1419,15 @@ class ChessApp(App):
     def settings(self, *_):
         speak_moves = [self.speak_moves]
 
-        def _voice():
+        def _on_close(*_):
+
+            # reschedule self for later if modal dialog is on,
+            # because any text bubbles will not pop up while
+            # another modal window is active
+            if isinstance(Window.children[0], ModalView):
+                Clock.schedule_once(_on_close)
+                return
+
             if speak_moves[0] != self.speak_moves:
                 speak_moves[0] = self.speak_moves
                 self.speak('Voice on' if self.speak_moves else 'Voice off')
@@ -1427,7 +1435,7 @@ class ChessApp(App):
                 if self.speak_moves:
                     self.touch_hint('anywhere outside the board and hold to speak.')
 
-        self._modal_box('Settings', AppSettings(), on_close=_voice)
+        self._modal_box('Settings', AppSettings(), on_close=_on_close)
 
 
     def advanced_settings(self, *_):
