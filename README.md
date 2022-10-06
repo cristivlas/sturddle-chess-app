@@ -1,7 +1,6 @@
 # sturddle-chess-app
-Casual Chess App
-
-- Original chess engine (C++ / Cython submodule)
+## Casual Chess App
+- Original <a href="https://github.com/cristivlas/sturddle-chess-engine">hybrid chess engine</a> (C++/Cython)
 - Built-in board editor
 - Turn AI off / on
 - Copy / paste game in PGN format (including comments)
@@ -16,7 +15,7 @@ Casual Chess App
 ![Alt text](/screenshots/Screenshot_PNGViewer.png?raw=true "PGN Viewer")
 ![Alt text](/screenshots/Screenshot_Settings.png?raw=true "Settings")
 ![Alt text](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
-
+<a href="https://en.wikipedia.org/wiki/Sturddlefish"><img src="images/sturddlefish.png" height="240px"><a/>
 # Build on desktop (requires Python3.8 or higher)
 ***NOTE there's currently an issue with deepspeech-tflite==0.9.3 and Python 3.10***
 ```
