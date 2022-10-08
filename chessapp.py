@@ -426,7 +426,7 @@ class ChessApp(App):
     # ----------------------------------------------------------------
     NPS_LEVEL = [ 1500, 2500, 4000, 6000, 10000, 15000, 20000, 25000 ]
     FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
-    MAX_DEPTH = [  5,    7,    9,   13,   17,    21,    25,    30    ]
+    MAX_DEPTH = [  5,    7,    9,   11,   13,    15,    17,    21    ]
     # ----------------------------------------------------------------
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
 
@@ -469,10 +469,11 @@ class ChessApp(App):
         self._time_limit = [ 1, 3, 5, 10, 15, 30, 60, 180, 300, 600, 900 ]
         self.limit = 1
         self.delay = 0
-        self.difficulty_level = 1
         self.nps = 0 # nodes per second
         self.show_nps = False
         self.show_hash = False
+        self.difficulty_level = 0
+        self.set_difficulty_level(1)
 
 
     def about(self, *_):
@@ -2014,10 +2015,10 @@ class ChessApp(App):
             self.delay = 0
             if level >= len(self.FUZZ):
                 chess_engine.set_param('EVAL_FUZZ', 0)
-                chess_engine.depth_limit = 100
+                self.engine.depth_limit = 100
             else:
-                chess_engine.set_param('EVAL_FUZZ', self.FUZZ[level])
-                chess_engine.depth_limit = self.MAX_DEPTH[level]
+                chess_engine.set_param('EVAL_FUZZ', self.FUZZ[level-1])
+                self.engine.depth_limit = self.MAX_DEPTH[level-1]
 
             if level == self.MAX_DIFFICULTY:
                 self.engine.search_callback = None
