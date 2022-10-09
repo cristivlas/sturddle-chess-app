@@ -19,9 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 p4a recipe for compiling the C++ engine
 """
 
+from glob import glob
+from os import makedirs, path
 from pythonforandroid.recipe import CppCompiledComponentsPythonRecipe, CythonRecipe
 from pythonforandroid.logger import shprint
-from os import makedirs, path
 import sh
 
 setup = """from distutils.core import setup
@@ -105,6 +106,10 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'nnue-probe/src/nnue.h',
         ]:
             shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', src), dest_dir)
+
+        # NNUE
+        for nnue in glob(path.join(self.get_project_dir(), 'sturddle_chess_engine', 'nn-*.nnue')):
+            shprint(sh.cp, nnue, self.get_project_dir())
 
         # submodules:
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'libpopcnt', 'libpopcnt.h'), dest_dir)
