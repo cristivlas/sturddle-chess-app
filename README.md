@@ -1,5 +1,5 @@
 # sturddle-chess-app
-## Casual Chess App
+## Casual Offline Chess App
 - Original <a href="https://github.com/cristivlas/sturddle-chess-engine">hybrid chess engine</a> (C++/Cython)
 - Built-in board editor
 - Turn AI off / on
