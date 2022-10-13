@@ -464,11 +464,11 @@ class Engine:
                 self.node_count += secondary_task_context.stats()['nodes']
 
 
-    """ Restore game state """
     def setup(self, moves_list, starting_fen):
         assert not self.board.move_stack
         if starting_fen:
             self.board.set_fen(starting_fen)
+            self.update_missing_pieces()
         if moves_list:
             for move in moves_list:
                 self.update_move(self.push_with_format(move))
@@ -524,6 +524,7 @@ class Engine:
 
     def set_fen(self, fen, castling_rights=None):
         self.board.set_fen(fen)
+        self.update_missing_pieces()
 
         if castling_rights != None:
             self.board.castling_rights = castling_rights
@@ -599,6 +600,22 @@ class Engine:
 
         exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
         return title, game.accept(exporter)
+
+
+    def update_missing_pieces(self):
+        pos = self.board
+        for color in (chess.WHITE, chess.BLACK):
+            mask = pos.occupied_co[not color]
+            for i in range(0, 8 - chess.popcount(pos.pawns & mask)):
+                pos._captures[color].append(chess.PAWN)
+            for i in range(0, 2 - chess.popcount(pos.knights & mask)):
+                pos._captures[color].append(chess.KNIGHT)
+            for i in range(0, 2 - chess.popcount(pos.bishops & mask)):
+                pos._captures[color].append(chess.BISHOP)
+            for i in range(0, 2 - chess.popcount(pos.rooks & mask)):
+                pos._captures[color].append(chess.ROOK)
+            for i in range(0, 1 - chess.popcount(pos.queens & mask)):
+                pos._captures[color].append(chess.QUEEN)
 
 
     def use_opening_book(self, value):

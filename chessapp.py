@@ -647,7 +647,8 @@ class ChessApp(App):
         label = store.get('study_name', None)
         game = chess.pgn.read_game(StringIO(store.get('named_study', '')))
         if game:
-            self.moves_record = MovesTree.import_pgn(game, label, fen=game.headers.get('FEN', None))
+            fen = game.headers.get('FEN', None)
+            self.moves_record = MovesTree.import_pgn(game, label, fen=fen)
             self.update_moves_record(last_move=True)
 
 
