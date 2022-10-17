@@ -245,8 +245,8 @@ class Input:
 
         self._app.speak(
             'Did you mean: '
-            + '; '.join([describe_move(b, m, not same_square) for m in moves[:-1]])
-            + '; or ' + describe_move(b, moves[-1], not same_square)
+            + '; '.join([describe_move(b, m, not same_square, spell_digits=True) for m in moves[:-1]])
+            + '; or ' + describe_move(b, moves[-1], not same_square, spell_digits=True)
             + '?'
         )
 

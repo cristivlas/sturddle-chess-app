@@ -610,11 +610,16 @@ class ChessApp(App):
         return not self.engine.busy and self.game_in_progress()
 
 
-    def describe_move(self, move):
+    def describe_move(self, move, spell_digits=False):
         '''
         return a description of the move in English
         '''
-        return nlp.describe_move(self.engine.board, move, announce_check=True, announce_capture=True)
+        return nlp.describe_move(
+            self.engine.board,
+            move,
+            announce_check=True,
+            announce_capture=True,
+            spell_digits=spell_digits)
 
 
     def exit(self, *_):
@@ -1697,7 +1702,7 @@ class ChessApp(App):
             ctxt._event.cancel()
 
             if move and self.speak_moves:
-                self.speak(self.describe_move(move))
+                self.speak(self.describe_move(move, spell_digits=True))
 
             return move
 
