@@ -44,7 +44,7 @@ setup(
         ],
         extra_compile_args=[
             '-fvisibility=hidden',
-            #'-mfpu=neon',
+            '-mfpu=neon',
             '-std=c++17',
             '-O3',
             '-Wno-unused-label',
