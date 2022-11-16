@@ -40,7 +40,7 @@ class STT:
         return self._is_supported()
 
     def is_offline_supported(self):
-        return self._is_offline_supported()
+        return self._is_supported() and self._is_offline_supported()
 
     @property
     def prefer_offline(self):

@@ -187,7 +187,7 @@
 
         OptLabel:
             text: 'Offline Speech Recognition'
-            disabled: not stt.is_supported()
+            disabled: not stt.is_offline_supported()
         Switch:
             active: stt.prefer_offline
             on_active: stt.prefer_offline = self.active
