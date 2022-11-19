@@ -88,6 +88,9 @@
             cursor_size: dp(22), dp(22)
             padding: dp(16)
 
+        #
+        # AI Strength (Difficulty Level)
+        #
         OptLabel:
             text: 'Strength: {level:2d}'.format(level=int(difficulty.value))
 
@@ -101,14 +104,13 @@
             cursor_size: dp(22), dp(22)
             padding: dp(16)
             # changing difficulty during search may crash
-            disabled: app.engine.busy
+            disabled: app.engine_busy
 
         # Use multiple cores on highest difficulty level only.
         OptLabel:
             text: 'CPU Cores: {cores:2d}'.format(cores=int(cores.value))
 
         Slider:
-            disabled: app.difficulty_level != app.MAX_DIFFICULTY
             id: cores
             min: 1
             max: app.cpu_cores_max
@@ -118,7 +120,7 @@
             cursor_size: dp(22), dp(22)
             padding: dp(16)
             # changing active cores during search may crash
-            disabled: app.engine.busy or app.difficulty_level < app.MAX_DIFFICULTY
+            disabled: app.engine_busy or app.difficulty_level != app.MAX_DIFFICULTY
 
     RelativeLayout:
         size_hint: 1, None

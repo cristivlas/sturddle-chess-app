@@ -102,7 +102,7 @@ ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
-(C) 2022 [i]cristi.vlasceanu@gmail.com[/i]
+(C) 2022 Cristian L. Vlasceanu
 Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
@@ -417,6 +417,7 @@ def _from_clipboard():
 class ChessApp(App):
     icon = 'images/chess.png'
     font_awesome = 'fonts/Font Awesome 5 Free Solid.ttf'
+    engine_busy = ObjectProperty(bool)
 
     # Node-per-second limits by "skill-level". The engine does not
     # implement strength levels, the application layer injects delays
@@ -425,8 +426,8 @@ class ChessApp(App):
     # [-EVAL_FUZZ, EVAL_FUZZ]
     # ----------------------------------------------------------------
     NPS_LEVEL = [ 1500, 2500, 4000, 6000, 10000, 15000, 20000, 25000 ]
-    FUZZ =      [ 95,   75,   55,   40,   25,    20,    15,    10    ]
-    MAX_DEPTH = [  4,    5,    7,   11,   13,    15,    17,    21    ]
+    FUZZ =      [ 90,   75,   55,   40,   25,    20,    15,    10    ]
+    MAX_DEPTH = [  3,    4,    5,    7,    9,    11,    13,    15    ]
     # ----------------------------------------------------------------
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
 
@@ -1020,6 +1021,8 @@ class ChessApp(App):
         else:
             self.edit_button.text = 'Edit Board'
             self.edit_button.on_release = self.edit_start
+
+        self.engine_busy = self.engine.busy
 
 
     def update_hash_usage(self):

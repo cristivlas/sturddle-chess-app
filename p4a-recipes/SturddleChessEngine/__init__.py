@@ -92,6 +92,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'chess.cpp',
             'context.h',
             'context.cpp',
+            'primes.hpp',
             'shared_hash_table.h',
             'search.h',
             'search.cpp',
