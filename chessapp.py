@@ -102,7 +102,7 @@ ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
-(C) 2022 Cristian L. Vlasceanu
+(C) 2022 Cristian Vlasceanu
 Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
