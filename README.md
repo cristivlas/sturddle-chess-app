@@ -17,7 +17,7 @@
 ![Alt text](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
 <a href="https://en.wikipedia.org/wiki/Sturddlefish"><img src="images/sturddlefish.png" height="240px"><a/>
 # Build on desktop (requires Python3.8 or higher)
-***NOTE there's currently an issue with deepspeech-tflite==0.9.3 and Python 3.10***
+
 ```
 git clone --recursive https://github.com/cristivlas/sturddle-chess-app sturddle
 cd sturddle
