@@ -46,17 +46,18 @@ class GenericSTT(STT):
         self._sr = sr.Recognizer()
         self._cancel = None
 
-        self._model = self._init_deepspeech()
+        self._model = self._init_offline()
 
         self._start_sound = self._load_sound('start.mp3', 0.5)
         self._stop_sound = self._load_sound('stop.mp3', 0.5)
 
 
-    def _init_deepspeech(self):
-        try:
-            import deepspeech
-
-        except:
+    def _init_offline(self):
+        import importlib.util
+        # use STT (coqui.ai) as failover TODO: deprecate/remove deepspeech
+        if stt := [name for name in ['deepspeech', 'stt'] if importlib.util.find_spec(name)]:
+            stt = importlib.import_module(stt[0])
+        else:
             return
 
         model_path = os.path.join(os.path.dirname(__file__), DEEPSPEECH_MODEL)
@@ -71,7 +72,7 @@ class GenericSTT(STT):
                 Logger.error(f'stt: download failed: {e}')
                 return
 
-        model = deepspeech.Model(model_path)
+        model = stt.Model(model_path)
 
         scorer_path = os.path.join(os.path.dirname(__file__), DEEPSPEECH_SCORER)
 
