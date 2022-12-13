@@ -41,6 +41,7 @@ setup(
             'search.cpp',
             'misc.cpp',
             'nnue.cpp',
+            'uci_native.cpp',
         ],
         extra_compile_args=[
             '-fvisibility=hidden',
@@ -98,6 +99,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'search.cpp',
             'tables.h',
             'thread_pool.hpp',
+            'uci_native.cpp',
             'utility.h',
             'zobrist.h',
             'nnue-probe/src/auto.h',
