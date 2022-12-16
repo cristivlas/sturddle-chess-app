@@ -366,19 +366,20 @@ def describe_move(
         return 'castle queen side'
 
     if move.promotion:
-        # prefer the description shorter
-        use_from_square = True
-
-    if use_from_square:
-        prefix = _square_name(move.from_square, spell_digits)
-    else:
-        prefix = chess.piece_name(board.piece_type_at(move.from_square))
+        use_from_square = True # ... instead of piece type
 
     to_square = _square_name(move.to_square, spell_digits)
     target = board.piece_type_at(move.to_square) if announce_capture else None
+    piece_type = board.piece_type_at(move.from_square)
+    if use_from_square:
+        prefix = _square_name(move.from_square, spell_digits)
+    else:
+        prefix = chess.piece_name(piece_type)
 
     if target:
         text = f'{prefix} takes {chess.piece_name(target)} on {to_square}'
+    elif use_from_square and piece_type == chess.PAWN:
+        text = to_square
     else:
         text = f'{prefix} to {to_square}'
 
