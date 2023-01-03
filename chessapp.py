@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2021, 2022 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2021, 2022, 2023 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -102,7 +102,7 @@ ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
-(C) 2022 Cristian Vlasceanu
+(C) 2022, 2023 Cristian Vlasceanu
 Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
