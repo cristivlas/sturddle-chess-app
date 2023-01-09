@@ -97,7 +97,7 @@ fullscreen = 1
 android.permissions = INTERNET, RECORD_AUDIO
 
 # (int) Target Android API, should be as high as possible.
-#android.api = 27
+android.api = 30
 
 # (int) Minimum API your APK / AAB will support.
 #android.minapi = 21
