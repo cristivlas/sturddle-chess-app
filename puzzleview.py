@@ -75,7 +75,7 @@ class PuzzleView(GridLayout):
     def __init__(self, index=0, **kwargs):
         super().__init__(**kwargs)
         self._collection = PuzzleCollection()
-        self._num_pages = self._collection.count // self._page_size
+        self._num_pages = (self._collection.count + self._page_size - 1) // self._page_size
         self._page = []
         self._offset = 0
 
