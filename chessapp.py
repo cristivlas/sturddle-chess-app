@@ -97,7 +97,7 @@ def hlink(link):
 CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
-ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flatico'
+ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flaticon'
 ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
