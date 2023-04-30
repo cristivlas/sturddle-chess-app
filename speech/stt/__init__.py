@@ -23,6 +23,10 @@ if platform == 'android':
 elif platform == 'ios':
     from .base import STT
 else:
-    from .generic import GenericSTT as STT
+    try:
+        import whisper
+        from .whisper import WhisperSTT as STT
+    except:
+        from .generic import GenericSTT as STT
 
 stt = STT()

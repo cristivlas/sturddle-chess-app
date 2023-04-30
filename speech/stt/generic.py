@@ -35,19 +35,19 @@ DEEPSPEECH_URL = (
 DEEPSPEECH_MODEL = 'deepspeech-0.9.3-models.tflite'
 DEEPSPEECH_SCORER = 'chess.scorer'
 
-
+'''
+Generic desktop speech-to-text transcription.
+Use google in online mode, https://coqui.ai/ in offline mode.
+'''
 class GenericSTT(STT):
 
     def __init__(self, **kwargs):
         super().__init__()
         self.failover = kwargs.pop('failover', False)
         self.time_limit = kwargs.pop('time_limit', 5)
-
         self._sr = sr.Recognizer()
         self._cancel = None
-
         self._model = self._init_offline()
-
         self._start_sound = self._load_sound('start.mp3', 0.5)
         self._stop_sound = self._load_sound('stop.mp3', 0.5)
 
@@ -106,14 +106,12 @@ class GenericSTT(STT):
     def _start(self):
 
         def callback(recognizer, audio):
-            if  not self._is_listening():
+            if not self._is_listening():
                 return
 
             if self.prefer_offline:
                 if self._recognize_deepspech(audio) or not self.failover:
                     return
-
-            error = None
             try:
                 text = recognizer.recognize_google(audio, language=self.language)
                 assert text
@@ -122,10 +120,7 @@ class GenericSTT(STT):
             except sr.UnknownValueError:
                 pass
 
-            except sr.RequestError as e:
-                error = e
-
-            if error:
+            except sr.RequestError as error:
                 self.stop()
                 self.error_callback(error)
 
