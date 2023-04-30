@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2022 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2022, 2023 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
