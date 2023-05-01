@@ -69,7 +69,7 @@ from engine import Engine
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
-from puzzleview import PuzzleView
+from puzzleview import PuzzleCollection, PuzzleView
 from speech import voice, nlp, stt, tts
 
 try:
@@ -691,6 +691,9 @@ class ChessApp(App):
 
             # remember last puzzle
             self.last_puzzle = store.get('puzzle', 0) # 1-based index
+            if store.get('puzzle_mode', False):
+                assert self.last_puzzle
+                self.load_puzzle(PuzzleCollection().get(self.last_puzzle - 1, 1)[0])
 
             self.speak_moves = store.get('speak', False)
             stt.stt.prefer_offline = store.get('prefer_offline', True)
@@ -721,6 +724,7 @@ class ChessApp(App):
             show_nps=self.show_nps,
             clear_hash=self.engine.clear_hash_on_move,
             puzzle=self.last_puzzle,
+            puzzle_mode=bool(self.puzzle),
             speak=self.speak_moves,
             prefer_offline=stt.stt.prefer_offline,
         )
@@ -1386,6 +1390,14 @@ class ChessApp(App):
         return popup
 
 
+    def load_puzzle(self, puzzle):
+        assert self.last_puzzle == puzzle[3]
+        self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
+        if self.board_widget.model.turn == self.board_widget.flip:
+            self.flip_board()
+        self.puzzle = puzzle
+
+
     def puzzles(self, *_):
         '''
         Show modal view with a selection of puzzles.
@@ -1400,11 +1412,8 @@ class ChessApp(App):
             self.modal.popup.dismiss()
 
         def select_puzzle(puzzle):
-            self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
-            if self.board_widget.model.turn == self.board_widget.flip:
-                self.flip_board()
-            self.puzzle = puzzle
             self.last_puzzle = puzzle[3]
+            self.load_puzzle(puzzle)
             view._popup.dismiss()
 
         def confirm_puzzle_selection(puzzle):
@@ -1646,7 +1655,6 @@ class ChessApp(App):
                     width=square_size / 7.5,
                     outline_color=(1, 1, 0.5, 0.75),
                     outline_width=2)
-
 
 
     def speak(self, message):
