@@ -4,7 +4,7 @@
 - Built-in board editor
 - Turn AI off / on
 - Copy / paste game in PGN format (including comments)
-- Voice interaction (optional offline speech recognition on desktop via Deepspeech)
+- Voice interaction (optional offline speech recognition on desktop via OpenAI-Whisper)
 - Optional opening book(s)
 - Built-in puzzle collection
 - Built with Kivy and Python Chess
