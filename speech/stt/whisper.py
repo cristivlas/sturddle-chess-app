@@ -1,3 +1,6 @@
+'''
+Offline-only voice recognitiona with OpenAi-Whisper.
+'''
 import os
 
 import ffmpeg
@@ -8,6 +11,7 @@ from kivy.core.audio import SoundLoader
 
 from .base import STT
 
+MODEL = 'tiny.en'
 
 # https://github.com/openai/whisper/discussions/380
 def load_audio(file: (str, bytes), sr: int = 16000):
@@ -41,7 +45,7 @@ class WhisperSTT(STT):
         self._stop_sound = self._load_sound('stop.mp3', 0.5)
         self._sr = sr.Recognizer()
         self.time_limit = kwargs.pop('time_limit', 5)
-        self._model = whisper.load_model('base')
+        self._model = whisper.load_model(MODEL)
 
     def _start(self):
         def callback(_, audio):
@@ -58,7 +62,7 @@ class WhisperSTT(STT):
             # 4: For 32-bit audio samples, where each sample is stored as a 32-bit (4-byte) integer.
             wav = audio.get_wav_data(convert_rate=16000, convert_width=2)
 
-            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='chess move')
+            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='my chess move:')
             text = result['text']
             if text:
                 self.results_callback([text.strip()])

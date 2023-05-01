@@ -918,9 +918,10 @@ class ChessApp(App):
                             self.modal.popup.content._buttons.size_hint = 1,.35
                             self.modal.popup.content._buttons.add_widget(Button(
                                 text='Another Puzzle', font_size=sp(18), on_release=self.puzzles))
-                            self.modal.popup.content._buttons.add_widget(Button(
-                                text='Play from Here', font_size=sp(18), on_release=
-                                lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
+                            if not board.is_game_over():
+                                self.modal.popup.content._buttons.add_widget(Button(
+                                    text='Play from Here', font_size=sp(18), on_release=
+                                    lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
 
                         move = self.engine.apply(move)
                         Clock.schedule_once(partial(success, self.puzzle[0]))

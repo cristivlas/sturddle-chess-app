@@ -303,6 +303,7 @@ class NLP:
         r'\bsee too\b' : 'c2',
         r'\bsite\b' : 'side',
         r'\bsize\b' : 'side',
+        r'\bspawn\b' : 'pawn',
         r'\btake screen\b' : 'takes queen',
         r'\bthe ford\b' : 'd4',
         r'\bthe\s*([1-8])' : r'd\1',
