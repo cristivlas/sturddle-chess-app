@@ -928,7 +928,7 @@ class ChessApp(App):
                                     lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
 
                         move = self.engine.apply(move)
-                        Clock.schedule_once(partial(success, self.puzzle[0]))
+                        Clock.schedule_once(partial(success, 'Puzzle: ' + self.puzzle[0].replace('"', '')))
                         self.puzzle = None
 
                     else:
