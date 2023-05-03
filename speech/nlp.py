@@ -118,6 +118,7 @@ class NLP:
 
         Logger.debug(f'nlp: text={text}, self._moves={self._moves}')
 
+        # trigger parse actions
         parse_result = self.grammar.search_string(text)
         Logger.debug(f'nlp: parse_result={parse_result}')
 

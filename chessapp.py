@@ -465,7 +465,7 @@ class ChessApp(App):
         self.__study_mode = False
         self.edit = None
         self.puzzle = None
-        self.last_puzzle = 0
+        self.selected_puzzle = 0
         self.comments = False
         self._time_limit = [ 1, 3, 5, 10, 15, 30, 60, 180, 300, 600, 900 ]
         self.limit = 1
@@ -690,10 +690,10 @@ class ChessApp(App):
             self.show_nps = store.get('show_nps', False)
 
             # remember last puzzle
-            self.last_puzzle = store.get('puzzle', 0) # 1-based index
+            self.selected_puzzle = store.get('puzzle', 0) # 1-based index
             if store.get('puzzle_mode', False):
-                assert self.last_puzzle
-                self.load_puzzle(PuzzleCollection().get(self.last_puzzle - 1, 1)[0])
+                assert self.selected_puzzle
+                self.load_puzzle(PuzzleCollection().get(self.selected_puzzle - 1, 1)[0])
 
             self.speak_moves = store.get('speak', False)
             stt.stt.prefer_offline = store.get('prefer_offline', True)
@@ -723,7 +723,7 @@ class ChessApp(App):
             show_hash=self.show_hash,
             show_nps=self.show_nps,
             clear_hash=self.engine.clear_hash_on_move,
-            puzzle=self.last_puzzle,
+            puzzle=self.selected_puzzle,
             puzzle_mode=bool(self.puzzle),
             speak=self.speak_moves,
             prefer_offline=stt.stt.prefer_offline,
@@ -1391,7 +1391,7 @@ class ChessApp(App):
 
 
     def load_puzzle(self, puzzle):
-        assert self.last_puzzle == puzzle[3]
+        assert self.selected_puzzle == puzzle[3]
         self._load_pgn(chess.pgn.read_game(StringIO(f'[FEN "{puzzle[1]}"]')))
         if self.board_widget.model.turn == self.board_widget.flip:
             self.flip_board()
@@ -1412,21 +1412,21 @@ class ChessApp(App):
             self.modal.popup.dismiss()
 
         def select_puzzle(puzzle):
-            self.last_puzzle = puzzle[3]
+            self.selected_puzzle = puzzle[3]
             self.load_puzzle(puzzle)
             view._popup.dismiss()
 
         def confirm_puzzle_selection(puzzle):
-            if confirm:
+            if confirm and self.puzzle != puzzle:
                 self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
             else:
                 select_puzzle(puzzle)
 
         def on_selection(_, selected):
             if selected:
-                self.last_puzzle = selected.puzzle[3]
+                self.selected_puzzle = selected.puzzle[3]
 
-        view = PuzzleView(index = self.last_puzzle)
+        view = PuzzleView(index = self.selected_puzzle)
         view.play = confirm_puzzle_selection
         view.bind(selection = on_selection)
         self._modal_box('Puzzles', view)
