@@ -51,7 +51,6 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
   <string name="deflectionDescription">A move that distracts an opponent piece from another duty that it performs, such as guarding a key square. Sometimes also called "overloading".</string>
   <string name="discoveredAttackDescription">Moving a piece (such as a knight), that previously blocked an attack by a long range piece (such as a rook), out of the way of that piece.</string>
   <string name="doubleCheckDescription">Checking with two pieces at once, as a result of a discovered attack where both the moving piece and the unveiled piece attack the opponent's king.</string>
-  <string name="endgameDescription">A tactic during the last phase of the game.</string>
   <string name="enPassantDescription">A tactic involving the en passant rule, where a pawn can capture an opponent pawn that has bypassed it using its initial two-square move.</string>
   <string name="exposedKingDescription">A tactic involving a king with few defenders around it, often leading to checkmate.</string>
   <string name="forkDescription">A move where the moved piece attacks two opponent pieces at once.</string>
@@ -67,9 +66,7 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
   <string name="mateIn3Description">Deliver checkmate in three moves.</string>
   <string name="mateIn4Description">Deliver checkmate in four moves.</string>
   <string name="mateIn5Description">Figure out a long mating sequence.</string>
-  <string name="middlegameDescription">A tactic during the second phase of the game.</string>
   <string name="oneMoveDescription">A puzzle that is only one move long.</string>
-  <string name="openingDescription">A tactic during the first phase of the game.</string>
   <string name="pawnEndgameDescription">An endgame with only pawns.</string>
   <string name="pinDescription">A tactic involving pins, where a piece is unable to move without revealing an attack on a higher value piece.</string>
   <string name="promotionDescription">Promote one of your pawn to a queen or minor piece.</string>

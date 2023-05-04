@@ -1589,7 +1589,9 @@ class ChessApp(App):
                 # except:
                 #     pass
                 if len(self.puzzle) > 3:
-                    hints = [puzzle_description(self.puzzle[-1])]
+                    desc = puzzle_description(self.puzzle[-1])
+                    if desc:
+                        hints = [desc]
 
             elif self.engine.can_auto_open():
                 try:
