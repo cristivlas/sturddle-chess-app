@@ -105,14 +105,14 @@ def puzzle_description(puzzle):
 
 
 class PuzzleCollection:
-    def __init__(self):
-        self._puzzles = []
-        from puzzles import puzzles
-        self._parse(puzzles)
-        # for p in self._puzzles:
-        #     assert puzzle_description(p)
+    puzzle_list = []
 
-    def _parse(self, epd):
+    def __init__(self):
+        self._puzzles = self.puzzle_list
+
+    @staticmethod
+    def _parse():
+        from puzzles import puzzles as epd
         i = 0
         for fields in epd.split('\n'):
             if not fields:
@@ -133,7 +133,9 @@ class PuzzleCollection:
                     id = f.split('id ')[1]
                     break
             i += 1
-            self._puzzles.append((id, fen, solutions, i, fields[-1]))
+            PuzzleCollection.puzzle_list.append((id, fen, solutions, i, fields[-1]))
+        for p in PuzzleCollection.puzzle_list:
+            assert puzzle_description(p)
 
     @property
     def count(self):
@@ -218,3 +220,5 @@ class Selection(RelativeLayout):
         super().__init__(**kwargs)
         self.puzzle = None
 
+
+PuzzleCollection._parse()
