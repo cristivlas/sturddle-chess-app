@@ -32,7 +32,7 @@ import xml.etree.ElementTree as ET
 __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <themes>
 <string name="advancedPawnDescription">A pawn deep in enemy territory, possibly promoting soon.</string>
-<string name="advantageDescription">Gain a decisive advantage. (200cp ≤ eval ≤ 600cp)</string>
+<string name="advantageDescription">Gain a decisive advantage (between 200cp and 600cp).</string>
 <string name="anastasiaMateDescription">A knight and rook or queen trap the king between the board edge and a friendly piece.</string>
 <string name="arabianMateDescription">A knight and rook trap the king in a board corner.</string>
 <string name="attackingF2F7Description">Attack targeting f2 or f7 pawn, e.g., in the fried liver opening.</string>
@@ -44,7 +44,7 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <string name="capturingDefenderDescription">Remove a defending piece to capture another undefended piece.</string>
 <string name="doubleBishopMateDescription">Two bishops on adjacent diagonals mate a king blocked by friendly pieces.</string>
 <string name="dovetailMateDescription">Queen mates adjacent king with escape squares blocked by friendly pieces.</string>
-<string name="equalityDescription">Recover from losing position, achieve draw or balance. (eval ≤ 200cp)</string>
+<string name="equalityDescription">Recover from losing position, achieve draw or balance.</string>
 <string name="kingsideAttackDescription">Attack opponent's king after kingside castling.</string>
 <string name="clearanceDescription">Move clearing square, file, or diagonal for a tactical idea.</string>
 <string name="defensiveMoveDescription">Move(s) needed to avoid losing material or advantage.</string>
@@ -59,7 +59,6 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <string name="interferenceDescription">Move piece between opponent pieces, leaving one or both undefended.</string>
 <string name="intermezzoDescription">Play immediate threat before expected move. Aka "Zwischenzug" or "In between".</string>
 <string name="knightEndgameDescription">Endgame with knights and pawns only.</string>
-<string name="longDescription">Three moves to win.</string>
 <string name="mateDescription">Win with flair.</string>
 <string name="mateIn1Description">Checkmate in one move.</string>
 <string name="mateIn2Description">Checkmate in two moves.</string>
@@ -81,10 +80,8 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <string name="superGMDescription">Puzzles from top players' games.</string>
 <string name="trappedPieceDescription">Piece unable to escape capture due to limited moves.</string>
 <string name="underPromotionDescription">Promote to knight, bishop, or rook.</string>
-<string name="veryLongDescription">Four or more moves to win.</string>
 <string name="xRayAttackDescription">Piece attacks or defends through an enemy piece.</string>
 <string name="zugzwangDescription">Opponent's moves worsen their position.</string>
-<string name="healthyMixDescription">Varied puzzles. Be ready for anything, like in real games.</string>
 </themes>
 '''
 
