@@ -31,7 +31,7 @@ def extract_data(database_path, include_themes, exclude_themes):
 def process_data(data):
     processed_data = []
     for row in tqdm(data, desc="Processing data", unit="row"):
-        puzzle_id, fen, moves, _ = row
+        puzzle_id, fen, moves, themes = row
         moves = moves.strip().split()
         if len(moves) < 2:
             continue
@@ -45,7 +45,7 @@ def process_data(data):
         except ValueError:
             continue
 
-        if not board.is_valid():
+        if not board.is_valid() or board.is_check():
             continue
 
         first_move_epd = board.epd()
@@ -56,16 +56,16 @@ def process_data(data):
             continue
 
         if board.is_valid() and not board.is_game_over():
-            processed_data.append((puzzle_id, first_move_epd, moves[1]))
+            processed_data.append((puzzle_id, first_move_epd, moves[1], themes))
 
     return processed_data
 
 def save_data_to_file(data, output_path):
     with open(output_path, "w") as file:
         file.write('puzzles="""\n')
-        for puzzle_id, first_move_epd, second_move in data:
-            file.write(f'{first_move_epd} bm {second_move}; id "Lichess {puzzle_id}";\n')
-        file.write('\n"""')
+        for puzzle_id, first_move_epd, second_move, themes in data:
+            file.write(f'{first_move_epd} bm {second_move}; id "Lichess {puzzle_id}"; {themes}\n')
+        file.write('"""')
 
 def main():
     parser = argparse.ArgumentParser(description="Extract data from SQLite3 database")

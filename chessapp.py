@@ -69,7 +69,7 @@ from engine import Engine
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
-from puzzleview import PuzzleCollection, PuzzleView
+from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import voice, nlp, stt, tts
 
 try:
@@ -1582,11 +1582,14 @@ class ChessApp(App):
             hints = []
 
             if self.puzzle:
-                try:
-                    board = self.engine.board.copy()
-                    hints = [board.parse_san(m) for m in self.puzzle[2]]
-                except:
-                    pass
+                board = None
+                # try:
+                #     board = self.engine.board.copy()
+                #     hints = [board.parse_san(m) for m in self.puzzle[2]]
+                # except:
+                #     pass
+                if len(self.puzzle) > 3:
+                    hints = [puzzle_description(self.puzzle[-1])]
 
             elif self.engine.can_auto_open():
                 try:
@@ -1614,6 +1617,10 @@ class ChessApp(App):
 
         # count pieces per target square, for scaling down texture size
         for move in entries:
+            if isinstance(move, str):
+                # handle free-form text hints
+                self.message_box('Hint', move.replace('\n', ' '))
+                return
             if move.promotion:
                 continue
             count_per_target_square[move.to_square] += 1

@@ -24,6 +24,92 @@ from kivy.uix.relativelayout import RelativeLayout
 from boardwidget import BoardWidget
 from engine import BoardModel
 
+import xml.etree.ElementTree as ET
+
+# Based on:
+# https://github.com/lichess-org/lila/blob/master/translation/source/puzzleTheme.xml
+
+__xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<themes>
+  <string name="advancedPawnDescription">One of your pawns is deep into the opponent position, maybe threatening to promote.</string>
+  <string name="advantageDescription">Seize your chance to get a decisive advantage. (200cp ≤ eval ≤ 600cp)</string>
+  <string name="anastasiaMateDescription">A knight and rook or queen team up to trap the opposing king between the side of the board and a friendly piece.</string>
+  <string name="arabianMateDescription">A knight and a rook team up to trap the opposing king on a corner of the board.</string>
+  <string name="attackingF2F7Description">An attack focusing on the f2 or f7 pawn, such as in the fried liver opening.</string>
+  <string name="attractionDescription">An exchange or sacrifice encouraging or forcing an opponent piece to a square that allows a follow-up tactic.</string>
+  <string name="backRankMateDescription">Checkmate the king on the home rank, when it is trapped there by its own pieces.</string>
+  <string name="bishopEndgameDescription">An endgame with only bishops and pawns.</string>
+  <string name="bodenMateDescription">Two attacking bishops on criss-crossing diagonals deliver mate to a king obstructed by friendly pieces.</string>
+  <string name="castlingDescription">Bring the king to safety, and deploy the rook for attack.</string>
+  <string name="capturingDefenderDescription">Removing a piece that is critical to defence of another piece, allowing the now undefended piece to be captured on a following move.</string>
+  <string name="doubleBishopMateDescription">Two attacking bishops on adjacent diagonals deliver mate to a king obstructed by friendly pieces.</string>
+  <string name="dovetailMateDescription">A queen delivers mate to an adjacent king, whose only two escape squares are obstructed by friendly pieces.</string>
+  <string name="equalityDescription">Come back from a losing position, and secure a draw or a balanced position. (eval ≤ 200cp)</string>
+  <string name="kingsideAttackDescription">An attack of the opponent's king, after they castled on the king side.</string>
+  <string name="clearanceDescription">A move, often with tempo, that clears a square, file or diagonal for a follow-up tactical idea.</string>
+  <string name="defensiveMoveDescription">A precise move or sequence of moves that is needed to avoid losing material or another advantage.</string>
+  <string name="deflectionDescription">A move that distracts an opponent piece from another duty that it performs, such as guarding a key square. Sometimes also called "overloading".</string>
+  <string name="discoveredAttackDescription">Moving a piece (such as a knight), that previously blocked an attack by a long range piece (such as a rook), out of the way of that piece.</string>
+  <string name="doubleCheckDescription">Checking with two pieces at once, as a result of a discovered attack where both the moving piece and the unveiled piece attack the opponent's king.</string>
+  <string name="endgameDescription">A tactic during the last phase of the game.</string>
+  <string name="enPassantDescription">A tactic involving the en passant rule, where a pawn can capture an opponent pawn that has bypassed it using its initial two-square move.</string>
+  <string name="exposedKingDescription">A tactic involving a king with few defenders around it, often leading to checkmate.</string>
+  <string name="forkDescription">A move where the moved piece attacks two opponent pieces at once.</string>
+  <string name="hangingPieceDescription">A tactic involving an opponent piece being undefended or insufficiently defended and free to capture.</string>
+  <string name="hookMateDescription">Checkmate with a rook, knight, and pawn along with one enemy pawn to limit the enemy king's escape.</string>
+  <string name="interferenceDescription">Moving a piece between two opponent pieces to leave one or both opponent pieces undefended, such as a knight on a defended square between two rooks.</string>
+  <string name="intermezzoDescription">Instead of playing the expected move, first interpose another move posing an immediate threat that the opponent must answer. Also known as "Zwischenzug" or "In between".</string>
+  <string name="knightEndgameDescription">An endgame with only knights and pawns.</string>
+  <string name="longDescription">Three moves to win.</string>
+  <string name="mateDescription">Win the game with style.</string>
+  <string name="mateIn1Description">Deliver checkmate in one move.</string>
+  <string name="mateIn2Description">Deliver checkmate in two moves.</string>
+  <string name="mateIn3Description">Deliver checkmate in three moves.</string>
+  <string name="mateIn4Description">Deliver checkmate in four moves.</string>
+  <string name="mateIn5Description">Figure out a long mating sequence.</string>
+  <string name="middlegameDescription">A tactic during the second phase of the game.</string>
+  <string name="oneMoveDescription">A puzzle that is only one move long.</string>
+  <string name="openingDescription">A tactic during the first phase of the game.</string>
+  <string name="pawnEndgameDescription">An endgame with only pawns.</string>
+  <string name="pinDescription">A tactic involving pins, where a piece is unable to move without revealing an attack on a higher value piece.</string>
+  <string name="promotionDescription">Promote one of your pawn to a queen or minor piece.</string>
+  <string name="queenEndgameDescription">An endgame with only queens and pawns.</string>
+  <string name="queenRookEndgameDescription">An endgame with only queens, rooks and pawns.</string>
+  <string name="queensideAttackDescription">An attack of the opponent's king, after they castled on the queen side.</string>
+  <string name="quietMoveDescription">A move that does neither make a check or capture, nor an immediate threat to capture, but does prepare a more hidden unavoidable threat for a later move.</string>
+  <string name="rookEndgameDescription">An endgame with only rooks and pawns.</string>
+  <string name="sacrificeDescription">A tactic involving giving up material in the short-term, to gain an advantage again after a forced sequence of moves.</string>
+  <string name="skewerDescription">A motif involving a high value piece being attacked, moving out the way, and allowing a lower value piece behind it to be captured or attacked, the inverse of a pin.</string>
+  <string name="smotheredMateDescription">A checkmate delivered by a knight in which the mated king is unable to move because it is surrounded (or smothered) by its own pieces.</string>
+  <string name="superGMDescription">Puzzles from games played by the best players in the world.</string>
+  <string name="trappedPieceDescription">A piece is unable to escape capture as it has limited moves.</string>
+  <string name="underPromotionDescription">Promotion to a knight, bishop, or rook.</string>
+  <string name="veryLongDescription">Four moves or more to win.</string>
+  <string name="xRayAttackDescription">A piece attacks or defends a square, through an enemy piece.</string>
+  <string name="zugzwangDescription">The opponent is limited in the moves they can make, and all moves worsen their position.</string>
+  <string name="healthyMixDescription">A bit of everything. You don't know what to expect, so you remain ready for anything! Just like in real games.</string>
+</themes>
+'''
+
+# Parse the XML file and convert it into a Python dictionary
+themes_dict = {}
+for child in ET.fromstring(__xml):
+    key = child.attrib['name']
+    value = child.text
+    themes_dict[key] = value
+
+
+def puzzle_description(themes: str):
+    theme_list = themes.split()
+
+    description = ''
+    for theme in theme_list:
+        key = theme + 'Description'
+        if key in themes_dict:
+            description += themes_dict[key] + '\n'
+
+    return description.strip()
+
 
 class PuzzleCollection:
     def __init__(self):
@@ -52,7 +138,7 @@ class PuzzleCollection:
                     id = f.split('id ')[1]
                     break
             i += 1
-            self._puzzles.append((id, fen, solutions, i))
+            self._puzzles.append((id, fen, solutions, i, fields[-1]))
 
     @property
     def count(self):
@@ -136,3 +222,4 @@ class Selection(RelativeLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.puzzle = None
+
