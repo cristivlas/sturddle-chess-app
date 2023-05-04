@@ -921,7 +921,7 @@ class ChessApp(App):
 
                             self.modal.popup.content._buttons.size_hint = 1,.35
                             self.modal.popup.content._buttons.add_widget(Button(
-                                text='Another Puzzle', font_size=sp(18), on_release=self.puzzles))
+                                text='Another Puzzle', font_size=sp(18), on_release=self.next_puzzle))
                             if not board.is_game_over():
                                 self.modal.popup.content._buttons.add_widget(Button(
                                     text='Play from Here', font_size=sp(18), on_release=
@@ -1396,6 +1396,14 @@ class ChessApp(App):
         if self.board_widget.model.turn == self.board_widget.flip:
             self.flip_board()
         self.puzzle = puzzle
+
+
+    def next_puzzle(self, *_):
+        if self.modal:
+            self.modal.popup.dismiss()
+        coll = PuzzleCollection()
+        self.selected_puzzle = (self.selected_puzzle + 1) % coll.count
+        self.load_puzzle(coll.get(self.selected_puzzle - 1, 1)[0])
 
 
     def puzzles(self, *_):
