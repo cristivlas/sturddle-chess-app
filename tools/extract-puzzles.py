@@ -5,22 +5,20 @@ import chess
 from tqdm import tqdm
 
 
-def extract_data(database_path, include_themes, exclude_themes):
-    conn = sqlite3.connect(database_path)
+def extract_data(args):
+    conn = sqlite3.connect(args.input_db)
     cursor = conn.cursor()
 
-    include_condition = ""
-    if include_themes:
-        include_condition = " AND (" + " OR ".join(f"Themes LIKE '%{theme}%'" for theme in include_themes) + ")"
-
-    exclude_condition = ""
-    if exclude_themes:
-        exclude_condition = " AND (" + " AND ".join(f"Themes NOT LIKE '%{theme}%'" for theme in exclude_themes) + ")"
-
-    query = f"""
-    SELECT PuzzleId, FEN, Moves, Themes FROM puzzles
-    WHERE 1 {include_condition} {exclude_condition};
-    """
+    query = '''
+        SELECT PuzzleId, FEN, Moves, Themes FROM puzzles
+        WHERE
+            Themes NOT LIKE '%defensive%'
+            AND Themes NOT LIKE '%advantage%'
+            AND Themes NOT LIKE '%crushing%'
+            AND Themes NOT LIKE '%master%'
+            AND (Themes NOT LIKE '%long%' OR Themes LIKE '%mateIn%')
+            AND (Themes LIKE '%clearance%' OR Themes LIKE '%sacrifice%')
+    '''
     print(query)
     cursor.execute(query)
     rows = cursor.fetchall()
@@ -71,12 +69,10 @@ def main():
     parser = argparse.ArgumentParser(description="Extract data from SQLite3 database")
     parser.add_argument("input_db", help="Path to the input SQLite3 database file")
     parser.add_argument("-o", "--output", help="Path to the output text file", required=True)
-    parser.add_argument("--include", nargs="*", help="Themes to include")
-    parser.add_argument("--exclude", nargs="*", help="Themes to exclude")
 
     args = parser.parse_args()
 
-    data = extract_data(args.input_db, args.include, args.exclude)
+    data = extract_data(args)
     processed_data = process_data(data)
     save_data_to_file(processed_data, args.output)
 
