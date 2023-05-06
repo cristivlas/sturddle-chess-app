@@ -149,7 +149,6 @@ class PuzzleView(GridLayout):
     _container = ObjectProperty(None)
     _page_size = NumericProperty(10)
     _board_size = NumericProperty(sp(250))
-
     selection = ObjectProperty(None, allownone=True)
     prev_page_size = NumericProperty(0)
     next_page_size = NumericProperty(0)
@@ -172,6 +171,8 @@ class PuzzleView(GridLayout):
         self.next_page_size = min(self._collection.count - offset - len(self._page), self._page_size)
         self.prev_page_size = min(self._page_size, offset)
         self._offset = offset
+        if selection_index == 0:
+            selection_index = offset + 1
 
         self._container.clear_widgets()
 
