@@ -29,6 +29,7 @@ import math
 import random
 import re
 from collections import defaultdict
+from copy import copy
 from datetime import datetime
 from functools import partial
 from io import StringIO
@@ -70,7 +71,7 @@ from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
-from speech import voice, nlp, stt, tts
+from speech import nlp, stt, tts, voice
 
 try:
     from android.runnable import run_on_ui_thread
@@ -452,11 +453,11 @@ class ChessApp(App):
         self.engine.promotion_callback = self.get_promotion_type
         self.engine.score_callback = self.score_callback
         self.engine.search_callback = self.search_callback
-
+        #####################################################################
         # wrap engine search
         self._search_move = self.engine.search_move
         self.engine.search_move = self.search_move
-
+        #####################################################################
         self.use_eco(True) # use Encyclopedia of Chess Openings
         self.moves_record = MovesTree()
         self.voice_input = voice.Input(self)
@@ -465,6 +466,7 @@ class ChessApp(App):
         self.__study_mode = False
         self.edit = None
         self.puzzle = None
+        self.puzzle_play = False
         self.selected_puzzle = 0
         self.comments = False
         self._time_limit = [ 1, 3, 5, 10, 15, 30, 60, 180, 300, 600, 900 ]
@@ -475,6 +477,7 @@ class ChessApp(App):
         self.show_hash = False
         self.difficulty_level = 0
         self.set_difficulty_level(1)
+        self.touch = None # for swipe left / right
 
 
     def about(self, *_):
@@ -888,10 +891,31 @@ class ChessApp(App):
         )):
             delay = 1 if is_mobile() else 0.5
             Clock.schedule_once(self.on_long_press, delay)
+            self.touch = copy(touch)
 
 
     def on_touch_up(self, _, touch):
         Clock.unschedule(self.on_long_press)
+
+        start = self.touch
+        self.touch = None
+        # detect swipe left / right
+        if start:
+            if abs(start.y - touch.y) <= cm(3):
+                if touch.x - start.x >= cm(2):
+                    self.on_swipe_right(start, touch)
+                elif start.x - touch.x >= cm(2):
+                    self.on_swipe_left(start, touch)
+
+
+    def on_swipe_left(self, *_):
+        if self.puzzle or self.puzzle_play:
+            self._navigate_puzzle(-1)
+
+
+    def on_swipe_right(self, *_):
+        if self.puzzle or self.puzzle_play:
+            self._navigate_puzzle(+1)
 
 
     def on_user_move(self, _, move):
@@ -929,7 +953,7 @@ class ChessApp(App):
 
                         move = self.engine.apply(move)
                         Clock.schedule_once(partial(success, 'Puzzle: ' + self.puzzle[0].replace('"', '')))
-                        self.puzzle = None
+                        # self.cancel_puzzle()
 
                     else:
                         def wrong(*_):
@@ -1217,6 +1241,8 @@ class ChessApp(App):
         # restarting the engine above takes care of making a move for WHITE
         self._set_study_mode(False, auto_move=False)
         self.update_hash_usage()
+        assert not self.puzzle
+        self.puzzle_play = False
 
 
     def undo_move(self, b=None, long_press_delay=0.35):
@@ -1396,14 +1422,19 @@ class ChessApp(App):
         if self.board_widget.model.turn == self.board_widget.flip:
             self.flip_board()
         self.puzzle = puzzle
+        self.puzzle_play = False
 
 
-    def next_puzzle(self, *_):
+    def _navigate_puzzle(self, step):
         if self.modal:
             self.modal.popup.dismiss()
         coll = PuzzleCollection()
-        self.selected_puzzle = (self.selected_puzzle + 1) % coll.count
+        self.selected_puzzle = (self.selected_puzzle + step) % coll.count
         self.load_puzzle(coll.get(self.selected_puzzle - 1, 1)[0])
+
+
+    def next_puzzle(self, *_):
+        self._navigate_puzzle(+1)
 
 
     def puzzles(self, *_):
@@ -1529,6 +1560,7 @@ class ChessApp(App):
             self.engine.redo_list.clear()
             self.update_moves_record(last_move=True)
         else:
+            self.puzzle_play = bool(self.puzzle)
             self.cancel_puzzle()
 
             # study mode off, turn the engine back on
