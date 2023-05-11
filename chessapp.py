@@ -947,9 +947,10 @@ class ChessApp(App):
                             self.modal.popup.content._buttons.add_widget(Button(
                                 text='Another Puzzle', font_size=sp(18), on_release=self.next_puzzle))
                             if not board.is_game_over():
+                                popup = self.modal.popup
                                 self.modal.popup.content._buttons.add_widget(Button(
                                     text='Play from Here', font_size=sp(18), on_release=
-                                    lambda *_:self.set_study_mode(self.modal.popup.dismiss())))
+                                    lambda *_:self.set_study_mode(popup.dismiss())))
 
                         move = self.engine.apply(move)
                         Clock.schedule_once(partial(success, 'Puzzle: ' + self.puzzle[0].replace('"', '')))
@@ -1429,7 +1430,7 @@ class ChessApp(App):
         if self.modal:
             self.modal.popup.dismiss()
         coll = PuzzleCollection()
-        self.selected_puzzle = (self.selected_puzzle + step) % coll.count
+        self.selected_puzzle = (self.selected_puzzle - 1 + step) % coll.count + 1
         self.load_puzzle(coll.get(self.selected_puzzle - 1, 1)[0])
 
 
