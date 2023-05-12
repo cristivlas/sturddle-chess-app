@@ -634,13 +634,14 @@ class ChessApp(App):
         '''
         Use ECO categorization to match moves played so far against classic openings
         '''
-        if self.eco is None:
-            self.opening.text = ''
-        else:
-            if opening := self.eco.lookup(self.board_widget.model):
-                self.format_opening(opening['name'])
-            else:
+        if not self.puzzle:
+            if self.eco is None:
                 self.opening.text = ''
+            else:
+                if opening := self.eco.lookup(self.board_widget.model):
+                    self.format_opening(opening['name'])
+                else:
+                    self.opening.text = ''
 
 
     def format_opening(self, opening_name):
@@ -1424,6 +1425,8 @@ class ChessApp(App):
             self.flip_board()
         self.puzzle = puzzle
         self.puzzle_play = False
+        # hack: repurpose the opening label to show puzzle #
+        self.opening.text = f'Puzzle #{self.selected_puzzle}'
 
 
     def _navigate_puzzle(self, step):
@@ -1561,7 +1564,7 @@ class ChessApp(App):
             self.engine.redo_list.clear()
             self.update_moves_record(last_move=True)
         else:
-            self.puzzle_play = bool(self.puzzle)
+            self.puzzle_play |= bool(self.puzzle)
             self.cancel_puzzle()
 
             # study mode off, turn the engine back on
@@ -1924,17 +1927,24 @@ class ChessApp(App):
 
     def edit_start(self):
         if not self.edit:
-            self.engine.pause()
-            self.voice_input.stop()
-            self.hash_label.text = ''
-            self.edit = EditControls(pos_hint=(0, None), size_hint=(1, 0.1))
-            self.edit.flip = self.board_widget.flip
-            self.root.add_widget(self.edit, index=2)
-            self.board_widget.set_model(self.board_widget.model.copy())
-            self.cancel_puzzle()
-            self.update_move(None, None)
-            self.update()
-            self.touch_hint('corners to modify castling rights.')
+            if self.puzzle:
+                self.confirm('Abandon puzzle and enter edit mode', self._edit_start)
+            else:
+                self._edit_start()
+
+
+    def _edit_start(self):
+        self.engine.pause()
+        self.voice_input.stop()
+        self.hash_label.text = ''
+        self.edit = EditControls(pos_hint=(0, None), size_hint=(1, 0.1))
+        self.edit.flip = self.board_widget.flip
+        self.root.add_widget(self.edit, index=2)
+        self.board_widget.set_model(self.board_widget.model.copy())
+        self.cancel_puzzle()
+        self.update_move(None, None)
+        self.update()
+        self.touch_hint('corners to modify castling rights.')
 
 
     def edit_stop(self, apply=False):
