@@ -16,7 +16,8 @@ def extract_data(args):
             AND Themes NOT LIKE '%advantage%'
             AND Themes NOT LIKE '%crushing%'
             AND Themes NOT LIKE '%master%'
-            AND (Themes NOT LIKE '%long%' OR Themes LIKE '%mateIn%')
+            AND Themes NOT LIKE '%mateIn2%'
+            AND (Themes NOT LIKE '%long%' OR Themes LIKE '%mateIn3%' or Themes LIKE '%mateIn4%')
             AND (Themes LIKE '%clearance%' OR Themes LIKE '%sacrifice%')
     '''
     print(query)
