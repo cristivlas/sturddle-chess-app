@@ -65,10 +65,12 @@ class NLP:
             | promote to <piece>
             | <square> [to] <square>
             | <square>
+            | <check>
         '''
 
         AT = pp.Keyword('at') | pp.Keyword('on')
         CASTLE = pp.Keyword('castle')
+        CHECK = pp.Keyword('check')
         FROM = pp.Keyword('at') | pp.Keyword('from')
         PROMOTE = pp.Keyword('promote') | pp.Keyword('promotes')
         PIECE = pp.one_of(' '.join(chess.PIECE_NAMES[1:]))
@@ -87,6 +89,7 @@ class NLP:
 
         castle_side = (pp.Keyword('king') | pp.Keyword('queen')) + pp.Keyword('side')
         castle = (CASTLE + pp.Opt(castle_side)).set_parse_action(self._on_castle)
+        check = CHECK.set_parse_action(self._on_check)
 
         piece_move = PIECE + pp.Opt(FROM + SQUARE) + TO + SQUARE
         uci_move = SQUARE + pp.Opt(TO) + SQUARE
@@ -98,7 +101,7 @@ class NLP:
             pawn_move.set_parse_action(self._on_pawn_move)
         )
 
-        self.grammar = capture | move | castle | promotion
+        self.grammar = capture | castle | check | move | promotion
         self.grammar.validate()
 
 
@@ -205,6 +208,14 @@ class NLP:
                 self._moves.append(self._board.parse_san(san))
             except:
                 pass
+
+
+    def _on_check(self, s, loc, tok):
+        for move in self._board.generate_legal_moves():
+            board = chess.Board(fen=self._board.fen())
+            board.push(move)
+            if board.is_check():
+                self._moves.append(move)
 
 
     def _on_pawn_move(self, s, loc, tok):
