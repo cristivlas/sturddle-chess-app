@@ -71,7 +71,7 @@ class ECO:
             for i, move in enumerate(pgn.mainline_moves()):
                 if i >= len(board.move_stack) or move != board.move_stack[i]:
                     return None
-            return row
+        return row
 
 
     def openings(self):
