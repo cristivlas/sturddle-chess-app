@@ -1427,7 +1427,7 @@ class ChessApp(App):
         self.puzzle_play = False
         # hack: repurpose the opening label to show puzzle #
         side_to_move = f'{COLOR_NAMES[self.board_widget.model.turn]} to move'
-        self.opening.text = f'Puzzle #{self.selected_puzzle}: {side_to_move}'
+        self.opening.text = f'[i]Puzzle #{self.selected_puzzle}: {side_to_move}[/i]'
 
 
     def _navigate_puzzle(self, step):
