@@ -1,4 +1,4 @@
-__version__ = '1.29'
+__version__ = '2.0'
 
 if __name__ == '__main__':
     from chessapp import ChessApp

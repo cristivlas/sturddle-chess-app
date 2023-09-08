@@ -12,4 +12,4 @@
 	url = https://github.com/cristivlas/sturddle-chess-engine
 [submodule "sturddle_chess_engine"]
 	path = sturddle_chess_engine
-	url = https://github.com/cristivlas/sturddle-chess-engine
+	url = https://github.com/cristivlas/sturddle-2.git

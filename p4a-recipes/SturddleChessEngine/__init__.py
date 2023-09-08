@@ -30,7 +30,13 @@ from distutils.extension import Extension
 from datetime import datetime
 
 build_stamp = datetime.now().strftime('%m%d%y.%H%M')
-
+inc_dirs = [
+    '-I./json/include',
+    '-I./libpopcnt',
+    '-I./magic-bits/include',
+    '-I./simde',
+    '-I./version2',
+]
 setup(
     ext_modules=[Extension('sturddle_chess_engine',
         sources=[
@@ -39,18 +45,18 @@ setup(
             'context.cpp',
             'chess.cpp',
             'search.cpp',
-            'misc.cpp',
-            'nnue.cpp',
             'uci_native.cpp',
         ],
-        extra_compile_args=[
+        extra_compile_args=inc_dirs + [
+            '-ffast-math',
             '-fvisibility=hidden',
-            '-mfpu=neon',
+            '-mfpu=neon-vfpv4',
             '-std=c++17',
             '-O3',
+            '-Wno-bitwise-instead-of-logical',
+            '-Wno-deprecated-declarations',
             '-Wno-unused-label',
             '-Wno-unused-variable',
-            '-Wno-deprecated-declarations',
             '-DCYTHON_WITHOUT_ASSERTIONS',
             '-DNO_ASSERT',
             '-DCALLBACK_PERIOD=512',
@@ -67,7 +73,7 @@ setup(
 NAME = 'SturddleChessEngine'
 
 class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
-    version = '1.3'
+    version = '2.0'
     name = NAME
     cython_args = ['--cplus']
 
@@ -84,6 +90,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
         makedirs (dest_dir)
         for src in [
             '__init__.pyx',
+            'armvector.h',
             'attack_tables.h',
             'attacks.h',
             'captures.cpp',
@@ -93,6 +100,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'chess.cpp',
             'context.h',
             'context.cpp',
+            'nnue.h',
             'primes.hpp',
             'shared_hash_table.h',
             'search.h',
@@ -101,22 +109,17 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'thread_pool.hpp',
             'uci_native.cpp',
             'utility.h',
+            'weights.h',
             'zobrist.h',
-            'nnue-probe/src/auto.h',
-            'nnue-probe/src/misc.cpp',
-            'nnue-probe/src/misc.h',
-            'nnue-probe/src/nnue.cpp',
-            'nnue-probe/src/nnue.h',
         ]:
             shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', src), dest_dir)
-
-        # NNUE
-        for nnue in glob(path.join(self.get_project_dir(), 'sturddle_chess_engine', 'nn-*.nnue')):
-            shprint(sh.cp, nnue, self.get_project_dir())
 
         # submodules:
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'libpopcnt', 'libpopcnt.h'), dest_dir)
         shprint(sh.cp, path.join(self.get_project_dir(), 'sturddle_chess_engine', 'magic-bits', 'include', 'magic_bits.hpp'), dest_dir)
+        shprint(sh.cp, '-r', path.join(self.get_project_dir(), 'sturddle_chess_engine', 'json'), dest_dir)
+        shprint(sh.cp, '-r', path.join(self.get_project_dir(), 'sturddle_chess_engine', 'simde'), dest_dir)
+        shprint(sh.cp, '-r', path.join(self.get_project_dir(), 'sturddle_chess_engine', 'version2'), dest_dir)
 
         with open(path.join(dest_dir, 'setup.py'), 'w') as f:
             f.write(setup)

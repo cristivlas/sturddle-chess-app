@@ -114,8 +114,8 @@ GAME    = 'game'
 IMAGE   = 'images/sturddlefish.png'
 VIEW_MODE = ' Mode [color=A0A0A0]/[/color][b][color=FFA045] Engine Off[/color][/b]'
 
-WIDTH   = 650
-HEIGHT  = 960
+WIDTH   = 480
+HEIGHT  = 700
 
 # Modified Font Awesome codes for chess pieces
 PIECE_CODES = [
@@ -438,11 +438,6 @@ class ChessApp(App):
         # Android kludge. The NNUE file is installed in the app files
         # folder, while the chess engine goes into the site bundle.
         # The engine module looks for the NNUE file in its own folder :(
-
-        if not chess_engine.nnue_ok() and platform == 'android':
-            app_files = os.path.join(self.user_data_dir, 'app', '')
-            Logger.info(f'nnue_init({app_files})')
-            chess_engine.nnue_init(app_files)
 
         chess.pgn.LOGGER.setLevel(50)
         self.modal = None
