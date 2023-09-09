@@ -8,6 +8,7 @@ import numpy as np
 import speech_recognition as sr
 import whisper
 from kivy.core.audio import SoundLoader
+from kivy.logger import Logger
 
 from .base import STT
 
@@ -65,6 +66,7 @@ class WhisperSTT(STT):
             result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='my chess move:')
             text = result['text']
             if text:
+                Logger.info(f'whisper: {text}')
                 self.results_callback([text.strip()])
             else:
                 self.stop()
