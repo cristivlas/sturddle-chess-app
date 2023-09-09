@@ -236,8 +236,8 @@ class BoardWidget(AtlasChessWidget):
             callback(piece_type)
 
         height = self.square_size * 1.1
-        bubble = Bubble(size_hint=(None, None), size=(4 * height, height),
-            background_color=bg_color[color], background_image='')
+        bubble = Bubble(size_hint=(None, None), size=(4 * height, height))
+        content = BubbleContent(background_color=bg_color[color], background_image='')
 
         # [chess.KNIGHT, chess.KING)
         for piece_type in range(2, 6):
@@ -245,10 +245,11 @@ class BoardWidget(AtlasChessWidget):
             text = f'[color={fg_color[color]}]{self.piece_codes[color][piece_type]}[/color]'
             button = BubbleButton(text=text, markup=True, font_name=self.piece_font_name, font_size=sp(32))
             button.on_release = partial(_select_promotion, piece_type)
-            bubble.add_widget(button)
+            content.add_widget(button)
 
         button = BubbleButton(text=self.close_icon_code, font_name=self.piece_font_name, font_size=sp(32))
-        bubble.add_widget(button)
+        content.add_widget(button)
+        bubble.add_widget(content)
         button.on_release = self.hide_bubble
 
         self.show_bubble(bubble)
