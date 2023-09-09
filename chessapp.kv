@@ -34,7 +34,7 @@
     halign: 'left'
     text_size: self.width, None
     height: self.texture_size[1]
-    padding_x: 5 # for captured pieces
+    padding: [5, 0, 5, 0] # for captured pieces
 
 
 <MenuButton@Button>:
@@ -118,7 +118,7 @@
             markup: True
             text_size: self.width, None
             halign: 'left'
-            padding_x: 10
+            padding: [10,0,10,0]
             background: 0,0,0,0
 
         FontScalingLabel:
@@ -134,7 +134,7 @@
             markup: True
             text_size: self.width, None
             halign: 'right'
-            padding_x: 10
+            padding: [10,0,10,0]
             background: 0,0,0,0
 
     ProgressBar:
