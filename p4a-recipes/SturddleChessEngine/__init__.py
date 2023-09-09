@@ -63,6 +63,7 @@ setup(
             '-DEVAL_FUZZ_ENABLED',
             '-DWITH_NNUE',
             '-DBUILD_STAMP=' + build_stamp,
+            '-DUSE_MAGIC_BITS=true',
             '-DPyMODINIT_FUNC=__attribute__((visibility("default"))) extern "C" PyObject*',
         ],
         extra_link_args=['-O3', '-lc++_shared'],
