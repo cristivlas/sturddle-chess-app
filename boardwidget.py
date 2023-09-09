@@ -24,7 +24,7 @@ from kivy.core.window import Window
 from kivy.graphics import *
 from kivy.properties import *
 from kivy.metrics import *
-from kivy.uix.bubble import Bubble, BubbleButton
+from kivy.uix.bubble import Bubble, BubbleButton, BubbleContent
 from kivy.uix.modalview import ModalView
 from kivy.utils import get_color_from_hex, platform
 
@@ -267,8 +267,10 @@ class BoardWidget(AtlasChessWidget):
         actions = [a for a in _buttons if _buttons[a]]
         if actions:
             bubble = Bubble(size_hint=(None, None), size=(sp(90) * len(actions), sp(75)), show_arrow=False)
+            content = BubbleContent()
             for a in actions:
-                bubble.add_widget(BubbleButton(text=a, on_release=partial(_do_action, _buttons[a]), font_size=sp(18)))
+                content.add_widget(BubbleButton(text=a, on_release=partial(_do_action, _buttons[a]), font_size=sp(18)))
+            bubble.add_widget(content)
             self.show_bubble(bubble, auto_dismiss=True)
 
 

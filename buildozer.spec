@@ -38,7 +38,7 @@ version.filename = %(source.dir)s/main.py
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
 
-requirements = kivy,chess,plyer,pyparsing,setuptools,SturddleChessEngine
+requirements = python3,kivy,chess,plyer,pyparsing,setuptools,SturddleChessEngine
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -301,6 +301,7 @@ android.allow_backup = True
 
 # (str) python-for-android branch to use, defaults to master
 #p4a.branch = master
+#p4a.branch = develop
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD
