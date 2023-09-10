@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = Sturddle
+title = Sturddle 2
 
 # (str) Package name
-package.name = sturddle
+package.name = sturddle2
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = chess

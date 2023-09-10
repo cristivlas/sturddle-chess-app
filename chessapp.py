@@ -99,7 +99,7 @@ CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
 ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flaticon'
-ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
+ABOUT   = f"""Powered by the [b]Sturddle Chess Engine V2[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
@@ -1422,7 +1422,7 @@ class ChessApp(App):
         self.puzzle_play = False
         # hack: repurpose the opening label to show puzzle #
         side_to_move = f'{COLOR_NAMES[self.board_widget.model.turn]} to move'
-        self.opening.text = f'[i]Puzzle #{self.selected_puzzle}: {side_to_move}[/i]'
+        self.opening.text = f'[b][i]Puzzle #{self.selected_puzzle}: {side_to_move}[/i][/b]'
 
 
     def _navigate_puzzle(self, step):
