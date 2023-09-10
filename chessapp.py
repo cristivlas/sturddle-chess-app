@@ -114,8 +114,8 @@ GAME    = 'game'
 IMAGE   = 'images/sturddlefish.png'
 VIEW_MODE = ' Mode [color=A0A0A0]/[/color][b][color=FFA045] Engine Off[/color][/b]'
 
-WIDTH   = 650
-HEIGHT  = 960
+WIDTH   = 480
+HEIGHT  = 700
 
 # Modified Font Awesome codes for chess pieces
 PIECE_CODES = [
