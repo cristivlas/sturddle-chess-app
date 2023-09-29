@@ -38,6 +38,12 @@ def _square_name(square, spell_digits=False):
     return name
 
 
+def strip_determiner(func):
+    def _filter(self, s, loc, tokens):
+        func(self, s, loc, list(filter(lambda w: w != 'the', tokens)))
+    return _filter
+
+
 class NLP:
     '''
     Natural Language Processor
@@ -58,15 +64,16 @@ class NLP:
     def _init_grammar(self):
         '''
         grammar :=
-            <piece> takes <piece> [(at|on) <square>]
-            | <piece> takes (at|on) <square>
+            ['the'] <piece> takes ['the'] <piece> [(at|on) <square>]
+            | ['the'] <piece> takes (at|on) <square>
             | castle [king|queen side]
-            | <piece> [at <square>] to <square>
+            | ['the'] <piece> [at <square>] to <square>
             | promote to <piece>
             | <square> [to] <square>
             | <square>
             | <check>
         '''
+        THE = pp.Opt(pp.Keyword('the'))
 
         AT = pp.Keyword('at') | pp.Keyword('on')
         CASTLE = pp.Keyword('castle')
@@ -80,8 +87,8 @@ class NLP:
 
         promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
 
-        capture_piece = PIECE + TAKES + PIECE + pp.Opt(AT + SQUARE)
-        capture_square = PIECE + TAKES + AT + SQUARE
+        capture_piece = THE + PIECE + TAKES + THE + PIECE + pp.Opt(AT + SQUARE)
+        capture_square = THE + PIECE + TAKES + AT + SQUARE
         capture = (
             capture_piece.set_parse_action(self._on_capture_piece) |
             capture_square.set_parse_action(self._on_capture_square)
@@ -91,7 +98,7 @@ class NLP:
         castle = (CASTLE + pp.Opt(castle_side)).set_parse_action(self._on_castle)
         check = CHECK.set_parse_action(self._on_check)
 
-        piece_move = PIECE + pp.Opt(FROM + SQUARE) + TO + SQUARE
+        piece_move = THE + PIECE + pp.Opt(FROM + SQUARE) + TO + SQUARE
         uci_move = SQUARE + pp.Opt(TO) + SQUARE
         pawn_move = SQUARE.copy()
 
@@ -161,6 +168,7 @@ class NLP:
         return moves
 
 
+    @strip_determiner
     def _on_capture_piece(self, s, loc, tok):
         '''
         parse action for: <piece> takes <piece> [(at|on) <square>]
@@ -177,6 +185,7 @@ class NLP:
         self._on_capture(victims_mask, tok)
 
 
+    @strip_determiner
     def _on_capture_square(self, s, loc, tok):
         '''
         parse action for: <piece> takes (at|on) <square>
@@ -236,6 +245,7 @@ class NLP:
         self._moves = [move for move in self._moves if move.promotion == promo_type]
 
 
+    @strip_determiner
     def _on_piece_move(self, s, loc, tok):
         '''
         parse action for: <piece> [at <square>] to <square>
