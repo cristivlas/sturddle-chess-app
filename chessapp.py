@@ -485,6 +485,7 @@ class ChessApp(App):
         search_callback = self.engine.search_callback
         depth_limit = self.engine.depth_limit
         time_limit = self.engine.time_limit
+        engine_paused = self.engine.worker.is_paused()
 
         @mainthread
         def on_analysis_complete(search, color, score):
@@ -497,6 +498,12 @@ class ChessApp(App):
             self.engine.time_limit = time_limit
             self.engine.search_callback = search_callback
             self.engine.search_complete_callback = self.on_search_complete
+            if engine_paused:
+                self.engine.pause()
+            if speak_moves:
+                text = f"Evaluation from {COLOR_NAMES[color]}'s point of view: {score/100:.1f}"
+                self.speak(text)
+            self.update_status()
 
         self.comments = True
         self.speak_moves = False
@@ -504,6 +511,8 @@ class ChessApp(App):
         self.engine.time_limit = 3  # TODO: settings
         self.engine.search_callback = None
         self.engine.search_complete_callback = on_analysis_complete
+        if engine_paused:
+            self.engine.resume()
         self.engine.worker.send_message(self.search_move)
 
 

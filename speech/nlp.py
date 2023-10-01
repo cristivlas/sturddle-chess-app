@@ -109,7 +109,7 @@ class NLP:
         promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
 
         # Grammar rules for miscellaneous commands
-        analyze = pp.Keyword('analyze') + THE + pp.Opt(pp.Keyword('position'))
+        analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
         commands = analyze.set_parse_action(self._on_analyze)
 
         # Put the grammar together and validate it.
