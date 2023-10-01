@@ -151,7 +151,7 @@ class Engine:
         self.worker = WorkerThread()
         self.depth_callback = lambda *_: None
         self.promotion_callback = None
-        self.score_callback = lambda *_: None
+        self.search_complete_callback = lambda *_: None
         self.search_callback = None
         self.update_callback = update_callback
         self.update_move_callback = update_move_callback
@@ -444,7 +444,9 @@ class Engine:
             move, score = self.search.search()
 
         search = self.search
-        self.score_callback(search, self.board.turn, score)
+
+        if score:
+            self.search_complete_callback(search, self.board.turn, score)
 
         self.search = None
 

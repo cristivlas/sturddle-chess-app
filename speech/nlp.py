@@ -59,6 +59,7 @@ class NLP:
         self._init_grammar()
         self._moves = []
         self._board = None
+        self.command = None  # recognized command (other than a move)
 
 
     def _init_grammar(self):
@@ -73,8 +74,6 @@ class NLP:
             | <square>
             | <check>
         '''
-        THE = pp.Opt(pp.Keyword('the'))
-
         AT = pp.Keyword('at') | pp.Keyword('on')
         CASTLE = pp.Keyword('castle')
         CHECK = pp.Keyword('check')
@@ -83,10 +82,10 @@ class NLP:
         PIECE = pp.one_of(' '.join(chess.PIECE_NAMES[1:]))
         SQUARE = pp.one_of(' '.join([chess.square_name(s) for s in chess.SQUARES]))
         TAKES = pp.Keyword('captures') | pp.Keyword('takes')
+        THE = pp.Opt(pp.Keyword('the'))
         TO = pp.Keyword('to')
 
-        promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
-
+        # Grammar rules for describing chess moves.
         capture_piece = THE + PIECE + TAKES + THE + PIECE + pp.Opt(AT + SQUARE)
         capture_square = THE + PIECE + TAKES + AT + SQUARE
         capture = (
@@ -107,8 +106,14 @@ class NLP:
             piece_move.set_parse_action(self._on_piece_move)|
             pawn_move.set_parse_action(self._on_pawn_move)
         )
+        promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
 
-        self.grammar = capture | castle | check | move | promotion
+        # Grammar rules for miscellaneous commands
+        analyze = pp.Keyword('analyze') + THE + pp.Opt(pp.Keyword('position'))
+        commands = analyze.set_parse_action(self._on_analyze)
+
+        # Put the grammar together and validate it.
+        self.grammar = capture | castle | check | commands | move | promotion
         self.grammar.validate()
 
 
@@ -150,6 +155,7 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
+        self.command = None
 
         for text in results:
             if not text:
@@ -166,6 +172,11 @@ class NLP:
             parsed.add(text)
 
         return moves
+
+
+    @strip_determiner
+    def _on_analyze(self, s, loc, tok):
+        self.command = 'analyze'
 
 
     @strip_determiner

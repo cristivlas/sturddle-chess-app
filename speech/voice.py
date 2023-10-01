@@ -192,16 +192,24 @@ class Input:
         stt.stop()
 
         if self._select_move(list(moves)):
-            if self._ok_sound:
+            if self._ok_sound and self.is_running():
                 self._ok_sound.play()
             return self.stop()
 
         self._start_stt()
 
 
+    def _run_command(self, command):
+        if command == 'analyze':
+            self._app._analyze()
+            return True
+
+        return False
+
+
     def _select_move(self, moves):
         if not moves:
-            pass
+            return self._run_command(self._nlp.command)
         elif len(moves) > 1:
             self._multiple_matches(moves)
         else:
@@ -209,6 +217,9 @@ class Input:
 
 
     def _make_move(self, move):
+        '''
+        Apply move, return True if successful instructing the voice input to stop.
+        '''
         if self._app.on_user_move(self, move.uci()):
             return True
 
@@ -218,6 +229,7 @@ class Input:
                 self._app.speak(random.choice(
                     ['Congratulations', 'Nicely done!', 'Well played']
                 ))
+                return True
         else:
             self._app.speak('The move is incorrect.')
 
@@ -249,6 +261,7 @@ class Input:
             + '; or ' + describe_move(b, moves[-1], not same_square, spell_digits=True)
             + '?'
         )
+        return False
 
 
     def _start_stt(self, *_):

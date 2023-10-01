@@ -435,10 +435,6 @@ class ChessApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Android kludge. The NNUE file is installed in the app files
-        # folder, while the chess engine goes into the site bundle.
-        # The engine module looks for the NNUE file in its own folder :(
-
         chess.pgn.LOGGER.setLevel(50)
         self.modal = None
         self.store = DictStore('game.dat')
@@ -446,7 +442,7 @@ class ChessApp(App):
         self.engine = Engine(self.update, self.update_move, Logger.info)
         self.engine.depth_callback = self.update_hash_usage
         self.engine.promotion_callback = self.get_promotion_type
-        self.engine.score_callback = self.score_callback
+        self.engine.search_complete_callback = self.on_search_complete
         self.engine.search_callback = self.search_callback
         #####################################################################
         # wrap engine search
@@ -480,6 +476,35 @@ class ChessApp(App):
         self.message_box(TITLE, ABOUT, Image(source=IMAGE), auto_wrap=False)
         self.modal.popup.size_hint=(.9, .35)
         self.modal.popup.message_max_font_size = sp(14)
+
+
+    def _analyze(self):
+        # Save current settings
+        comments = self.comments
+        speak_moves = self.speak_moves
+        search_callback = self.engine.search_callback
+        depth_limit = self.engine.depth_limit
+        time_limit = self.engine.time_limit
+
+        @mainthread
+        def on_analysis_complete(search, color, score):
+            self._on_search_complete(search, color, score)
+
+            # Restore settings
+            self.comments = comments
+            self.engine.depth_limit = depth_limit
+            self.speak_moves = speak_moves
+            self.engine.time_limit = time_limit
+            self.engine.search_callback = search_callback
+            self.engine.search_complete_callback = self.on_search_complete
+
+        self.comments = True
+        self.speak_moves = False
+        self.engine.depth_limit = 100
+        self.engine.time_limit = 3  # TODO: settings
+        self.engine.search_callback = None
+        self.engine.search_complete_callback = on_analysis_complete
+        self.engine.worker.send_message(self.search_move)
 
 
     def _auto_open(self):
@@ -2032,7 +2057,12 @@ class ChessApp(App):
 
 
     @mainthread
-    def score_callback(self, search, color, score):
+    def on_search_complete(self, search, color, score):
+        self._on_search_complete(search, color, score)
+
+
+    def _on_search_complete(self, search, color, score):
+        assert score != None
         def san(board, uci):
             try:
                 return board.san_and_push(chess.Move.from_uci(uci))
@@ -2047,7 +2077,7 @@ class ChessApp(App):
 
         pv = search.get_pv()
 
-        if self.comments and score != None and len(pv) > 1:
+        if self.comments:
             if score > chess_engine.SCORE_MATE_HIGH:
                 mate = max(chess_engine.SCORE_CHECKMATE - score, len(pv)) // 2
                 score = f'+M{mate}'
