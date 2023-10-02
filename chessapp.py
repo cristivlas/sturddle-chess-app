@@ -481,6 +481,7 @@ class ChessApp(App):
 
     def _analyze(self):
         # Save current settings
+        book = self.engine.book
         speak_moves = self.speak_moves
         search_callback = self.engine.search_callback
         depth_limit = self.engine.depth_limit
@@ -489,21 +490,24 @@ class ChessApp(App):
 
         @mainthread
         def on_analysis_complete(search, color, score):
-            self._on_search_complete(search, color, score, analysis=True)
-
-            # Restore settings
-            self.engine.depth_limit = depth_limit
-            self.speak_eval = False
-            self.speak_moves = speak_moves
-            self.engine.time_limit = time_limit
-            self.engine.search_callback = search_callback
-            self.engine.search_complete_callback = self.on_search_complete
-            if engine_paused:
-                self.engine.pause()
-            self.update_status()
+            try:
+                self._on_search_complete(search, color, score, analysis=True)
+            finally:
+                # Restore settings
+                self.speak_eval = False
+                self.speak_moves = speak_moves
+                self.engine.book = book
+                self.engine.depth_limit = depth_limit
+                self.engine.time_limit = time_limit
+                self.engine.search_callback = search_callback
+                self.engine.search_complete_callback = self.on_search_complete
+                if engine_paused:
+                    self.engine.pause()
+                self.update_status()
 
         self.speak_moves = False
         self.speak_eval = speak_moves
+        self.engine.book = None  # Force move search, do not use opening book
         self.engine.depth_limit = 100
         self.engine.time_limit = 3  # TODO: settings
         self.engine.search_callback = None
