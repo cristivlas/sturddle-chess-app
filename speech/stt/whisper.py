@@ -63,7 +63,7 @@ class WhisperSTT(STT):
             # 4: For 32-bit audio samples, where each sample is stored as a 32-bit (4-byte) integer.
             wav = audio.get_wav_data(convert_rate=16000, convert_width=2)
 
-            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='my chess move:')
+            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='chess game')
             text = result['text']
             if text:
                 Logger.info(f'whisper: {text}')

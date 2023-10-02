@@ -468,7 +468,6 @@ class ChessApp(App):
         self.show_hash = False
         self.difficulty_level = 0
         self.set_difficulty_level(1)
-        self.speak_eval = False
         self.touch = None # for swipe left / right
 
 
@@ -482,7 +481,6 @@ class ChessApp(App):
     def _analyze(self):
         # Save current settings
         book = self.engine.book
-        speak_moves = self.speak_moves
         search_callback = self.engine.search_callback
         depth_limit = self.engine.depth_limit
         time_limit = self.engine.time_limit
@@ -494,8 +492,6 @@ class ChessApp(App):
                 self._on_search_complete(search, color, score, analysis=True)
             finally:
                 # Restore settings
-                self.speak_eval = False
-                self.speak_moves = speak_moves
                 self.engine.book = book
                 self.engine.depth_limit = depth_limit
                 self.engine.time_limit = time_limit
@@ -505,8 +501,6 @@ class ChessApp(App):
                     self.engine.pause()
                 self.update_status()
 
-        self.speak_moves = False
-        self.speak_eval = speak_moves
         self.engine.book = None  # Force move search, do not use opening book
         self.engine.depth_limit = 100
         self.engine.time_limit = 3  # TODO: settings
@@ -1797,7 +1791,7 @@ class ChessApp(App):
 
             ctxt._event.cancel()
 
-            if move and self.speak_moves:
+            if move and self.speak_moves and not analysis_mode:
                 self.speak(self.describe_move(move, spell_digits=True))
 
             return move
@@ -2101,9 +2095,10 @@ class ChessApp(App):
             text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
             self.show_comment(text)
 
-            if self.speak_eval:
+            if self.speak_moves:
                 if distance_to_mate:
-                    text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate}'
+                    moves = 'moves' if distance_to_mate > 1 else 'move'
+                    text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
                 else:
                     text = text.split('(')[0]  # strip the PV
                 self.speak(text)
