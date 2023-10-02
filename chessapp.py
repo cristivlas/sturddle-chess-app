@@ -468,6 +468,7 @@ class ChessApp(App):
         self.show_hash = False
         self.difficulty_level = 0
         self.set_difficulty_level(1)
+        self.speak_eval = False
         self.touch = None # for swipe left / right
 
 
@@ -480,7 +481,6 @@ class ChessApp(App):
 
     def _analyze(self):
         # Save current settings
-        comments = self.comments
         speak_moves = self.speak_moves
         search_callback = self.engine.search_callback
         depth_limit = self.engine.depth_limit
@@ -489,31 +489,28 @@ class ChessApp(App):
 
         @mainthread
         def on_analysis_complete(search, color, score):
-            self._on_search_complete(search, color, score)
+            self._on_search_complete(search, color, score, analysis=True)
 
             # Restore settings
-            self.comments = comments
             self.engine.depth_limit = depth_limit
+            self.speak_eval = False
             self.speak_moves = speak_moves
             self.engine.time_limit = time_limit
             self.engine.search_callback = search_callback
             self.engine.search_complete_callback = self.on_search_complete
             if engine_paused:
                 self.engine.pause()
-            if speak_moves:
-                text = f"Evaluation from {COLOR_NAMES[color]}'s point of view: {score/100:.1f}"
-                self.speak(text)
             self.update_status()
 
-        self.comments = True
         self.speak_moves = False
+        self.speak_eval = speak_moves
         self.engine.depth_limit = 100
         self.engine.time_limit = 3  # TODO: settings
         self.engine.search_callback = None
         self.engine.search_complete_callback = on_analysis_complete
         if engine_paused:
-            self.engine.resume()
-        self.engine.worker.send_message(self.search_move)
+            self.engine.resume(auto_move=False)
+        self.engine.worker.send_message(partial(self.search_move, True))
 
 
     def _auto_open(self):
@@ -1744,7 +1741,7 @@ class ChessApp(App):
         tts.speak(message, stt.stt)
 
 
-    def search_move(self):
+    def search_move(self, analysis_mode=False):
         self.nps = 0
         start_time = datetime.now()
 
@@ -1792,7 +1789,7 @@ class ChessApp(App):
 
         with TimerContext() as ctxt:
             # call the chess engine
-            move = self._search_move()
+            move = self._search_move(analysis_mode)
 
             ctxt._event.cancel()
 
@@ -2070,7 +2067,7 @@ class ChessApp(App):
         self._on_search_complete(search, color, score)
 
 
-    def _on_search_complete(self, search, color, score):
+    def _on_search_complete(self, search, color, score, analysis=False):
         assert score != None
         def san(board, uci):
             try:
@@ -2082,26 +2079,36 @@ class ChessApp(App):
             if self.engine.notation == 'san':
                 board = search.context.board().copy()
                 pv = [san(board, uci) for uci in pv]
-            return ' '.join(pv[1:])
+            return ' '.join(pv[not analysis:])
 
-        pv = search.get_pv()
-
-        if self.comments:
+        if analysis and not self.engine.is_game_over():  # show evaluation
+            distance_to_mate = None
+            pv = search.get_pv()
+            winning_side = color * (score > 0)
             if score > chess_engine.SCORE_MATE_HIGH:
-                mate = max(chess_engine.SCORE_CHECKMATE - score, len(pv)) // 2
-                score = f'+M{mate}'
+                distance_to_mate = (max(chess_engine.SCORE_CHECKMATE - score, len(pv)) + 1) // 2
+                score = f'+M{distance_to_mate}'
             elif -chess_engine.SCORE_CHECKMATE <= score < chess_engine.SCORE_MATE_LOW:
-                mate = max(chess_engine.SCORE_CHECKMATE + score, len(pv)) // 2
-                score = f'-M{mate}'
+                distance_to_mate = (max(chess_engine.SCORE_CHECKMATE + score, len(pv)) + 1) // 2
+                score = f'-M{distance_to_mate}'
             else:
                 score = f'{score/100:.1f}'
 
             text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
             self.show_comment(text)
 
+            if self.speak_eval:
+                if distance_to_mate:
+                    text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate}'
+                else:
+                    text = text.split('(')[0]  # strip the PV
+                self.speak(text)
+
 
     def search_callback(self, search, millisec):
         '''
+        Called by the engine during search.
+
         The engine itself does not implement strength levels, it is
         done here (at the application level) instead, by using this
         callback to introduce delays.

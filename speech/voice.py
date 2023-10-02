@@ -201,7 +201,7 @@ class Input:
 
     def _run_command(self, command):
         if command == 'analyze':
-            self._app._analyze()
+            Clock.schedule_once(lambda *_: self._app._analyze(), 0.5)
             return True
 
         return False

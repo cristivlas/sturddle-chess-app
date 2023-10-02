@@ -421,7 +421,7 @@ class Engine:
         return entry.move
 
 
-    def search_move(self):
+    def search_move(self, analysis_mode=False):
         if self.book:
             try:
                 if move := self.search_opening(self.board.base_copy()):
@@ -439,6 +439,7 @@ class Engine:
             iteration_cb = self.iteration_callback,
             threads_report = self._update_node_count
             )
+        self.search.set_analysis_mode(analysis_mode)
 
         with Timer() as timer:
             move, score = self.search.search()
