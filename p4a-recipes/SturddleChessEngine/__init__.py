@@ -94,6 +94,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'armvector.h',
             'attack_tables.h',
             'attacks.h',
+            'backtrace.h',
             'captures.cpp',
             'common.h',
             'config.h',
