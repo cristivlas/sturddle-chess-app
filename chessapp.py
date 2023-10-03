@@ -2087,7 +2087,7 @@ class ChessApp(App):
         if analysis and not self.engine.is_game_over():  # show evaluation
             distance_to_mate = None
             pv = search.get_pv()
-            winning_side = color * (score > 0)
+            winning_side = color if score > 0 else not color
             if score > chess_engine.SCORE_MATE_HIGH:
                 distance_to_mate = (max(chess_engine.SCORE_CHECKMATE - score, len(pv)) + 1) // 2
                 score = f'+M{distance_to_mate}'
