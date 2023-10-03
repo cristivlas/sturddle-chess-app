@@ -38,6 +38,7 @@
 
     GridLayout:
         cols: 2
+        cols_minimum: { 0: self.parent.width * .3 }
 
         OptLabel:
             text: 'Algebraic Notation'
@@ -73,7 +74,7 @@
 
 
     OptGrid:
-        size_hint_y: 0.7
+        size_hint_y: 0.8
 
         OptLabel:
             text: 'Time / move: ' + app.time_limit_str(limit.value)
@@ -122,6 +123,20 @@
             # changing active cores during search may crash
             disabled: app.engine_busy or app.difficulty_level != app.MAX_DIFFICULTY
 
+        OptLabel:
+            text: 'Analysis Time: ' + str(int(analysis_time.value)) + ' sec'
+
+        Slider:
+            id: analysis_time
+            min: 1
+            max: 60
+            step: 2.5
+            value: app.analysis_time
+            on_touch_up: app.analysis_time = int(self.value)
+            cursor_size: dp(22), dp(22)
+            padding: dp(16)
+
+    # "Advanced >>" button:
     RelativeLayout:
         size_hint: 1, None
         height: dp(32)
@@ -137,6 +152,7 @@
     size_hint: 1, 1
     GridLayout:
         cols: 2
+        cols_minimum: { 0: self.parent.width * .3 }
 
         # Developer flag: clear the hashtable after making a move.
         # For troubleshooting transposition table aging mechanism.

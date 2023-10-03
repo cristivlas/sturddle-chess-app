@@ -468,7 +468,8 @@ class ChessApp(App):
         self.show_hash = False
         self.difficulty_level = 0
         self.set_difficulty_level(1)
-        self.touch = None # for swipe left / right
+        self.touch = None  # for swipe left / right
+        self.analysis_time = 3  # in seconds, see analyze
 
 
     def about(self, *_):
@@ -478,7 +479,7 @@ class ChessApp(App):
         self.modal.popup.message_max_font_size = sp(14)
 
 
-    def _analyze(self):
+    def analyze(self):
         # Save current settings
         book = self.engine.book
         search_callback = self.engine.search_callback
@@ -503,7 +504,7 @@ class ChessApp(App):
 
         self.engine.book = None  # Force move search, do not use opening book
         self.engine.depth_limit = 100
-        self.engine.time_limit = 3  # TODO: settings
+        self.engine.time_limit = self.analysis_time
         self.engine.search_callback = None
         self.engine.search_complete_callback = on_analysis_complete
         if engine_paused:
@@ -713,11 +714,11 @@ class ChessApp(App):
             # Set difficulty after cores, as it resets cores to 1 if level < MAX
             self.set_difficulty_level(int(store.get('level', 1)))
 
-            # show hash table usage and nodes-per-second
+            # Show hash table usage and nodes-per-second
             self.show_hash = store.get('show_hash', False)
             self.show_nps = store.get('show_nps', False)
 
-            # remember last puzzle
+            # Remember last puzzle
             self.selected_puzzle = store.get('puzzle', 0) # 1-based index
             if store.get('puzzle_mode', False):
                 assert self.selected_puzzle
@@ -725,6 +726,9 @@ class ChessApp(App):
 
             self.speak_moves = store.get('speak', False)
             stt.stt.prefer_offline = store.get('prefer_offline', True)
+
+            # Time for 'analyze' vocal command
+            self.analysis_time = store.get('analysis_time', 3)
 
 
     def save(self, *_):
@@ -755,6 +759,7 @@ class ChessApp(App):
             puzzle_mode=bool(self.puzzle),
             speak=self.speak_moves,
             prefer_offline=stt.stt.prefer_offline,
+            analysis_time=self.analysis_time,
         )
 
         self.update_button_states()
