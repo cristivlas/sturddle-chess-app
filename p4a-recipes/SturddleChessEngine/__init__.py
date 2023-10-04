@@ -78,6 +78,9 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
     name = NAME
     cython_args = ['--cplus']
 
+    def strip_object_files(self, arch, env, build_dir=None):
+        pass
+
     def get_project_dir(self):
         dir = self.ctx.root_dir
         return dir[:dir.index('.buildozer')]
