@@ -859,19 +859,19 @@ class ChessApp(App):
         self.speech_input()
 
 
-    def speech_input(self):
+    def speech_input(self, modal=True):
         def has_modal():
             return isinstance(Window.children[0], ModalView)
 
         if all((
             self.speak_moves,
             self.study_mode or self.engine.is_opponents_turn(),
-            not self.menu.attach_to,
+            # not self.menu.attach_to,
             not self.voice_input.is_running(),
             not self.edit,
-            not has_modal()
+            not modal or not has_modal()
         )):
-            self.voice_input.start()
+            self.voice_input.start(modal)
             return True
 
 
@@ -1326,6 +1326,7 @@ class ChessApp(App):
             if self.modal:
                 on_close(self.modal)
             self.modal = None
+            self.voice_input.stop()
 
         if not self.modal:
             self.modal = MessageBox(
@@ -1418,12 +1419,17 @@ class ChessApp(App):
         Show a message box asking the user to confirm an action.
         '''
         def callback(msgbox):
-            if msgbox.value == 'Yes':
+            if msgbox.value == 'yes':
                 return yes_action()
-            elif no_action and msgbox.value == 'No':
+            elif no_action and msgbox.value == 'no':
                 return no_action()
 
-        self.message_box(title='Confirm', text=text + '?', on_close=callback)
+        text += '?'
+        self.message_box(title='Confirm', text=text, on_close=callback)
+
+        if self.speak_moves:
+            self.speak(text)
+            self.speech_input(modal=False)
 
 
     def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda:None):

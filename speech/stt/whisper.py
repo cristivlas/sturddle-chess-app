@@ -41,6 +41,7 @@ Implement voice recognition using OpenAI-Whisper.
 class WhisperSTT(STT):
     def __init__(self, **kwargs):
         super().__init__()
+        self.ask_mode = False
         self._cancel = None
         self._start_sound = self._load_sound('start.mp3', 0.5)
         self._stop_sound = self._load_sound('stop.mp3', 0.5)
@@ -63,10 +64,11 @@ class WhisperSTT(STT):
             # 4: For 32-bit audio samples, where each sample is stored as a 32-bit (4-byte) integer.
             wav = audio.get_wav_data(convert_rate=16000, convert_width=2)
 
-            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt='chess game')
+            prompt = 'the answer is' if self.ask_mode else 'chess game move or command'
+            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt=prompt)
             text = result['text']
             if text:
-                Logger.info(f'whisper: {text}')
+                Logger.info(f'whisper:{text}')
                 self.results_callback([text.strip()])
             else:
                 self.stop()

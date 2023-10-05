@@ -33,6 +33,7 @@ from . import tts
 from .nlp import NLP, describe_move
 from .stt import stt
 
+import msgbox
 
 class LanguageInput(GridLayout):
     @property
@@ -46,6 +47,7 @@ class Input:
     '''
     def __init__(self, app):
         self._app = weakref.proxy(app)
+        self._ask_mode = False
         self._popup = None
         self._input = None
         self._nlp = NLP()
@@ -69,7 +71,7 @@ class Input:
         return bool(self._input)
 
 
-    def start(self):
+    def start(self, modal=True):
         '''
         Construct the dialog box and start speech-to-text if supported.
         '''
@@ -85,10 +87,16 @@ class Input:
                 stt.stop()
         self._input.ids.text.bind(focus=on_focus)
 
-        self._app.message_box('', '', self._input, auto_wrap=False)
+        if modal:
+            self._app.message_box('', '', self._input, auto_wrap=False)
+            popup = self._app.modal.popup
+
+            # position and size the dialog that offers an alternative text input method
+            popup.pos_hint={'y': .87}
+            popup.size_hint=(1, .13)
+
         self._popup = self._app.modal.popup
-        self._popup.pos_hint={'y': .87}
-        self._popup.size_hint=(1, .13)
+        self._ask_mode = type(self._popup) == msgbox.ModalBox
 
         # microphone button
         self._listen = ActionButton(
@@ -113,8 +121,10 @@ class Input:
 
 
     def stop(self):
-        if self._popup:
+        if self._popup and not self._ask_mode:
             self._popup.dismiss()
+        else:
+            self._dismiss()
 
 
     def _check_state(self, _):
@@ -135,16 +145,18 @@ class Input:
             Clock.schedule_once(callback, 0.5)
 
 
-    def _dismiss(self, _):
+    def _dismiss(self, *_):
         '''
         Cleanup when the modal popup is dismissed
         '''
-        Clock.unschedule(self._check_state)
-        stt.stop()
-        tts.stop()
-        self._popup = None
-        self._input = None
-        self._results = []
+        if self.is_running():
+            Clock.unschedule(self._check_state)
+            stt.stop()
+            tts.stop()
+            self._popup = None
+            self._input = None
+            self._results = []
+            Logger.info('voice input: stopped')
 
 
     def _on_results(self, results, done = True):
@@ -194,20 +206,49 @@ class Input:
         if self._select_move(list(moves)):
             if self._ok_sound and self.is_running():
                 self._ok_sound.play()
-            return self.stop()
-
-        self._start_stt()
+            self.stop()
+        else:
+            self._start_stt()  # keep listening
 
 
     def _run_command(self, command):
-        if command == 'analyze':
-            Clock.schedule_once(lambda *_: self._app.analyze(), 0.5)
+        actions = {
+            'analyze': self._app.analyze,
+            'edit': self._app.edit_start,
+            'exit': self._app.exit,
+            'new': self._app.new_game,
+            'puzzle': self._app.puzzles,
+            'settings': self._app.settings,
+            'switch': self._app.flip_board,
+        }
+        if command in actions:
+            Clock.schedule_once(lambda *_: actions[command](), 0.5)
             return True
 
         return False
 
 
     def _select_move(self, moves):
+        '''
+        Select moves from user or handle miscellaneous voice commands.
+        '''
+
+        # Handle "ask mode" (answer Yes/No questions) first;
+        # in this mode self.stop() does not dismiss the current
+        # modal popup (the button action triggered in response
+        # to either yes/no answer is expected to dismiss the popup).
+
+        command = self._nlp.command
+        if self._ask_mode and command in ['yes', 'no']:
+            assert type(self._popup) == msgbox.ModalBox
+            for btn in self._popup.content._buttons.children:
+                if btn.text == command.capitalize():
+                    btn.trigger_action(0.1)
+                    break
+            return True
+
+        self._ask_mode = False
+
         if not moves:
             return self._run_command(self._nlp.command)
         elif len(moves) > 1:
@@ -275,6 +316,7 @@ class Input:
         else:
             self._error = ''
             self._text = ''
+            stt.ask_mode = self._ask_mode
             stt.start()
 
 

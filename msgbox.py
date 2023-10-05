@@ -97,7 +97,7 @@ class MessageBox:
         self.value = None
 
         def _callback(btn):
-            self.value = btn.text.strip()
+            self.value = btn.text.strip().lower()
             self.popup.dismiss()
 
         layout = MessageBoxLayout(message, user_widget, auto_wrap)

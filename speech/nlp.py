@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 import re
+from functools import partial, reduce
 
 import chess
 import pyparsing as pp
@@ -56,11 +57,16 @@ class NLP:
 
 
     def __init__(self):
+        keywords = 'yes yeap yeah affirmative'.split()
+        self.YES = reduce(lambda a, b: a | b, (pp.Keyword(k) for k in keywords))
+
+        keywords = 'no nope negative'.split()
+        self.NO = reduce(lambda a, b: a | b, (pp.Keyword(k) for k in keywords))
+
         self._init_grammar()
         self._moves = []
         self._board = None
         self.command = None  # recognized command (other than a move)
-
 
     def _init_grammar(self):
         '''
@@ -86,6 +92,7 @@ class NLP:
         TO = pp.Keyword('to')
 
         # Grammar rules for describing chess moves.
+
         capture_piece = THE + PIECE + TAKES + THE + PIECE + pp.Opt(AT + SQUARE)
         capture_square = THE + PIECE + TAKES + AT + SQUARE
         capture = (
@@ -109,8 +116,29 @@ class NLP:
         promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
 
         # Grammar rules for miscellaneous commands
+
         analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
-        commands = analyze.set_parse_action(self._on_analyze)
+        edit = pp.Keyword('edit')
+        exit = pp.Keyword('exit') | pp.Keyword('quit')
+        new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
+        puzzle = pp.Keyword('puzzle')
+        settings = pp.Opt('application') + pp.Keyword('settings')
+        switch = pp.Keyword('switch')
+        yes_no = self.YES | self.NO
+
+        def assign_command(cmd, *_):
+            self.command = cmd
+
+        commands = (
+            analyze.set_parse_action(self._on_analyze) |
+            edit.set_parse_action(partial(assign_command, 'edit')) |
+            exit.set_parse_action(partial(assign_command, 'exit')) |
+            new_game.set_parse_action(partial(assign_command, 'new')) |
+            puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
+            settings.set_parse_action(partial(assign_command, 'settings')) |
+            switch.set_parse_action(partial(assign_command, 'switch')) |
+            yes_no.set_parse_action(self._on_yes_no)
+        )
 
         # Put the grammar together and validate it.
         self.grammar = capture | castle | check | commands | move | promotion
@@ -282,6 +310,10 @@ class NLP:
         self._moves = self._board.generate_legal_moves(from_mask, to_mask)
 
 
+    def _on_yes_no(self, s, loc, tok):
+        self.command = 'yes' if self.YES.search_string(tok[0]) else 'no'
+
+
     '''
     Corrections for some common mistakes in speech recognition.
     '''
@@ -332,6 +364,7 @@ class NLP:
         r'\broute\b' : 'rook',
         r'\bruk\b' : 'rook',
         r'\bsee\s*([1-8])' : r'c\1',
+        r'\bsee free\b' : 'c3',
         r'\bsee to\b' : 'c2',
         r'\bsee too\b' : 'c2',
         r'\bsite\b' : 'side',
@@ -412,8 +445,8 @@ def describe_move(
 
     if target:
         text = f'{prefix} takes {chess.piece_name(target)} on {to_square}'
-    elif use_from_square and piece_type == chess.PAWN:
-        text = to_square
+    # elif use_from_square and piece_type == chess.PAWN:
+    #     text = to_square
     else:
         text = f'{prefix} to {to_square}'
 
