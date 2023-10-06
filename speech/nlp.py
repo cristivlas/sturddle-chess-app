@@ -124,6 +124,7 @@ class NLP:
         puzzle = pp.Keyword('puzzle')
         settings = pp.Opt('application') + pp.Keyword('settings')
         switch = pp.Keyword('switch')
+        undo = pp.Keyword('undo') | (pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that')) + pp.Keyword('back'))
         yes_no = self.YES | self.NO
 
         def assign_command(cmd, *_):
@@ -137,6 +138,7 @@ class NLP:
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
             settings.set_parse_action(partial(assign_command, 'settings')) |
             switch.set_parse_action(partial(assign_command, 'switch')) |
+            undo.set_parse_action(partial(assign_command, 'undo')) |
             yes_no.set_parse_action(self._on_yes_no)
         )
 

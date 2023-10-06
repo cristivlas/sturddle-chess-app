@@ -220,9 +220,10 @@ class Input:
             'puzzle': self._app.puzzles,
             'settings': self._app.settings,
             'switch': self._app.flip_board,
+            'undo': self._app.undo_move,
         }
         if command in actions:
-            Clock.schedule_once(lambda *_: actions[command](), 0.5)
+            Clock.schedule_once(lambda *_: actions[command](), 0.1)
             return True
 
         return False
