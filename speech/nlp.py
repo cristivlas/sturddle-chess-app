@@ -66,7 +66,9 @@ class NLP:
         self._init_grammar()
         self._moves = []
         self._board = None
+        self.any = None
         self.command = None  # recognized command (other than a move)
+
 
     def _init_grammar(self):
         '''
@@ -84,14 +86,18 @@ class NLP:
         CASTLE = pp.Keyword('castle')
         CHECK = pp.Keyword('check')
         FROM = pp.Keyword('at') | pp.Keyword('from')
+        OPENING = pp.Keyword('opening')
         PROMOTE = pp.Keyword('promote') | pp.Keyword('promotes')
         PIECE = pp.one_of(' '.join(chess.PIECE_NAMES[1:]))
+        SETUP = pp.Keyword('setup') | pp.Keyword('set') + pp.Keyword('up')
         SQUARE = pp.one_of(' '.join([chess.square_name(s) for s in chess.SQUARES]))
         TAKES = pp.Keyword('captures') | pp.Keyword('takes')
         THE = pp.Opt(pp.Keyword('the'))
         TO = pp.Keyword('to')
 
+        # -----------------------------------------
         # Grammar rules for describing chess moves.
+        # -----------------------------------------
 
         capture_piece = THE + PIECE + TAKES + THE + PIECE + pp.Opt(AT + SQUARE)
         capture_square = THE + PIECE + TAKES + AT + SQUARE
@@ -115,34 +121,43 @@ class NLP:
         )
         promotion = (PROMOTE + TO + PIECE).set_parse_action(self._on_promo)
 
+        # -----------------------------------------
         # Grammar rules for miscellaneous commands
+        # -----------------------------------------
 
         analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
-        puzzle = pp.Keyword('puzzle')
+        puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
         settings = pp.Opt('application') + pp.Keyword('settings')
-        switch = pp.Keyword('switch')
-        undo = pp.Keyword('undo') | (pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that')) + pp.Keyword('back'))
+        setup_opening = SETUP + pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) + pp.Opt(OPENING)
+        switch = pp.Keyword('switch')  # flip the board around
+        undo = (pp.Keyword('undo') |
+            pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that') | pp.Keyword('move')) + pp.Keyword('back') |
+            pp.Keyword('take') + pp.Keyword('back') + pp.Keyword('move')
+        )
         yes_no = self.YES | self.NO
 
         def assign_command(cmd, *_):
             self.command = cmd
 
+        # -----------------------------------------
+        # Put the grammar together and validate it.
+        # -----------------------------------------
         commands = (
             analyze.set_parse_action(self._on_analyze) |
             edit.set_parse_action(partial(assign_command, 'edit')) |
             exit.set_parse_action(partial(assign_command, 'exit')) |
             new_game.set_parse_action(partial(assign_command, 'new')) |
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
+            setup_opening.set_parse_action(partial(assign_command, 'opening')) |
             settings.set_parse_action(partial(assign_command, 'settings')) |
             switch.set_parse_action(partial(assign_command, 'switch')) |
             undo.set_parse_action(partial(assign_command, 'undo')) |
             yes_no.set_parse_action(self._on_yes_no)
         )
 
-        # Put the grammar together and validate it.
         self.grammar = capture | castle | check | commands | move | promotion
         self.grammar.validate()
 
@@ -207,6 +222,11 @@ class NLP:
     @strip_determiner
     def _on_analyze(self, s, loc, tok):
         self.command = 'analyze'
+
+
+    def _on_any(self, s, loc, tok):
+        tok = [w for t in tok for w in t.split() if w != 'the']
+        self.any = ' '.join(tok).strip()
 
 
     @strip_determiner

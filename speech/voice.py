@@ -222,7 +222,11 @@ class Input:
             'switch': self._app.flip_board,
             'undo': self._app.undo_move,
         }
-        if command in actions:
+        if command == 'opening':
+            Clock.schedule_once(lambda *_: self._app.setup_opening(self._nlp.any), 0.1)
+            return True
+
+        elif command in actions:
             Clock.schedule_once(lambda *_: actions[command](), 0.1)
             return True
 

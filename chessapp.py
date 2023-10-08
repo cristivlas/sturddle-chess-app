@@ -1555,6 +1555,22 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
+    def setup_opening(self, name):
+        if not self.eco:
+            return
+        openings = self.eco.by_name
+        results = {k: v for k, v in openings.items() if name in k.lower()}
+        if results:
+            name, row = next(iter(results.items()))
+            pgn = row['pgn']
+            game = chess.pgn.read_game(StringIO(pgn))
+            if game:
+                self._new_game_action(
+                    f'setup {name}',
+                    lambda *_: Clock.schedule_once(partial(self._load_pgn, game))
+                )
+
+
     @property
     def speak_moves(self):
         return self.__speak_moves
