@@ -1,4 +1,5 @@
 chess
+fuzzywuzzy
 kivy
 Cython
 numpy
@@ -6,6 +7,7 @@ pyautogui
 plyer
 pyparsing
 pyaudio
+python-Levenshtein
 SpeechRecognition
 #deepspeech-tflite==0.9.3
 stt

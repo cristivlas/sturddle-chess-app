@@ -72,6 +72,7 @@ from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
+from fuzzywuzzy import process as fuzzy_match, fuzz
 
 try:
     from android.runnable import run_on_ui_thread
@@ -1557,16 +1558,21 @@ class ChessApp(App):
 
     def setup_opening(self, name):
         if not self.eco:
+            Logger.error('setup_opening: no ECO')
             return
+
         openings = self.eco.by_name
-        results = {k: v for k, v in openings.items() if name in k.lower()}
-        if results:
-            name, row = next(iter(results.items()))
+
+        match, score = fuzzy_match.extractOne(name, openings.keys(), scorer=fuzz.token_set_ratio)
+        if score < 85:
+            match, score = fuzzy_match.extractOne(name, openings.keys())  # retry w/ default scorer
+        if score >= 80:
+            row = openings[match]
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
             if game:
                 self._new_game_action(
-                    f'setup {name}',
+                    f'setup {match}',
                     lambda *_: Clock.schedule_once(partial(self._load_pgn, game))
                 )
 

@@ -75,6 +75,9 @@ class Input:
         '''
         Construct the dialog box and start speech-to-text if supported.
         '''
+        if self.is_running():
+            return
+
         self._input = LanguageInput()
 
         def on_input(text_input):

@@ -57,7 +57,7 @@ class NLP:
 
 
     def __init__(self):
-        keywords = 'yes yeap yeah affirmative'.split()
+        keywords = 'yes yep yeah affirmative'.split()
         self.YES = reduce(lambda a, b: a | b, (pp.Keyword(k) for k in keywords))
 
         keywords = 'no nope negative'.split()
@@ -200,6 +200,7 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
+        self.any = None
         self.command = None
 
         for text in results:
