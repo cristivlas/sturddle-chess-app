@@ -57,7 +57,7 @@ class NLP:
 
 
     def __init__(self):
-        keywords = 'yes yep yeah affirmative'.split()
+        keywords = 'yes yep yeah affirmative correct'.split()
         self.YES = reduce(lambda a, b: a | b, (pp.Keyword(k) for k in keywords))
 
         keywords = 'no nope negative'.split()
@@ -89,7 +89,6 @@ class NLP:
         OPENING = pp.Keyword('opening')
         PROMOTE = pp.Keyword('promote') | pp.Keyword('promotes')
         PIECE = pp.one_of(' '.join(chess.PIECE_NAMES[1:]))
-        SETUP = pp.Keyword('setup') | pp.Keyword('set') + pp.Keyword('up')
         SQUARE = pp.one_of(' '.join([chess.square_name(s) for s in chess.SQUARES]))
         TAKES = pp.Keyword('captures') | pp.Keyword('takes')
         THE = pp.Opt(pp.Keyword('the'))
@@ -131,7 +130,10 @@ class NLP:
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
         settings = pp.Opt('application') + pp.Keyword('settings')
-        setup_opening = SETUP + pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) + pp.Opt(OPENING)
+        opening = (pp.Keyword('play') +
+            pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
+            pp.Opt(OPENING)
+        )
         switch = pp.Keyword('switch')  # flip the board around
         undo = (pp.Keyword('undo') |
             pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that') | pp.Keyword('move')) + pp.Keyword('back') |
@@ -151,7 +153,7 @@ class NLP:
             exit.set_parse_action(partial(assign_command, 'exit')) |
             new_game.set_parse_action(partial(assign_command, 'new')) |
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
-            setup_opening.set_parse_action(partial(assign_command, 'opening')) |
+            opening.set_parse_action(partial(assign_command, 'opening')) |
             settings.set_parse_action(partial(assign_command, 'settings')) |
             switch.set_parse_action(partial(assign_command, 'switch')) |
             undo.set_parse_action(partial(assign_command, 'undo')) |

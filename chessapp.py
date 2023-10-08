@@ -46,7 +46,7 @@ from kivy.core.window import Window
 from kivy.effects.scroll import ScrollEffect
 from kivy.graphics import *
 from kivy.graphics.tesselator import Tesselator
-from kivy.logger import Logger
+from kivy.logger import Logger, LOG_LEVELS
 from kivy.metrics import *
 from kivy.properties import *
 from kivy.storage.dictstore import DictStore
@@ -472,6 +472,7 @@ class ChessApp(App):
         self.set_difficulty_level(1)
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
+        Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
 
 
     def about(self, *_):
@@ -1223,7 +1224,7 @@ class ChessApp(App):
         if rewind:
             self.update()
 
-        Logger.info(f'load_pgn: name={name}')
+        Logger.debug(f'load_pgn: name={name}')
 
 
     def _game_name(self, game):
@@ -1562,7 +1563,11 @@ class ChessApp(App):
             Logger.error('setup_opening: no ECO')
             return
 
-        openings = self.eco.by_name
+        def play_opening(game, *_):
+            self._load_pgn(game)
+            self.set_study_mode(False)
+
+        openings = self.eco.by_phonetic_name
 
         name = doublemetaphone(name)[0]
         # match, score, _ = fuzz_match.extractOne(name, openings.keys(), scorer=fuzz.token_set_ratio)
@@ -1574,8 +1579,8 @@ class ChessApp(App):
             if game:
                 name = row['name']
                 self._new_game_action(
-                    f'setup {name}',
-                    lambda *_: Clock.schedule_once(partial(self._load_pgn, game))
+                    f'play {name}',
+                    lambda *_: Clock.schedule_once(partial(play_opening, game))
                 )
 
 

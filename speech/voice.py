@@ -64,6 +64,20 @@ class Input:
             self._ok_sound.volume = 0.5
 
 
+    def _is_ask_mode(self):
+        '''
+        Is a confirmation dialog (Yes/No) on?
+        '''
+        popup = self._popup
+        return all((
+            type(popup) == msgbox.ModalBox,
+            popup.content,
+            popup.content._buttons,
+            popup.content._buttons.children,
+            all(btn.text.lower() in ['yes', 'no'] for btn in popup.content._buttons.children)
+        ))
+
+
     def is_running(self):
         '''
         is the input dialog running?
@@ -75,8 +89,7 @@ class Input:
         '''
         Construct the dialog box and start speech-to-text if supported.
         '''
-        if self.is_running():
-            return
+        assert not self.is_running()
 
         self._input = LanguageInput()
 
@@ -99,7 +112,7 @@ class Input:
             popup.size_hint=(1, .13)
 
         self._popup = self._app.modal.popup
-        self._ask_mode = type(self._popup) == msgbox.ModalBox
+        self._ask_mode = self._is_ask_mode()
 
         # microphone button
         self._listen = ActionButton(
@@ -159,7 +172,7 @@ class Input:
             self._popup = None
             self._input = None
             self._results = []
-            Logger.info('voice input: stopped')
+            Logger.debug('voice: stopped')
 
 
     def _on_results(self, results, done = True):
@@ -255,7 +268,9 @@ class Input:
                     break
             return True
 
-        self._ask_mode = False
+        # Cancel "ask mode" if another command or move was given
+        if self._nlp.command or moves:
+            self._ask_mode = False
 
         if not moves:
             return self._run_command(self._nlp.command)
@@ -314,7 +329,10 @@ class Input:
 
 
     def _start_stt(self, *_):
-        if not self.is_running():
+        assert self.is_running()
+
+        if self._input.ids.text.focus:
+            Logger.debug('voice: has text input focus, not starting stt')
             return
 
         if tts.is_speaking():
@@ -326,6 +344,7 @@ class Input:
             self._text = ''
             stt.ask_mode = self._ask_mode
             stt.start()
+            Logger.debug(f'stt: started (ask_mode={self._ask_mode})')
 
 
     def _toggle_listening(self, *_):
