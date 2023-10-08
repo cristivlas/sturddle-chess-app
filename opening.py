@@ -19,9 +19,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import csv
 import io
 from os import path, walk
+import string
 
 import chess
 import chess.pgn
+from metaphone import doublemetaphone
+
+
+def _strip_punctuation(input):
+    return ''.join(char for char in input if char not in string.punctuation)
+
+
+def _preprocess(input):
+    return doublemetaphone(_strip_punctuation(input))[0]
 
 
 class ECO:
@@ -55,7 +65,7 @@ class ECO:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
                 self.by_fen[row['epd']] = row
-                self.by_name[row['name']] = row
+                self.by_name[_preprocess(row['name'])] = row
 
 
     def lookup(self, board, transpose=False):

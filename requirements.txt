@@ -2,12 +2,13 @@ chess
 fuzzywuzzy
 kivy
 Cython
+metaphone
 numpy
 pyautogui
 plyer
 pyparsing
 pyaudio
-python-Levenshtein
+rapidfuzz
 SpeechRecognition
 #deepspeech-tflite==0.9.3
 stt

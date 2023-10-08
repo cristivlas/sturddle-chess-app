@@ -67,12 +67,13 @@ from kivy.utils import get_color_from_hex, platform
 import sturddle_chess_engine as chess_engine
 from boardwidget import BoardWidget
 from engine import Engine
+from metaphone import doublemetaphone
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
-from fuzzywuzzy import process as fuzzy_match, fuzz
+from rapidfuzz import process as fuzz_match, fuzz
 
 try:
     from android.runnable import run_on_ui_thread
@@ -1189,7 +1190,7 @@ class ChessApp(App):
         try:
             fen = node.board().fen()
         except ValueError as e:
-            Logger.error(f'load_pgn: {e}')
+            Logger.error(f'_load_pgn: {e}')
             return
 
         self.engine.pause(cancel=True)
@@ -1222,7 +1223,7 @@ class ChessApp(App):
         if rewind:
             self.update()
 
-        Logger.info(f'load_pgn: {name}')
+        Logger.info(f'load_pgn: name={name}')
 
 
     def _game_name(self, game):
@@ -1563,16 +1564,17 @@ class ChessApp(App):
 
         openings = self.eco.by_name
 
-        match, score = fuzzy_match.extractOne(name, openings.keys(), scorer=fuzz.token_set_ratio)
-        if score < 85:
-            match, score = fuzzy_match.extractOne(name, openings.keys())  # retry w/ default scorer
-        if score >= 80:
+        name = doublemetaphone(name)[0]
+        # match, score, _ = fuzz_match.extractOne(name, openings.keys(), scorer=fuzz.token_set_ratio)
+        match, score, _ = fuzz_match.extractOne(name, openings.keys())
+        if score >= 75:
             row = openings[match]
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
             if game:
+                name = row['name']
                 self._new_game_action(
-                    f'setup {match}',
+                    f'setup {name}',
                     lambda *_: Clock.schedule_once(partial(self._load_pgn, game))
                 )
 
