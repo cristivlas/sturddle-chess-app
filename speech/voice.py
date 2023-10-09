@@ -239,7 +239,7 @@ class Input:
             'undo': self._app.undo_move,
         }
         if command == 'opening':
-            Clock.schedule_once(lambda *_: self._app.setup_opening(self._nlp.any), 0.1)
+            Clock.schedule_once(lambda *_: self._app.play_opening(self._nlp.any), 0.1)
             return True
 
         elif command in actions:
@@ -329,9 +329,7 @@ class Input:
 
 
     def _start_stt(self, *_):
-        assert self.is_running()
-
-        if self._input.ids.text.focus:
+        if self._input and self._input.ids.text.focus:
             Logger.debug('voice: has text input focus, not starting stt')
             return
 

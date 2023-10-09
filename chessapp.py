@@ -1558,21 +1558,23 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
-    def setup_opening(self, name):
+    def play_opening(self, name):
         if not self.eco:
-            Logger.error('setup_opening: no ECO')
+            Logger.error('play_opening: no ECO')
             return
 
-        def play_opening(game, *_):
+        def load_and_play(game, *_):
             self._load_pgn(game)
             self.set_study_mode(False)
-
+        #
+        # TODO: move match logic to opening.py?
+        #
         openings = self.eco.by_phonetic_name
 
         phonetic_name = doublemetaphone(name)[0]
 
         match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
-        Logger.info(f'setup_opening: "{name}" phonetic={phonetic_name} score={score}')
+        Logger.info(f'play_opening: "{name}" phonetic={phonetic_name} score={score}')
 
         if score >= 70:
             row = openings[match]
@@ -1582,10 +1584,10 @@ class ChessApp(App):
                 name = row['name']
                 self._new_game_action(
                     f'play {name}',
-                    lambda *_: Clock.schedule_once(partial(play_opening, game))
+                    lambda *_: Clock.schedule_once(partial(load_and_play, game))
                 )
             else:
-                Logger.info(f'setup_opening: could not read pgn: {pgn}')
+                Logger.info(f'play_opening: could not read pgn: {pgn}')
 
 
     @property
