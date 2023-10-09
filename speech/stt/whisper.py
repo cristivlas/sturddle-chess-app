@@ -12,10 +12,13 @@ from kivy.logger import Logger
 
 from .base import STT
 
+# tiny.en, base.en and small.en seems to perform well-enough
+# https://github.com/openai/whisper
 MODEL = 'tiny.en'
 
+
 # https://github.com/openai/whisper/discussions/380
-def load_audio(file: (str, bytes), sr: int = 16000):
+def _load_audio(file: (str, bytes), sr: int = 16000):
     if isinstance(file, bytes):
         inp = file
         file = 'pipe:'
@@ -50,7 +53,14 @@ class WhisperSTT(STT):
         self._model = whisper.load_model(MODEL)
 
     def _start(self):
-        def callback(_, audio):
+        def on_result(text):
+            if text:
+                Logger.debug(f'whisper:{text}')
+                self.results_callback([text.strip()])
+            else:
+                self.stop()
+
+        def old_callback(_, audio):
             if not self._is_listening():
                 return
 
@@ -65,13 +75,26 @@ class WhisperSTT(STT):
             wav = audio.get_wav_data(convert_rate=16000, convert_width=2)
 
             prompt = 'the answer is' if self.ask_mode else 'chess game move or command'
-            result = self._model.transcribe(load_audio(wav), fp16=False, initial_prompt=prompt)
-            text = result['text']
-            if text:
-                Logger.info(f'whisper:{text}')
-                self.results_callback([text.strip()])
+            result = self._model.transcribe(_load_audio(wav), fp16=False, initial_prompt=prompt)
+            on_result(result['text'])
+
+        def callback(_, audio):
+            '''
+            Alternative: use speech_recognition.recognize_whisper directly
+            '''
+            assert self._is_listening()
+
+            api_key = None
+            if not self.prefer_offline:
+                api_key = os.environ.get('OPENAI_API_KEY')
+                if not api_key:
+                    Logger.info('whisper: OPENAI_API_KEY not found')
+            if api_key:
+                result = self._sr.recognize_whisper_api(audio, api_key=api_key)
             else:
-                self.stop()
+                model, lang = MODEL.split('.')
+                result = self._sr.recognize_whisper(audio, model=model, language=lang)
+            on_result(result)
 
         with sr.Microphone() as source:
             self._sr.adjust_for_ambient_noise(source)

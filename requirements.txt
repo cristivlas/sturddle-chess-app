@@ -9,7 +9,8 @@ plyer
 pyparsing
 pyaudio
 rapidfuzz
+soundfile
 SpeechRecognition
 #deepspeech-tflite==0.9.3
-stt
+#stt
 wget

@@ -1569,10 +1569,12 @@ class ChessApp(App):
 
         openings = self.eco.by_phonetic_name
 
-        name = doublemetaphone(name)[0]
-        # match, score, _ = fuzz_match.extractOne(name, openings.keys(), scorer=fuzz.token_set_ratio)
-        match, score, _ = fuzz_match.extractOne(name, openings.keys())
-        if score >= 75:
+        phonetic_name = doublemetaphone(name)[0]
+
+        match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
+        Logger.info(f'setup_opening: "{name}" phonetic={phonetic_name} score={score}')
+
+        if score >= 70:
             row = openings[match]
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
@@ -1582,6 +1584,8 @@ class ChessApp(App):
                     f'play {name}',
                     lambda *_: Clock.schedule_once(partial(play_opening, game))
                 )
+            else:
+                Logger.info(f'setup_opening: could not read pgn: {pgn}')
 
 
     @property
