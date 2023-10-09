@@ -84,12 +84,11 @@ class WhisperSTT(STT):
             '''
             assert self._is_listening()
 
-            api_key = None
-            if not self.prefer_offline:
-                api_key = os.environ.get('OPENAI_API_KEY')
-                if not api_key:
-                    Logger.info('whisper: OPENAI_API_KEY not found')
-            if api_key:
+            api_key = None if self.prefer_offline else os.environ.get('OPENAI_API_KEY')
+
+            # Do not use API for answering simple yes/no questions
+
+            if api_key and not self.ask_mode:
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
             else:
                 model, lang = MODEL.split('.')
@@ -98,8 +97,7 @@ class WhisperSTT(STT):
 
         with sr.Microphone() as source:
             self._sr.adjust_for_ambient_noise(source)
-
-        self._cancel = self._sr.listen_in_background(sr.Microphone(), callback, self.time_limit)
+            self._cancel = self._sr.listen_in_background(sr.Microphone(), callback, self.time_limit)
 
         if self._start_sound:
             self._start_sound.play()

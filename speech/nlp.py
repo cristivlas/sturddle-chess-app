@@ -57,7 +57,7 @@ class NLP:
 
 
     def __init__(self):
-        keywords = 'yes yep yeah affirmative correct'.split()
+        keywords = 'yes yep yeah affirmative correct sure'.split()
         self.YES = reduce(lambda a, b: a | b, (pp.Keyword(k) for k in keywords))
 
         keywords = 'no nope negative'.split()
