@@ -625,6 +625,14 @@ class ChessApp(App):
         for id, widget in self.menu.ids.items():
             setattr(self, id, widget)
 
+        # Ensure the engine is not running while executing menu actions
+        def cancel_move_if_busy(*_):
+            if self.engine.busy:
+                self.undo_move()
+
+        for btn in self.menu.children[0].children:
+            btn.bind(on_release=cancel_move_if_busy)
+
 
     def can_undo(self):
         if self.study_mode:
@@ -655,7 +663,7 @@ class ChessApp(App):
 
 
     def exit(self, *_):
-        self.confirm('Exit application and save game', self.stop)
+        self.confirm('Exit application (game will be saved)', self.stop)
 
 
     def identify_opening(self):
