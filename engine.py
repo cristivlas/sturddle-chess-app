@@ -566,22 +566,27 @@ class Engine:
         return moves_count
 
 
-    """
+    def transcript(self, eco=None, headers={}, variations=True, comments=True):
+        '''
         Generate transcript in PGN format.
         See https://en.wikipedia.org/wiki/Portable_Game_Notation
-    """
-    def transcript(self, eco=None, headers={}):
+        '''
+
         game, title = chess.pgn.Game(), 'Game Transcript'
         fen = self.starting_fen()
-        if fen != chess.STARTING_FEN:
-            game.headers['FEN'] = fen
-        # remove some headers...
-        for tag in ['White', 'Black', 'Date', 'Event', 'Round', 'Site']:
-            game.headers.pop(tag)
-        if not self.worker.is_paused():
-            game.headers['Date'] = datetime.now().date().strftime('%Y.%m.%d')
-            # which side is the engine playing?
-            game.headers[['White', 'Black'][self.opponent]] = 'Sturddle ' + version()
+
+        if headers is not None:
+            if fen != chess.STARTING_FEN:
+                game.headers['FEN'] = fen
+
+            # remove some headers...
+            for tag in ['White', 'Black', 'Date', 'Event', 'Round', 'Site']:
+                game.headers.pop(tag)
+
+            if not self.worker.is_paused():
+                game.headers['Date'] = datetime.now().date().strftime('%Y.%m.%d')
+                # which side is the engine playing?
+                game.headers[['White', 'Black'][self.opponent]] = 'Sturddle ' + version()
 
         node, board = game, chess.Board(fen)
         for move in self.board.move_stack:
@@ -589,19 +594,24 @@ class Engine:
 
             board.push(move)
 
-            # optional: lookup Encyclopedia of Chess Openings
-            if eco:
+            # Lookup Encyclopedia of Chess Openings
+            if eco and headers is not None:
                 if opening := eco.lookup(board):
                     title = opening['name']
                     game.headers['ECO'] = opening['eco']
 
-        if self.is_game_over():
-            game.headers['Result'] = self.result()
+        if headers is not None:
+            if self.is_game_over():
+                game.headers['Result'] = self.result()
 
-        for tag, val in headers.items():
-            game.headers[tag] = val
+            for tag, val in headers.items():
+                game.headers[tag] = val
 
-        exporter = chess.pgn.StringExporter(headers=True, variations=True, comments=True)
+        exporter = chess.pgn.StringExporter(
+            headers=headers is not None,
+            variations=variations,
+            comments=comments
+        )
         return title, game.accept(exporter)
 
 

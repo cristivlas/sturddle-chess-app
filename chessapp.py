@@ -1574,9 +1574,7 @@ class ChessApp(App):
         def load_and_play(game, *_):
             self._load_pgn(game)
             self.set_study_mode(False)
-        #
-        # TODO: move match logic to opening.py?
-        #
+
         openings = self.eco.by_phonetic_name
 
         phonetic_name = doublemetaphone(name)[0]
@@ -1589,11 +1587,17 @@ class ChessApp(App):
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
             if game:
-                name = row['name']
-                self._new_game_action(
-                    f'play {name}',
-                    lambda *_: Clock.schedule_once(partial(load_and_play, game))
-                )
+                current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
+                current_pgn = current_pgn.rstrip(' *')
+
+                if current_pgn and pgn.startswith(current_pgn):
+                    Clock.schedule_once(partial(load_and_play, game))
+                else:
+                    opening_name = row['name']
+                    self._new_game_action(
+                        f'play {opening_name}',
+                        lambda *_: Clock.schedule_once(partial(load_and_play, game))
+                    )
             else:
                 Logger.info(f'play_opening: could not read pgn: {pgn}')
 
@@ -1654,8 +1658,8 @@ class ChessApp(App):
             self.engine.resume(auto_move)
 
 
-    def transcribe(self, headers={}):
-        return self.engine.transcript(self.eco, headers)
+    def transcribe(self, **kwargs):
+        return self.engine.transcript(eco=self.eco, **kwargs)
 
 
     def use_eco(self, use):
