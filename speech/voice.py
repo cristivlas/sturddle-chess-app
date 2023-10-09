@@ -337,7 +337,7 @@ class Input:
             Logger.debug('stt: tts busy')
             Clock.schedule_once(self._start_stt, 0.5)
 
-        else:
+        elif self.is_running():
             self._error = ''
             self._text = ''
             stt.ask_mode = self._ask_mode
