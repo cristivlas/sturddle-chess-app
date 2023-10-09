@@ -868,7 +868,7 @@ class ChessApp(App):
 
         if all((
             self.speak_moves,
-            self.study_mode or self.engine.is_opponents_turn(),
+            any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
             # not self.menu.attach_to,
             not self.voice_input.is_running(),
             not self.edit,
