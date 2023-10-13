@@ -86,7 +86,7 @@ else:
 
         def background_wait(p):
             p.wait()
-            Logger.info(f'stt: {p}')
+            Logger.debug(f'stt: {p}')
             _speaking[0] = False
 
         thread = threading.Thread(target=background_wait, args=(p,))

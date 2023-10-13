@@ -162,6 +162,7 @@ class Engine:
         self.bootstrap = Event()
         self.variable_strategy = True
         self.notation = 'san'
+        self.pv = None
         self.time_limit = 10
         self.depth_limit = 100
         self.algorithm = Engine.Algorithm.MTDF
@@ -191,12 +192,12 @@ class Engine:
 
 
     def iteration_callback(self, search_instance, node, score, n_nodes, nps, ms):
-        pv = node.get_pv()
+        self.pv = node.get_pv()  # Hold on to PV from complete iteration (non timed out)
         depth = search_instance.current_depth
         knps = nps / 1000
         self.hashfull = get_hash_full()
         self.depth_callback()
-        self.log(f'{chess.COLOR_NAMES[self.board.turn]} / {depth}: {score/100 :.2f} {knps:.2f} kNps {pv}')
+        self.log(f'{chess.COLOR_NAMES[self.board.turn]} / {depth}: {score/100 :.2f} {knps:.2f} kNps {self.pv}')
 
 
     def cancel(self):

@@ -441,7 +441,7 @@ class ChessApp(App):
         self.modal = None
         self.store = DictStore('game.dat')
         self.eco = None
-        self.engine = Engine(self.update, self.update_move, Logger.info)
+        self.engine = Engine(self.update, self.update_move, Logger.debug)
         self.engine.depth_callback = self.update_hash_usage
         self.engine.promotion_callback = self.get_promotion_type
         self.engine.search_complete_callback = self.on_search_complete
@@ -491,19 +491,21 @@ class ChessApp(App):
         engine_paused = self.engine.worker.is_paused()
 
         @mainthread
+        def update_on_main_thread():
+            if engine_paused:
+                self.engine.pause()
+            self.update_status()
+
         def on_analysis_complete(search, color, score):
             try:
-                self._on_search_complete(search, color, score, analysis=True)
+                self.on_search_complete(search, color, score, analysis=True)
             finally:
-                # Restore settings
                 self.engine.book = book
                 self.engine.depth_limit = depth_limit
                 self.engine.time_limit = time_limit
                 self.engine.search_callback = search_callback
                 self.engine.search_complete_callback = self.on_search_complete
-                if engine_paused:
-                    self.engine.pause()
-                self.update_status()
+                update_on_main_thread()
 
         self.engine.book = None  # Force move search, do not use opening book
         self.engine.depth_limit = 100
@@ -2118,12 +2120,10 @@ class ChessApp(App):
         return f'{limit:2d} min'
 
 
-    @mainthread
-    def on_search_complete(self, search, color, score):
-        self._on_search_complete(search, color, score)
-
-
-    def _on_search_complete(self, search, color, score, analysis=False):
+    def on_search_complete(self, search, color, score, analysis=False):
+        '''
+        Callback that runs on search thread (background).
+        '''
         assert score != None
         def san(board, uci):
             try:
@@ -2137,9 +2137,8 @@ class ChessApp(App):
                 pv = [san(board, uci) for uci in pv]
             return ' '.join(pv[not analysis:])
 
-        if analysis and not self.engine.is_game_over():  # show evaluation
+        if analysis and not self.engine.is_game_over():
             distance_to_mate = None
-            pv = search.get_pv()
             winning_side = color if score > 0 else not color
             if score > chess_engine.SCORE_MATE_HIGH:
                 distance_to_mate = (max(chess_engine.SCORE_CHECKMATE - score, len(pv)) + 1) // 2
@@ -2150,16 +2149,19 @@ class ChessApp(App):
             else:
                 score = f'{score/100:.1f}'
 
-            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
-            self.show_comment(text)
+            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(self.engine.pv)})"
 
-            if self.speak_moves:
-                if distance_to_mate:
-                    moves = 'moves' if distance_to_mate > 1 else 'move'
-                    text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
-                else:
-                    text = text.split('(')[0]  # strip the PV
-                self.speak(text)
+            def show_eval_on_main_thread(text, *_):
+                self.show_comment(text)
+                if self.speak_moves:
+                    if distance_to_mate:
+                        moves = 'moves' if distance_to_mate > 1 else 'move'
+                        text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
+                    else:
+                        text = text.split('(')[0]  # strip the PV
+                    self.speak(text)
+
+            Clock.schedule_once(partial(show_eval_on_main_thread, text), 0.1)
 
 
     def search_callback(self, search, millisec):
