@@ -1706,6 +1706,33 @@ class ChessApp(App):
             return lambda *_: self.paste()
 
 
+    def hints(self):
+        self._hints(opening_book_variations=False)
+
+
+    def variations(self):
+        self._hints(opening_book_variations=True)
+
+
+    def _hints(self, opening_book_variations):
+        '''
+        Implement 'Hints' and 'Variations' vocal commands.
+        '''
+        if not self.edit:
+            # Do not show puzzle hints if user specifically asked for opening variations.
+            if self.puzzle and opening_book_variations:
+                return
+
+            hints = self._hint()
+            if hints:
+                hints()
+            elif opening_book_variations and not self.engine.book:
+                msg = 'Opening book is turned off.'
+                if self.speak_moves:
+                    self.speak(msg)
+                self.message_box('Variations', msg)
+
+
     def _hint(self):
         if not self.edit:
             hints = []
@@ -1938,6 +1965,9 @@ class ChessApp(App):
 
 
     def variation_hints(self, board):
+        '''
+        boardwidget callback
+        '''
         if self.study_mode and not self.edit:
             node = self.moves_record.current
             if node and node.parent and len(node.parent.variations) > 1:

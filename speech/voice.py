@@ -232,12 +232,13 @@ class Input:
             'analyze': self._app.analyze,
             'edit': self._app.edit_start,
             'exit': self._app.exit,
-            'hints': self._app._hint(),
+            'hints': self._app.hints,
             'new': self._app.new_game,
             'puzzle': self._app.puzzles,
             'settings': self._app.settings,
             'switch': self._app.flip_board,
             'undo': self._app.undo_move,
+            'variations': self._app.variations,
         }
         if command == 'opening':
             Clock.schedule_once(lambda *_: self._app.play_opening(self._nlp.any), 0.1)

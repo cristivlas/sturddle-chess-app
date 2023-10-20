@@ -128,7 +128,7 @@ class NLP:
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
-        hints = pp.Opt('show') + (pp.Keyword('variants') | pp.Keyword('hints'))
+        hints = pp.Opt('show') + (pp.Keyword('variations') | pp.Keyword('hints'))
         puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
         settings = pp.Opt('application') + pp.Keyword('settings')
         opening = (pp.Keyword('play') +
@@ -145,6 +145,9 @@ class NLP:
         def assign_command(cmd, *_):
             self.command = cmd
 
+        def assign_last_tok(s, loc, tok):
+            self.command = tok[-1]
+
         # -----------------------------------------
         # Put the grammar together and validate it.
         # -----------------------------------------
@@ -152,7 +155,7 @@ class NLP:
             analyze.set_parse_action(self._on_analyze) |
             edit.set_parse_action(partial(assign_command, 'edit')) |
             exit.set_parse_action(partial(assign_command, 'exit')) |
-            hints.set_parse_action(partial(assign_command, 'hints')) |
+            hints.set_parse_action(assign_last_tok) |
             new_game.set_parse_action(partial(assign_command, 'new')) |
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
             opening.set_parse_action(partial(assign_command, 'opening')) |
