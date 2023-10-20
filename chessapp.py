@@ -1582,7 +1582,7 @@ class ChessApp(App):
         phonetic_name = doublemetaphone(name)[0]
 
         match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
-        Logger.info(f'play_opening: "{name}" phonetic={phonetic_name} score={score}')
+        Logger.debug(f'play_opening: "{name}" phonetic={phonetic_name} score={score}')
 
         if score >= 70:
             row = openings[match]
