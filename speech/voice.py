@@ -232,6 +232,7 @@ class Input:
             'analyze': self._app.analyze,
             'edit': self._app.edit_start,
             'exit': self._app.exit,
+            'hints': self._app._hint(),
             'new': self._app.new_game,
             'puzzle': self._app.puzzles,
             'settings': self._app.settings,
