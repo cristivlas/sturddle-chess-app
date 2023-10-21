@@ -127,15 +127,15 @@ class NLP:
         analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
+        flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         hints = pp.Opt('show') + (pp.Keyword('variations') | pp.Keyword('hints'))
         puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
-        settings = pp.Opt('application') + pp.Keyword('settings')
         opening = (pp.Keyword('play') +
             pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
             pp.Opt(OPENING)
         )
-        switch = pp.Keyword('switch') | pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
+        settings = pp.Opt('application') + pp.Keyword('settings')
         undo = (pp.Keyword('undo') |
             pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that') | pp.Keyword('move')) + pp.Keyword('back') |
             pp.Keyword('take') + pp.Keyword('back') + pp.Keyword('move')
@@ -160,7 +160,7 @@ class NLP:
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
             opening.set_parse_action(partial(assign_command, 'opening')) |
             settings.set_parse_action(partial(assign_command, 'settings')) |
-            switch.set_parse_action(partial(assign_command, 'switch')) |
+            flip.set_parse_action(partial(assign_command, 'switch')) |
             undo.set_parse_action(partial(assign_command, 'undo')) |
             yes_no.set_parse_action(self._on_yes_no)
         )
