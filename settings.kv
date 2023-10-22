@@ -128,6 +128,7 @@
 
         Slider:
             id: analysis_time
+            disabled: not app.speak_moves
             min: 3
             max: 60
             step: 3
@@ -199,6 +200,7 @@
         OptLabel:
             text: 'Speak Moves'
         Switch:
+            id: speak_moves
             active: app.speak_moves
             on_active: app.speak_moves = self.active
             disabled: not app.tts_supported
@@ -209,7 +211,7 @@
         Switch:
             active: stt.prefer_offline
             on_active: stt.prefer_offline = self.active
-            disabled: not stt.is_offline_supported()
+            disabled: not stt.is_offline_supported() or not speak_moves.active
 
 
     OptGrid:
