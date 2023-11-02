@@ -36,9 +36,6 @@ class WhisperSTT(STT):
                 self.stop()
 
         def callback(_, audio):
-            '''
-            Alternative: use speech_recognition.recognize_whisper directly
-            '''
             assert self._is_listening()
 
             api_key = None if self.prefer_offline else os.environ.get('OPENAI_API_KEY')
@@ -49,7 +46,7 @@ class WhisperSTT(STT):
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
             else:
                 model, lang = MODEL.split('.')
-                result = self._sr.recognize_whisper(audio, model=model, language=lang)
+                result = self._sr.recognize_whisper(audio, model=model, language=lang, temperature=0.01)
             on_result(result)
 
         with sr.Microphone() as source:
