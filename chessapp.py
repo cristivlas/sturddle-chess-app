@@ -517,23 +517,47 @@ class ChessApp(App):
         self.engine.worker.send_message(partial(self.search_move, True))
 
 
+    def _animate(self, undo_to_move=0, callback=lambda *_:None):
+        self.set_study_mode(True)
+        while self.can_undo() and len(self.engine.board.move_stack) > undo_to_move:
+            self.undo_move()
+
+        def redo(*_):
+            if self.can_redo():
+                if not tts.is_speaking():
+                    self.redo_move(in_animation=True)
+                Clock.schedule_once(redo, 1)
+            else:
+                callback()
+
+        redo()
+
+
     def _auto_open(self):
-        """ Play (for both sides) a sequence of moves from the opening book """
+        '''
+        Play (for both sides) a sequence of moves from the opening book.
+        '''
         self._opening = self.opening.text
+        title = 'Opening Book'  # message box title
+
+        def show_opening_name():
+            if self._opening:
+                Clock.schedule_once(
+                    lambda *_: self.message_box(
+                        title,
+                        f'[color=40FFFF][u]{self._opening}[/u][/color]'
+                    ), 1.0)
+
         def callback():
             self.identify_opening()
             if self.opening.text:
                 self._opening = self.opening.text
 
-        title = 'Opening Book'
+        current = len(self.engine.board.move_stack)
+
         with no_update_callbacks(self.engine):
             if self.engine.auto_open(callback):
-                if self._opening:
-                    Clock.schedule_once(
-                        lambda *_: self.message_box(
-                            title,
-                            f'[color=40FFFF][u]{self._opening}[/u][/color]'
-                        ), 1.0)
+                self._animate(undo_to_move=current, callback=show_opening_name)
             else:
                 # This should not happen, because engine.can_auto_open() should return False when
                 # the opening book has no suitable moves for the given position, and the UI button
@@ -1303,13 +1327,17 @@ class ChessApp(App):
                 Clock.schedule_once(lambda *_: self.engine.undo())
 
 
-    def redo_move(self, b=None, long_press_delay=0.35):
+    def redo_move(self, b=None, long_press_delay=0.35, in_animation=False):
         if self.can_redo():
             if self.study_mode:
-                # keep forwarding as long as button is pressed
+                # keep redoing as long as button is pressed
                 self._long_press(b, self.redo_move, long_press_delay)
+
                 self.board_widget.enable_variation_hints = True
-                self.engine.apply(self.moves_record.pop())
+                move = self.moves_record.pop()
+                if in_animation and self.speak_moves:
+                    self.speak(self.describe_move(move, spell_digits=True))
+                self.engine.apply(move)
             else:
                 self.redo_button.disabled = True
                 self.engine.redo()
@@ -1430,6 +1458,8 @@ class ChessApp(App):
     def confirm(self, text, yes_action, no_action = None):
         '''
         Show a message box asking the user to confirm an action.
+        TODO: add setting for turning confirmations off.
+
         '''
         def callback(msgbox):
             if msgbox.value == 'yes':
@@ -1575,7 +1605,7 @@ class ChessApp(App):
 
         def load_and_play(game, *_):
             self._load_pgn(game)
-            self.set_study_mode(False)
+            self._animate(callback=lambda *_: self.set_study_mode(False))
 
         openings = self.eco.by_phonetic_name
 

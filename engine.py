@@ -574,12 +574,12 @@ class Engine:
         '''
 
         game, title = chess.pgn.Game(), 'Game Transcript'
+
         fen = self.starting_fen()
+        if fen != chess.STARTING_FEN:
+            game.headers['FEN'] = fen
 
         if headers is not None:
-            if fen != chess.STARTING_FEN:
-                game.headers['FEN'] = fen
-
             # remove some headers...
             for tag in ['White', 'Black', 'Date', 'Event', 'Round', 'Site']:
                 game.headers.pop(tag)
