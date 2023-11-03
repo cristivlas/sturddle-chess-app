@@ -538,6 +538,7 @@ class ChessApp(App):
         Play (for both sides) a sequence of moves from the opening book.
         '''
         self._opening = self.opening.text
+        study_mode = self.study_mode
         title = 'Opening Book'  # message box title
 
         def show_opening_name():
@@ -547,6 +548,7 @@ class ChessApp(App):
                         title,
                         f'[color=40FFFF][u]{self._opening}[/u][/color]'
                     ), 1.0)
+            self.set_study_mode(study_mode)
 
         def callback():
             self.identify_opening()
