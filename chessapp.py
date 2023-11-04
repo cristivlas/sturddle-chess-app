@@ -1605,9 +1605,9 @@ class ChessApp(App):
             Logger.error('play_opening: no ECO')
             return
 
-        def load_and_play(game, *_):
+        def load_and_play(game, current = 0, *_):
             self._load_pgn(game)
-            self._animate(callback=lambda *_: self.set_study_mode(False))
+            self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
         openings = self.eco.by_phonetic_name
 
@@ -1625,8 +1625,15 @@ class ChessApp(App):
                 current_pgn = current_pgn.rstrip(' *')
 
                 if current_pgn and pgn.startswith(current_pgn):
-                    Clock.schedule_once(partial(load_and_play, game))
+                    # The opening matches the current position, do not ask for confirmation.
+
+                    current = len(self.engine.board.move_stack)  # record current move number
+                    Clock.schedule_once(partial(load_and_play, game, current))
+
                 else:
+                    # The opening sequence does not match the current game: ask
+                    # user for confirmation to abandon the game and play opening.
+
                     opening_name = row['name']
                     self._new_game_action(
                         f'play {opening_name}',
