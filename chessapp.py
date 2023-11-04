@@ -1610,14 +1610,22 @@ class ChessApp(App):
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
         openings = self.eco.by_phonetic_name
-
         phonetic_name = doublemetaphone(name)[0]
+        accuracy = 65  # fuzzy matching minimum accuracy
 
         match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
-        Logger.debug(f'play_opening: "{name}" phonetic={phonetic_name} score={score}')
+        Logger.debug(f'play_opening: user="{name}" phonetic={phonetic_name} score={score:.2f}')
 
-        if score >= 70:
+        if score >= accuracy:
             row = openings[match]
+            matched_name = row['name']
+
+            _, score, _ = fuzz_match.extractOne(name, [matched_name])
+            Logger.debug(f'play_opening: matched="{matched_name}" score={score:.2f}')
+
+            if score < accuracy:
+                return
+
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
             if game:

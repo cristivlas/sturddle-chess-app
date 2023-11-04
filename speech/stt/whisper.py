@@ -80,6 +80,8 @@ class WhisperSTT(STT):
                 except:
                     Logger.exception('OpenAI exception')
             else:
+                # Offline mode, using locally downloaded model.
+
                 model, lang = MODEL.split('.')
                 prompt = 'the transcript contains a chess move, chess opening, or user interface command'
                 result = self._sr.recognize_whisper(
@@ -87,6 +89,7 @@ class WhisperSTT(STT):
                     model=model,
                     language=lang,
                     prompt=prompt,
+                    suppress_blank=False,
                     temperature=0.01,
                 )
             on_result(result)
