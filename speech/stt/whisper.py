@@ -46,7 +46,14 @@ class WhisperSTT(STT):
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
             else:
                 model, lang = MODEL.split('.')
-                result = self._sr.recognize_whisper(audio, model=model, language=lang, temperature=0.01)
+                prompt = 'the transcript contains a chess move, chess opening, or user interface command'
+                result = self._sr.recognize_whisper(
+                    audio,
+                    model=model,
+                    language=lang,
+                    prompt=prompt,
+                    temperature=0.01,
+                )
             on_result(result)
 
         with sr.Microphone() as source:
