@@ -4,6 +4,7 @@ kivy
 Cython
 metaphone
 numpy
+openai
 pyautogui
 plyer
 pyparsing

@@ -2,6 +2,7 @@
 Offline-only voice recognitiona with OpenAi-Whisper.
 '''
 import os
+import openai
 import speech_recognition as sr
 import whisper
 from kivy.core.audio import SoundLoader
@@ -11,7 +12,6 @@ from .base import STT
 # tiny.en, base.en and small.en seems to perform well-enough
 # https://github.com/openai/whisper
 MODEL = 'tiny.en'
-
 
 '''
 Implement voice recognition using OpenAI-Whisper.
@@ -30,7 +30,7 @@ class WhisperSTT(STT):
     def _start(self):
         def on_result(text):
             if text:
-                Logger.debug(f'whisper:{text}')
+                Logger.debug(f'whisper: {text}')
                 self.results_callback([text.strip()])
             else:
                 self.stop()
@@ -40,10 +40,45 @@ class WhisperSTT(STT):
 
             api_key = None if self.prefer_offline else os.environ.get('OPENAI_API_KEY')
 
-            # Do not use API for answering simple yes/no questions
-
             if api_key and not self.ask_mode:
+                # Have API key, and not answering a simple yes/no question?
+                # Use the Whisper API to generate a transcript.
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
+
+                # Run the result through ChatGPT to improve it.
+                # See: https://platform.openai.com/docs/guides/speech-to-text/improving-reliability
+
+                system_prompt = (
+                    "You sanitize commands directed to a chess playing program. "
+                    "If the command follows the pattern 'play [OPENING_NAME]', replace [OPENING_NAME] "
+                    "with just the matching variation part from the Encyclopedia of Chess Openings "
+                    "(but do retain the 'play' word). "
+                    "If OPENING_NAME isn't recognized, or the command does not follow the pattern, "
+                    "echo the command back unchanged, so it can be forwarded to the chess program."
+                )
+
+                try:
+                    model = 'gpt-3.5-turbo'
+                    response = openai.ChatCompletion.create(
+                        model=model,
+                        temperature=0,
+                        messages=[
+                            {
+                                'role': 'system',
+                                'content': system_prompt
+                            },
+                            {
+                                'role': 'user',
+                                'content': result,
+                            }
+                        ]
+                    )
+                    Logger.debug(f'{model}: {response}')
+                    response = response['choices'][0]['message']['content']
+                    if response:
+                        result = response
+                except:
+                    Logger.exception('OpenAI exception')
             else:
                 model, lang = MODEL.split('.')
                 prompt = 'the transcript contains a chess move, chess opening, or user interface command'
