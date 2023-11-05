@@ -519,12 +519,13 @@ class ChessApp(App):
 
     def _animate(self, undo_to_move=0, callback=lambda *_:None):
         self.set_study_mode(True)
-        while self.can_undo() and len(self.engine.board.move_stack) > undo_to_move:
+        while self.can_undo() and self.game_len() > undo_to_move:
             self.undo_move()
 
         def redo(*_):
             if self.can_redo():
                 if not tts.is_speaking():
+                    self.set_study_mode(True)
                     self.redo_move(in_animation=True)
                 Clock.schedule_once(redo, 1)
             else:
@@ -555,7 +556,7 @@ class ChessApp(App):
             if self.opening.text:
                 self._opening = self.opening.text
 
-        current = len(self.engine.board.move_stack)
+        current = self.game_len()
 
         with no_update_callbacks(self.engine):
             if self.engine.auto_open(callback):
@@ -594,6 +595,10 @@ class ChessApp(App):
 
 
     def backup(self, move_count=1):
+        Logger.debug(f'backup: {move_count}, game_len={self.game_len()}')
+        if move_count > self.game_len() and self.speak_moves:
+            self.speak('Going back to start of the game...')
+
         while move_count > 0 and self.can_undo():
             move_count -= 1
             self.undo_move()
@@ -1049,7 +1054,7 @@ class ChessApp(App):
 
 
     def replay(self):
-        current = len(self.engine.board.move_stack)
+        current = self.game_len()
         mode = self.study_mode
         self.set_study_mode(True)
         while self.can_redo():
@@ -1208,7 +1213,7 @@ class ChessApp(App):
             self.b_move_label.text = self.markup(move, turn)
         else:
             def move_count():
-                n = len(self.engine.board.move_stack)
+                n = self.game_len()
                 return n // 2 + n % 2
             self.w_move_label.text = '[i]{:2d}[/i]. '.format(move_count()) + self.markup(move, turn)
             self.b_move_label.text = ''
@@ -1293,6 +1298,11 @@ class ChessApp(App):
         return self.engine.board.move_stack or self.engine.starting_fen() != chess.STARTING_FEN
 
 
+    def game_len(self):
+        ''' return number of (half) moves played so far '''
+        return len(self.engine.board.move_stack)
+
+
     def _new_game_action(self, text, action):
         if self.game_in_progress() or self.edit:
             if self.edit:
@@ -1346,7 +1356,7 @@ class ChessApp(App):
 
     def redo_move(self, b=None, long_press_delay=0.35, in_animation=False):
         if self.can_redo():
-            if self.study_mode:
+            if in_animation or self.study_mode:
                 # keep redoing as long as button is pressed
                 self._long_press(b, self.redo_move, long_press_delay)
 
@@ -1650,7 +1660,7 @@ class ChessApp(App):
                 if current_pgn and pgn.startswith(current_pgn):
                     # The opening matches the current position, do not ask for confirmation.
 
-                    current = len(self.engine.board.move_stack)  # record current move number
+                    current = self.game_len()  # record current move number
                     Clock.schedule_once(partial(load_and_play, game, current))
 
                 else:

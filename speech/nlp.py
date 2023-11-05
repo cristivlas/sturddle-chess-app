@@ -250,6 +250,8 @@ class NLP:
                 n = 2
             elif num_moves == 'for':
                 n = 4
+            elif num_moves == 'then':
+                n = 10
             else:
                 n = w2n.word_to_num(num_moves)
         except ValueError:
