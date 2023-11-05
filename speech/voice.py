@@ -227,17 +227,18 @@ class Input:
             self._start_stt()  # keep listening
 
 
-    def _run_command(self, command):
+    def _run_command(self, command, args):
         actions = {
             'analyze': self._app.analyze,
+            'backup': self._app.backup,
             'edit': self._app.edit_start,
             'exit': self._app.exit,
             'hints': self._app.hints,
             'new': self._app.new_game,
             'puzzle': self._app.puzzles,
+            'replay': self._app.replay,
             'settings': self._app.settings,
             'switch': self._app.flip_board,
-            'undo': self._app.undo_move,
             'variations': self._app.variations,
         }
         if command == 'opening':
@@ -245,7 +246,11 @@ class Input:
             return True
 
         elif command in actions:
-            Clock.schedule_once(lambda *_: actions[command](), 0.1)
+            if args:
+                cmd = lambda *_: actions[command](args)
+            else:
+                cmd = lambda *_: actions[command]()
+            Clock.schedule_once(cmd, 0.1)
             return True
 
         return False
@@ -275,7 +280,7 @@ class Input:
             self._ask_mode = False
 
         if not moves:
-            return self._run_command(self._nlp.command)
+            return self._run_command(self._nlp.command, self._nlp.args)
         elif len(moves) > 1:
             self._multiple_matches(moves)
         else:

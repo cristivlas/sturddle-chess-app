@@ -593,6 +593,12 @@ class ChessApp(App):
             decorView.setSystemUiVisibility(flags)
 
 
+    def backup(self, move_count=1):
+        while move_count > 0 and self.can_undo():
+            move_count -= 1
+            self.undo_move()
+
+
     def build(self):
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_request_close=self.on_quit)
@@ -723,7 +729,7 @@ class ChessApp(App):
         if game:
             fen = game.headers.get('FEN', None)
             self.moves_record = MovesTree.import_pgn(game, label, fen=fen)
-            self.update_moves_record(last_move=True)
+            self.update_moves_record(pop_last_move=True)
 
 
     def load(self):
@@ -1038,9 +1044,17 @@ class ChessApp(App):
                 move = self.engine.apply(self.engine.validate_from_uci(move))
 
             if move:
-                self.update_moves_record(last_move=True)
+                self.update_moves_record(pop_last_move=True)
                 return move
 
+
+    def replay(self):
+        current = len(self.engine.board.move_stack)
+        mode = self.study_mode
+        self.set_study_mode(True)
+        while self.can_redo():
+            self.redo_move()
+        self._animate(undo_to_move=current, callback=lambda *_: self.set_study_mode(mode))
 
     #
     # Label formatting utils
@@ -1320,12 +1334,13 @@ class ChessApp(App):
             if self.study_mode:
                 # keep rewinding as long as button is pressed
                 self._long_press(b, self.undo_move, long_press_delay)
-                self.update_moves_record(last_move=False)
+                self.update_moves_record(pop_last_move=False)
                 self.engine.board.pop()
                 self.engine.update_prev_moves()
                 self.update(self.engine.last_moves()[-1], show_comment=False)
             else:
                 self.undo_button.disabled = True
+                self.update_moves_record(pop_last_move=False)
                 Clock.schedule_once(lambda *_: self.engine.undo())
 
 
@@ -1694,7 +1709,7 @@ class ChessApp(App):
             self.play_button.text = ' \uF204 '
             self.engine.pause(True)
             self.engine.redo_list.clear()
-            self.update_moves_record(last_move=True)
+            self.update_moves_record(pop_last_move=True)
         else:
             self.puzzle_play |= bool(self.puzzle)
             self.cancel_puzzle()
@@ -1975,12 +1990,12 @@ class ChessApp(App):
         return label or ('Puzzle' if self.puzzle else 'View') + VIEW_MODE
 
 
-    def update_moves_record(self, last_move):
+    def update_moves_record(self, pop_last_move):
         '''
         Update the self.moves_record tree with current moves variation.
         '''
         self.moves_record.add_moves(self.engine.board)
-        if last_move:
+        if pop_last_move:
             self.moves_record.pop()
 
 

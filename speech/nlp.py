@@ -22,7 +22,7 @@ from functools import partial, reduce
 import chess
 import pyparsing as pp
 from kivy.logger import Logger
-
+from word2number import w2n
 
 _rows = {
     '1': 'one', '2': 'two', '3': 'three', '4': 'four',
@@ -68,6 +68,7 @@ class NLP:
         self._board = None
         self.any = None
         self.command = None  # recognized command (other than a move)
+        self.args = None  # (optional) command args
 
 
     def _init_grammar(self):
@@ -97,7 +98,6 @@ class NLP:
         # -----------------------------------------
         # Grammar rules for describing chess moves.
         # -----------------------------------------
-
         capture_piece = THE + PIECE + TAKES + THE + PIECE + pp.Opt(AT + SQUARE)
         capture_square = THE + PIECE + TAKES + AT + SQUARE
         capture = (
@@ -123,24 +123,26 @@ class NLP:
         # -----------------------------------------
         # Grammar rules for miscellaneous commands
         # -----------------------------------------
-
         analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
+
+        backup_prefix = (pp.Keyword('go') + pp.Keyword('back')) | (pp.Keyword('back') + pp.Keyword('up'))
+        backup_one = backup_prefix + (pp.Keyword('one') | pp.Keyword('1')) + pp.Opt('move')
+        backup_many = backup_prefix + pp.Word(pp.alphanums) + pp.Opt('moves')
+        backup = backup_one | backup_many
+
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
-        new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         hints = pp.Opt('show') + (pp.Keyword('variations') | pp.Keyword('hints'))
-        puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
+        new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         opening = (pp.Keyword('play') +
             pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
             pp.Opt(OPENING)
         )
+        puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
+        replay = pp.Keyword('replay') | pp.Keyword('playback')
         settings = pp.Opt('application') + pp.Keyword('settings')
-        undo = (pp.Keyword('undo') |
-            pp.Keyword('take') + (pp.Keyword('it') | pp.Keyword('that') | pp.Keyword('move')) + pp.Keyword('back') |
-            pp.Keyword('take') + pp.Keyword('back') + pp.Keyword('move')
-        )
-        yes_no = self.YES | self.NO
+        yes_no = self.YES | self.NO  # for answering confirmation dialogs by voice
 
         def assign_command(cmd, *_):
             self.command = cmd
@@ -153,15 +155,16 @@ class NLP:
         # -----------------------------------------
         commands = (
             analyze.set_parse_action(self._on_analyze) |
+            backup.set_parse_action(self._on_backup) |
             edit.set_parse_action(partial(assign_command, 'edit')) |
             exit.set_parse_action(partial(assign_command, 'exit')) |
             hints.set_parse_action(assign_last_tok) |
             new_game.set_parse_action(partial(assign_command, 'new')) |
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |
+            replay.set_parse_action(partial(assign_command, 'replay')) |
             opening.set_parse_action(partial(assign_command, 'opening')) |
             settings.set_parse_action(partial(assign_command, 'settings')) |
             flip.set_parse_action(partial(assign_command, 'switch')) |
-            undo.set_parse_action(partial(assign_command, 'undo')) |
             yes_no.set_parse_action(self._on_yes_no)
         )
 
@@ -209,6 +212,7 @@ class NLP:
         parsed = set()
         self.any = None
         self.command = None
+        self.args = None
 
         for text in results:
             if not text:
@@ -235,6 +239,24 @@ class NLP:
     def _on_any(self, s, loc, tok):
         tok = [w for t in tok for w in t.split() if w != 'the']
         self.any = ' '.join(tok).strip()
+
+
+    def _on_backup(self, s, loc, tok):
+        assert len(tok) >= 3
+        num_moves = tok[2]
+        try:
+            # Correct common mistranslations before calling word_to_num
+            if num_moves == 'to':
+                n = 2
+            elif num_moves == 'for':
+                n = 4
+            else:
+                n = w2n.word_to_num(num_moves)
+        except ValueError:
+            return
+        if n > 0:
+            self.command = 'backup'
+            self.args = n
 
 
     @strip_determiner
@@ -401,6 +423,7 @@ class NLP:
         r'\bsize\b' : 'side',
         r'\bspawn\b' : 'pawn',
         r'\btake screen\b' : 'takes queen',
+        r'\bthank.*' : '',  # hack: workaround Whisper hallucination
         r'\bthe ford\b' : 'd4',
         r'\bthe\s*([1-8])' : r'd\1',
         r'\bto eat\b' : 'to e2',
@@ -432,6 +455,12 @@ class NLP:
         assert text
 
         text = text.lower()
+
+        # Hack: do not apply corrections if likely a 'backup' command,
+        # because corrections may alter numbers so that the fit the move
+        # grammar rules.
+        if text.startswith('go ') or text.startswith('back '):
+            return text
 
         for k in self.rank_corrections:
             text = re.sub(k, self.rank_corrections[k], text)
