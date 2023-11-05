@@ -598,10 +598,12 @@ class ChessApp(App):
         Logger.debug(f'backup: {move_count}, game_len={self.game_len()}')
         if move_count > self.game_len() and self.speak_moves:
             self.speak('Going back to start of the game...')
-
+        mode = self.study_mode
+        self.set_study_mode(True)
         while move_count > 0 and self.can_undo():
             move_count -= 1
             self.undo_move()
+        self.set_study_mode(mode)
 
 
     def build(self):
