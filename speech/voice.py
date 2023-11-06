@@ -16,6 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
+
+import inspect
 import os
 import random
 import weakref
@@ -244,10 +246,13 @@ class Input:
         }
 
         if command in actions:
-            if args:
-                cmd = lambda *_: actions[command](args)
+            func = actions[command]
+            params = inspect.signature(func).parameters
+            if len(params):
+                assert args
+                cmd = lambda *_: func(args)
             else:
-                cmd = lambda *_: actions[command]()
+                cmd = lambda *_: func()
             Clock.schedule_once(cmd, 0.1)
             return True
 
