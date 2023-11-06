@@ -2250,6 +2250,7 @@ class ChessApp(App):
             return ' '.join(pv[not analysis:])
 
         if analysis and not self.engine.is_game_over():
+            pv = self.engine.pv
             distance_to_mate = None
             winning_side = color if score > 0 else not color
             if score > chess_engine.SCORE_MATE_HIGH:
@@ -2261,7 +2262,7 @@ class ChessApp(App):
             else:
                 score = f'{score/100:.1f}'
 
-            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(self.engine.pv)})"
+            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
 
             def show_eval_on_main_thread(text, *_):
                 self.show_comment(text)

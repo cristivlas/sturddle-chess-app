@@ -235,17 +235,15 @@ class Input:
             'exit': self._app.exit,
             'hints': self._app.hints,
             'new': self._app.new_game,
+            'opening': self._app.play_opening,
             'puzzle': self._app.puzzles,
             'replay': self._app.replay,
             'settings': self._app.settings,
             'switch': self._app.flip_board,
             'variations': self._app.variations,
         }
-        if command == 'opening':
-            Clock.schedule_once(lambda *_: self._app.play_opening(self._nlp.any), 0.1)
-            return True
 
-        elif command in actions:
+        if command in actions:
             if args:
                 cmd = lambda *_: actions[command](args)
             else:

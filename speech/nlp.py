@@ -66,7 +66,6 @@ class NLP:
         self._init_grammar()
         self._moves = []
         self._board = None
-        self.any = None
         self.command = None  # recognized command (other than a move)
         self.args = None  # (optional) command args
 
@@ -210,9 +209,8 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
-        self.any = None
-        self.command = None
         self.args = None
+        self.command = None
 
         for text in results:
             if not text:
@@ -238,7 +236,7 @@ class NLP:
 
     def _on_any(self, s, loc, tok):
         tok = [w for t in tok for w in t.split() if w != 'the']
-        self.any = ' '.join(tok).strip()
+        self.args = ' '.join(tok).strip()
 
 
     def _on_backup(self, s, loc, tok):
@@ -506,8 +504,6 @@ def describe_move(
 
     if target:
         text = f'{prefix} takes {chess.piece_name(target)} on {to_square}'
-    # elif use_from_square and piece_type == chess.PAWN:
-    #     text = to_square
     else:
         text = f'{prefix} to {to_square}'
 
