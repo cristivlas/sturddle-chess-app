@@ -438,6 +438,7 @@ class ChessApp(App):
         super().__init__(**kwargs)
 
         chess.pgn.LOGGER.setLevel(50)
+        self.animation = False  # animation in progress?
         self.modal = None
         self.store = DictStore('game.dat')
         self.eco = None
@@ -519,17 +520,20 @@ class ChessApp(App):
 
     def _animate(self, undo_to_move=0, callback=lambda *_:None):
         self.set_study_mode(True)
+
         while self.can_undo() and self.game_len() > undo_to_move:
             self.undo_move()
 
         def redo(*_):
             if self.can_redo():
                 if not tts.is_speaking():
-                    self.set_study_mode(True)
+                    self.animation = True
                     self.redo_move(in_animation=True)
                 Clock.schedule_once(redo, 1)
             else:
                 callback()
+                self.animation = False
+                self.update_button_states()
 
         redo()
 
@@ -573,7 +577,7 @@ class ChessApp(App):
 
     def auto_open(self):
         self.confirm(
-            'Lookup matching sequence in the opening book and make moves for both sides',
+            'Lookup matching sequence in the opening book, and play moves for both sides',
             self._auto_open)
 
 
@@ -688,7 +692,7 @@ class ChessApp(App):
 
 
     def can_restart(self):
-        return not self.engine.busy and self.game_in_progress()
+        return not self.engine.busy and self.game_in_progress() and not self.animation
 
 
     def describe_move(self, move, spell_digits=False):
@@ -1126,13 +1130,17 @@ class ChessApp(App):
 
 
     def update_button_states(self):
+        self.auto_open_button.disabled = self.animation
+        self.edit_button.disabled = self.animation
         self.new_button.disabled = not self.can_restart()
-        self.auto_open_button.disabled = bool(self.edit) or not self.engine.can_auto_open()
         self.undo_button.disabled = bool(self.edit) or not self.can_undo()
         self.redo_button.disabled = bool(self.edit) or not self.can_redo()
         self.switch_button.disabled = bool(self.edit) or not self.engine.can_switch()
         self.share_button.disabled = bool(self.edit) or not self.game_in_progress()
-        self.play_button.disabled = bool(self.edit)
+        self.play_button.disabled = bool(self.edit) or self.animation
+        self.puzzles_button.disabled = self.animation
+        self.settings_button.disabled = self.animation
+        self.settings_menu_button.disabled = self.animation
 
         if self.edit:
             self.edit_button.text = 'Exit Editor'

@@ -73,10 +73,12 @@
 
     MenuButton:
         text: 'Puzzles'
+        id: puzzles_button
         on_release: app.puzzles()
 
     MenuButton:
         text: 'Settings'
+        id: settings_menu_button
         on_release: app.settings()
 
     MenuButton:
@@ -245,6 +247,7 @@
 
             AwesomeActionButton:
                 text: ' \uF013 '
+                id: settings_button
                 on_release: app.settings()
 
 
