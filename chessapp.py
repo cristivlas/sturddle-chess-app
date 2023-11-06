@@ -922,7 +922,7 @@ class ChessApp(App):
         if all((
             self.speak_moves,
             any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
-            # not self.menu.attach_to,
+            not self.animation,
             not self.voice_input.is_running(),
             not self.edit,
             not modal or not has_modal()
