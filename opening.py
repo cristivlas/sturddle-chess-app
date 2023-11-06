@@ -44,8 +44,9 @@ class ECO:
 
     def __init__(self):
         '''
-        Read TSV files and index by FEN and name.
+        Read TSV files and index by ECO, FEN and phonetic name.
         '''
+        self.by_eco = {}
         self.by_fen = {}
         self.by_phonetic_name = {}
 
@@ -64,6 +65,7 @@ class ECO:
         with open(fname) as f:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
+                self.by_eco[row['eco'].lower()] = row
                 self.by_fen[row['epd']] = row
                 self.by_phonetic_name[_preprocess(row['name'])] = row
 

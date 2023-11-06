@@ -1644,23 +1644,30 @@ class ChessApp(App):
             self._load_pgn(game)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
-        openings = self.eco.by_phonetic_name
-        phonetic_name = doublemetaphone(name)[0]
-        accuracy = 65  # fuzzy matching minimum accuracy
+        def lookup_opening():
+            try:
+                return self.eco.by_eco[name]
+            except KeyError:
+                pass
 
-        match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
-        Logger.debug(f'play_opening: user="{name}" phonetic={phonetic_name} score={score:.2f}')
+            openings = self.eco.by_phonetic_name
+            phonetic_name = doublemetaphone(name)[0]
+            accuracy = 65  # fuzzy matching minimum accuracy
 
-        if score >= accuracy:
-            row = openings[match]
-            matched_name = row['name']
+            match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
+            Logger.debug(f'play_opening: user="{name}" phonetic={phonetic_name} score={score:.2f}')
 
-            _, score, _ = fuzz_match.extractOne(name, [matched_name])
-            Logger.debug(f'play_opening: matched="{matched_name}" score={score:.2f}')
+            if score >= accuracy:
+                row = openings[match]
+                matched_name = row['name']
 
-            if score < accuracy:
-                return
+                _, score, _ = fuzz_match.extractOne(name, [matched_name])
+                Logger.debug(f'play_opening: matched="{matched_name}" score={score:.2f}')
 
+                if score >= accuracy:
+                    return row
+
+        if row := lookup_opening():
             pgn = row['pgn']
             game = chess.pgn.read_game(StringIO(pgn))
             if game:
