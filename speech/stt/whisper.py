@@ -1,5 +1,5 @@
 '''
-Offline-only voice recognitiona with OpenAi-Whisper.
+Voice recognition backend using OpenAI.
 '''
 import os
 import openai
