@@ -198,7 +198,7 @@
 
         # Voice-related settings
         OptLabel:
-            text: 'Speak Moves'
+            text: 'Voice User Interface'
         Switch:
             id: speak_moves
             active: app.speak_moves
@@ -206,7 +206,7 @@
             disabled: not app.tts_supported
 
         OptLabel:
-            text: 'Offline Speech Recognition'
+            text: 'Device Speech Recognition'
             disabled: not stt.is_offline_supported()
         Switch:
             active: stt.prefer_offline

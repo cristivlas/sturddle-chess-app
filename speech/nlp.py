@@ -209,22 +209,22 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
+        # self.args = results  # hold on to the results for now
         self.args = None
         self.command = None
 
         for text in results:
-            if not text:
-                continue
-            text = on_autocorrect(self._autocorrect(text))
+            if text:
+                text = on_autocorrect(self._autocorrect(text))
 
-            if text in parsed:
-                # auto-correction may lead to duplicates
-                Logger.debug(f'nlp: duplicate \'{text}\'')
-                continue
-
-            moves = self.parse(fen, text, moves)
-
-            parsed.add(text)
+                if text in parsed:
+                    # auto-correction may lead to duplicates
+                    Logger.debug(f'nlp: duplicate \'{text}\'')
+                else:
+                    moves = self.parse(fen, text, moves)
+                    parsed.add(text)
+                    if moves:
+                        self.args = None
 
         return moves
 
