@@ -65,6 +65,8 @@ from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex, platform
 
 import sturddle_chess_engine as chess_engine
+
+from assistant import Assistant
 from boardwidget import BoardWidget
 from engine import Engine
 from metaphone import doublemetaphone
@@ -182,6 +184,10 @@ class AppSettings(GridLayout):
 
 
 class AdvancedSettings(GridLayout):
+    pass
+
+
+class ExtraSettings(GridLayout):
     pass
 
 
@@ -439,6 +445,8 @@ class ChessApp(App):
 
         chess.pgn.LOGGER.setLevel(50)
         self.animation = False  # animation in progress?
+        self.assistant = Assistant(self)
+        self.openai_api_key = os.environ.get('OPENAI_API_KEY', None)
         self.modal = None
         self.store = DictStore('game.dat')
         self.eco = None
@@ -695,9 +703,14 @@ class ChessApp(App):
         return not self.engine.busy and self.game_in_progress() and not self.animation
 
 
+    def chat_assist(self, user_input):
+        if self.get_openai_key():
+            return self.assistant.run(user_input)
+
+
     def describe_move(self, move, spell_digits=False):
         '''
-        return a description of the move in English
+        Return a description of the move in English
         '''
         return nlp.describe_move(
             self.engine.board,
@@ -786,6 +799,9 @@ class ChessApp(App):
             # Time for 'analyze' vocal command
             self.analysis_time = store.get('analysis_time', 3)
 
+            if self.openai_api_key is None:
+                self.openai_api_key = store.get('openai_api_key', None)
+
 
     def save(self, *_):
         '''
@@ -816,6 +832,7 @@ class ChessApp(App):
             speak=self.speak_moves,
             prefer_offline=stt.stt.prefer_offline,
             analysis_time=self.analysis_time,
+            openai_api_key=self.openai_api_key,
         )
 
         self.update_button_states()
@@ -1621,6 +1638,10 @@ class ChessApp(App):
         self._modal_box('Advanced', AdvancedSettings(), close='\uF100')
 
 
+    def extra_settings(self, *_):
+        self._modal_box('Extra', ExtraSettings(), close='\uF100')
+
+
     def select_opening_book(self, *_):
         def _select_current():
             books.selection = path.abspath(self.engine.polyglot_file)
@@ -2201,6 +2222,25 @@ class ChessApp(App):
             self.confirm(f'Apply changes to board', partial(self._edit_stop, True), self._edit_stop)
         else:
             self._edit_stop()
+
+
+    def get_openai_key(self, obfuscate=True):
+        if self.openai_api_key:
+            if obfuscate:
+                return '*****'
+            else:
+                return self.openai_api_key
+
+
+    def set_openai_key(self, key):
+        if self.get_openai_key():
+            self.confirm('Key already exists, overwrite', partial(self._set_api_key, key))
+        else:
+            self._set_api_key(key)
+
+
+    def _set_api_key(self, key):
+        self.openai_api_key = key
 
     #
     # Settings for the search algorithm

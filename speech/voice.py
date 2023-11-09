@@ -256,6 +256,9 @@ class Input:
             Clock.schedule_once(cmd, 0.1)
             return True
 
+        elif self._nlp.args:
+            return self._app.chat_assist(','.join(self._nlp.args))
+
         return False
 
 

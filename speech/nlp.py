@@ -209,8 +209,7 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
-        # self.args = results  # hold on to the results for now
-        self.args = None
+        self.args = results  # hold on to the results for now
         self.command = None
 
         for text in results:

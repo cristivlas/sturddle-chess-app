@@ -45,6 +45,7 @@ class WhisperSTT(STT):
                 # Use the Whisper API to generate a transcript.
 
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
+                '''
                 if result.lower().startswith('play'):
                     # Run the result through ChatGPT to improve it.
                     # See: https://platform.openai.com/docs/guides/speech-to-text/improving-reliability
@@ -82,6 +83,7 @@ class WhisperSTT(STT):
                             result = response
                     except:
                         Logger.exception('OpenAI exception')
+                '''
             else:
                 # Offline mode, using locally downloaded model.
 
