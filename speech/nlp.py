@@ -132,7 +132,7 @@ class NLP:
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
-        hints = pp.Opt('show') + (pp.Keyword('variations') | pp.Keyword('hints'))
+        hints = pp.Opt('show') + pp.Keyword('hints')
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         opening = (pp.Keyword('play') +
             pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
@@ -209,12 +209,13 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
-        self.args = results  # hold on to the results for now
+        self.args = None
         self.command = None
 
         for text in results:
             if text:
                 text = on_autocorrect(self._autocorrect(text))
+                self.args = text  # hold on to the results for now
 
                 if text in parsed:
                     # auto-correction may lead to duplicates
@@ -422,7 +423,7 @@ class NLP:
         r'\bsize\b' : 'side',
         r'\bspawn\b' : 'pawn',
         r'\btake screen\b' : 'takes queen',
-        r'\bthank.*' : '',  # hack: workaround Whisper hallucination
+        r'\bthank.*\b': '',  # hack: workaround Whisper hallucination
         r'\bthe ford\b' : 'd4',
         r'\bthe\s*([1-8])' : r'd\1',
         r'\bto eat\b' : 'to e2',

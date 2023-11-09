@@ -64,6 +64,7 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <string name="mateIn3">Checkmate in three moves.</string>
 <string name="mateIn4">Checkmate in four moves.</string>
 <string name="mateIn5">Solve a long mating sequence.</string>
+<string name="middlegame">A tactic during the second phase of the game.</string>
 <string name="oneMove">One-move puzzle.</string>
 <string name="pawnEndgame">Endgame with only pawns.</string>
 <string name="pin">Piece unable to move without exposing higher value piece to attack.</string>

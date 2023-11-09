@@ -28,12 +28,12 @@ from os import path, walk
 from metaphone import doublemetaphone
 
 
-def _strip_punctuation(input):
+def strip_punctuation(input):
     return ''.join(char for char in input if char not in string.punctuation)
 
 
 def _preprocess(input):
-    return doublemetaphone(_strip_punctuation(input))[0]
+    return doublemetaphone(strip_punctuation(input))[0]
 
 
 class ECO:

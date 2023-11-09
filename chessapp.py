@@ -1656,21 +1656,55 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
-    def play_opening(self, name):
-        if not self.eco:
-            Logger.error('play_opening: no ECO')
-            return
-
+    def play_opening_sequence(self, opening):
+        '''
+        Play the PGN move sequence from opening. Opening is a "row" in the ECO "database".
+        '''
         def load_and_play(game, current = 0, *_):
             self._load_pgn(game)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
-        def lookup_opening():
-            try:
-                if rows := self.eco.by_eco.get(name, None):
-                    return rows[0]  # TODO: handle variations
-            except KeyError:
-                pass
+        pgn = opening['pgn']
+        if game := chess.pgn.read_game(StringIO(pgn)):
+            current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
+            current_pgn = current_pgn.rstrip(' *')
+
+            if current_pgn and pgn.startswith(current_pgn):
+                # The opening matches the current position, do not ask for confirmation.
+
+                current = self.game_len()  # record current move number
+                Clock.schedule_once(partial(load_and_play, game, current))
+
+            else:
+                # The opening sequence does not match the current game: ask
+                # user for confirmation to abandon the game and play opening.
+
+                opening_name = opening['name']
+                self._new_game_action(
+                    f'play {opening_name}',
+                    lambda *_: Clock.schedule_once(partial(load_and_play, game))
+                )
+        else:
+            Logger.info(f'play_opening: could not read pgn: {pgn}')
+
+
+    def play_opening(self, name):
+        '''
+        Lookup opening by matching the name phonetically.
+        Ask user for confirmation to play it, if found.
+        '''
+        if not self.eco:
+            Logger.error('play_opening: no ECO')
+            return
+
+        def lookup_opening_phonetically():
+            # TODO: consider moving this function into the ECO class.
+
+            # try:
+            #     if rows := self.eco.by_eco.get(name, None):
+            #         return rows[0]  # TODO: handle variations
+            # except KeyError:
+            #     pass
 
             openings = self.eco.by_phonetic_name
             phonetic_name = doublemetaphone(name)[0]
@@ -1689,30 +1723,8 @@ class ChessApp(App):
                 if score >= accuracy:
                     return row
 
-        if row := lookup_opening():
-            pgn = row['pgn']
-            game = chess.pgn.read_game(StringIO(pgn))
-            if game:
-                current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
-                current_pgn = current_pgn.rstrip(' *')
-
-                if current_pgn and pgn.startswith(current_pgn):
-                    # The opening matches the current position, do not ask for confirmation.
-
-                    current = self.game_len()  # record current move number
-                    Clock.schedule_once(partial(load_and_play, game, current))
-
-                else:
-                    # The opening sequence does not match the current game: ask
-                    # user for confirmation to abandon the game and play opening.
-
-                    opening_name = row['name']
-                    self._new_game_action(
-                        f'play {opening_name}',
-                        lambda *_: Clock.schedule_once(partial(load_and_play, game))
-                    )
-            else:
-                Logger.info(f'play_opening: could not read pgn: {pgn}')
+        if row := lookup_opening_phonetically():
+            self.play_opening_sequence(row)
 
 
     @property
@@ -2230,6 +2242,7 @@ class ChessApp(App):
                 return '*****'
             else:
                 return self.openai_api_key
+        return ''
 
 
     def set_openai_key(self, key):
@@ -2241,6 +2254,14 @@ class ChessApp(App):
 
     def _set_api_key(self, key):
         self.openai_api_key = key
+
+
+    def toggle_key_visible(self, btn, text):
+        text.password = not text.password
+        btn.text = ' \uF070 ' if text.password else ' \uF06E '
+        text.text = self.get_openai_key(obfuscate=text.password)
+        text.cursor = (0, 0)
+
 
     #
     # Settings for the search algorithm

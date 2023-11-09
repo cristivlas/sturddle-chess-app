@@ -246,6 +246,7 @@ class Input:
         }
 
         if command in actions:
+            self.reset_chat_context()
             func = actions[command]
             params = inspect.signature(func).parameters
             if len(params):
@@ -256,7 +257,7 @@ class Input:
             Clock.schedule_once(cmd, 0.1)
             return True
 
-        elif self._nlp.args:
+        elif not self._ask_mode and self._nlp.args:
             return self._app.chat_assist(','.join(self._nlp.args))
 
         return False
@@ -288,8 +289,10 @@ class Input:
         if not moves:
             return self._run_command(self._nlp.command, self._nlp.args)
         elif len(moves) > 1:
+            self.reset_chat_context()
             self._multiple_matches(moves)
         else:
+            self.reset_chat_context()
             return self._make_move(moves.pop(0))
 
 
@@ -360,3 +363,7 @@ class Input:
 
     def _toggle_listening(self, *_):
         stt.stop() if stt.is_listening() else self._start_stt()
+
+
+    def reset_chat_context(self):
+        self._app.assistant.reset_context()

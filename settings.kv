@@ -252,7 +252,7 @@
             active: app.engine.algorithm == app.engine.Algorithm.NEGASCOUT
             allow_no_selection: False
             on_active: app.engine.algorithm = app.engine.Algorithm.NEGASCOUT
- 
+
     RelativeLayout:
         size_hint: 1, None
         height: dp(32)
@@ -273,15 +273,18 @@
         size_hint_y: None
         height: dp(34)
         GridLayout:
-            cols: 3
+            cols: 4
             OptLabel:
-                text: 'OpenAI API Key'
+                text: 'OpenAI Key'
             TextInput:
                 id: api_key
                 size_hint: 1,1
                 multiline: False
                 password: True
-                text: app.get_openai_key()
+                text: '*****'
+            AwesomeActionButton:
+                text: ' \uF070 '
+                on_release: app.toggle_key_visible(self, api_key)
             Button:
                 text: 'Set'
                 size_hint: None, None
