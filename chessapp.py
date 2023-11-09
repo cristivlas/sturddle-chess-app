@@ -73,7 +73,7 @@ from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
-from rapidfuzz import process as fuzz_match, fuzz
+from rapidfuzz import process as fuzz_match
 
 try:
     from android.runnable import run_on_ui_thread
@@ -1646,7 +1646,8 @@ class ChessApp(App):
 
         def lookup_opening():
             try:
-                return self.eco.by_eco[name]
+                if rows := self.eco.by_eco.get(name, None):
+                    return rows[0]  # TODO: handle variations
             except KeyError:
                 pass
 

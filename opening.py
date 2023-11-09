@@ -18,11 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import csv
 import io
-from os import path, walk
 import string
 
 import chess
 import chess.pgn
+
+from collections import defaultdict
+from os import path, walk
 from metaphone import doublemetaphone
 
 
@@ -46,9 +48,10 @@ class ECO:
         '''
         Read TSV files and index by ECO, FEN and phonetic name.
         '''
-        self.by_eco = {}
+        self.by_eco = defaultdict(list)
         self.by_fen = {}
         self.by_phonetic_name = {}
+        self.by_name = {}
 
         for fname in self.tsv_files():
             self.read_tsv_file(fname)
@@ -65,9 +68,11 @@ class ECO:
         with open(fname) as f:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
-                self.by_eco[row['eco'].lower()] = row
+                self.by_eco[row['eco'].lower()].append(row)
                 self.by_fen[row['epd']] = row
-                self.by_phonetic_name[_preprocess(row['name'])] = row
+                name = row['name']
+                self.by_name[name.lower()] = row
+                self.by_phonetic_name[_preprocess(name)] = row
 
 
     def lookup(self, board, transpose=False):
