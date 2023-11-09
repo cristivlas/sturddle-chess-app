@@ -2,10 +2,13 @@ import json
 import logging
 import openai
 import os
+import random
 
 from collections import namedtuple
 from enum import Enum
 from opening import ECO
+from puzzleview import themes_dict as puzzle_themes
+from puzzleview import PuzzleCollection
 from rapidfuzz import process as fuzz_match
 
 
@@ -87,14 +90,13 @@ def get_api_key():
     return key
 
 
-_valid_puzzle_themes = {
-    'endgame',
-    'middlegame',
-    'rookEndgame',
-}
+_valid_puzzle_themes = { k for k in puzzle_themes }
+
+
 _opening_description = (
     'A name or a detailed description, preferably including variations.'
 )
+
 FUNCTIONS = [
     {
         'name': 'select_chess_puzzles',
@@ -307,7 +309,15 @@ def select_puzzles(inputs):
     if theme not in _valid_puzzle_themes:
         return FunctionResult(AppResponse.INVALID)
 
-    print(f'select_puzzles: {theme}')
+    puzzles = PuzzleCollection().filter(theme)
+
+    if not puzzles:
+        _valid_puzzle_themes.remove(theme)
+        return FunctionResult(AppResponse.INVALID)
+
+    logging.debug(f'select_puzzles: {theme}: {len(puzzles)} matches')
+    print(random.choice(puzzles))
+
     return FunctionResult(AppResponse.OK)
 
 
@@ -334,7 +344,7 @@ def main():
 
             if func_result.response == AppResponse.INVALID and func_name:
                 # filter out last called function
-                logging.debug(f'filtering out: {func_name}')
+                logging.debug(f'removing: {func_name}')
                 funcs_by_name = {f['name']:f for f in funcs if f['name'] != func_name}
                 assert func_name not in funcs_by_name
                 funcs = list(funcs_by_name.values())

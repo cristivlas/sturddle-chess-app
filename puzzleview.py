@@ -134,6 +134,7 @@ class PuzzleCollection:
                     break
             i += 1
             PuzzleCollection.puzzle_list.append((id, fen, solutions, i, fields[-1]))
+
         for p in PuzzleCollection.puzzle_list:
             assert puzzle_description(p)
 
@@ -143,6 +144,9 @@ class PuzzleCollection:
 
     def get(self, start, count):
         return self._puzzles[start : start + count]
+
+    def filter(self, theme):
+        return [p for p in self._puzzles if theme in p[-1]]
 
 
 class PuzzleView(GridLayout):
