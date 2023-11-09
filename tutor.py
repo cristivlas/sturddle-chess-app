@@ -10,7 +10,6 @@ from rapidfuzz import process as fuzz_match
 
 
 GPT_MODEL = 'gpt-3.5-turbo-1106'
-# GPT_MODEL = 'gpt-4'
 
 # Testing and debugging.
 test_responses = [
@@ -42,7 +41,7 @@ test_responses = [
     }
 ]
 
-class UserResponse(Enum):
+class AppResponse(Enum):
     NONE = 0
     OK = 1
     RETRY = 2
@@ -53,7 +52,7 @@ class UserResponse(Enum):
 FunctionResult = namedtuple(
     'FunctionCallResult',
     'response context',
-    defaults=(UserResponse.NONE, None)
+    defaults=(AppResponse.NONE, None)
 )
 
 
@@ -97,19 +96,6 @@ _opening_description = (
     'A name or a detailed description, preferably including variations.'
 )
 FUNCTIONS = [
-    # {
-    #     'name': 'clarify_question',
-    #     'description': 'Ask user for clarifications.',
-    #     'parameters': {
-    #         'type': 'object',
-    #         'properties' : {
-    #             'message': {
-    #                 'type': 'string',
-    #                 'description': 'A message suggesting a rephrase, or clarification questions.'
-    #             },
-    #         }
-    #     }
-    # },
     {
         'name': 'select_chess_puzzles',
         'description': (
@@ -213,8 +199,15 @@ def chat_completion_request(messages, model=GPT_MODEL, *, funcs):
 
     if response:
         try:
-            message = response['choices'][0]['message']
-            if function_call := create_function_call(message):
+            top = response['choices'][0]
+            message = top['message']
+            reason = top['finish_reason']
+
+            if reason != 'function_call':
+                logging.debug(reason)
+                print(message['content'])
+
+            elif function_call := create_function_call(message):
                 result = function_call.execute()
 
                 if not result.context:
@@ -222,10 +215,12 @@ def chat_completion_request(messages, model=GPT_MODEL, *, funcs):
 
                 return function_call.name, result
 
+            return None, FunctionResult()
+
         except:
             logging.exception('Error processing ChatCompletion response.')
 
-    return None, FunctionResult(UserResponse.RETRY)
+    return None, FunctionResult(AppResponse.RETRY)
 
 
 __eco = ECO()  # see _lookup_opening below
@@ -253,39 +248,11 @@ def _lookup_opening(name, eco, min_confidence=80):
         return __eco.by_name[match]
 
 
-def format_openings(inputs):
-    openings = inputs.get('openings', None)
-    if not openings:
-        return FunctionResult(UserResponse.RETRY)
-
-    for i, variation in enumerate(openings):
-        name = variation['name']
-        print(f'{i+1:2d} {name}')
-
-    return FunctionResult(UserResponse.SELECT, f'Choices: {openings}')
-
-
-def select_opening(inputs):
-    openings = inputs.get('openings', None)
-    if not openings:
-        return FunctionResult(UserResponse.RETRY)
-
-    choice = inputs.get('choice', None)
-    if choice is None:
-        return FunctionResult(UserResponse.RETRY)
-
-    if choice > 0 and choice <= len(openings):
-        selection = choice - 1
-    elif len(openings) == 1:
-        selection = 0
-    else:
-        return FunctionResult(UserResponse.RETRY, 'Invalid selection')
-
-    opening = openings[selection]
+def show_opening(opening):
     name = opening.get('name')
 
     if eco := opening.get('eco', None):
-        eco = eco.lower().split('-')[0]  # TODO: handle code ranges.
+        eco = eco.lower().split('-')[0]  # TODO: handle ranges.
 
     print('*************************************************************')
     print(opening)
@@ -294,16 +261,54 @@ def select_opening(inputs):
         print(row['name'])
         print(row['pgn'])
     print('*************************************************************')
-    return FunctionResult(UserResponse.OK)
+
+
+def format_openings(inputs):
+    openings = inputs.get('openings', None)
+    if not openings:
+        return FunctionResult(AppResponse.RETRY)
+
+    if len(openings) == 1:
+        show_opening(openings[0])
+        return FunctionResult(AppResponse.OK)
+
+    for i, variation in enumerate(openings):
+        name = variation['name']
+        print(f'{i+1:2d} {name}')
+
+    return FunctionResult(AppResponse.SELECT, f'Choices: {openings}')
+
+
+def select_opening(inputs):
+    '''
+    Select opening from possible multiple inputs.
+    '''
+    openings = inputs.get('openings', None)
+    if not openings:
+        return FunctionResult(AppResponse.RETRY)
+
+    choice = inputs.get('choice', None)
+    if choice is None:
+        return FunctionResult(AppResponse.RETRY)
+
+    if choice > 0 and choice <= len(openings):
+        selection = choice - 1
+    elif len(openings) == 1:
+        selection = 0
+    else:
+        return FunctionResult(AppResponse.RETRY, 'Invalid selection')
+
+    show_opening(openings[selection])
+    return FunctionResult(AppResponse.OK)
 
 
 def select_puzzles(inputs):
     theme = inputs['theme']
     if theme not in _valid_puzzle_themes:
-        return FunctionResult(UserResponse.INVALID)
+        return FunctionResult(AppResponse.INVALID)
 
     print(f'select_puzzles: {theme}')
-    return FunctionResult(UserResponse.OK)
+    return FunctionResult(AppResponse.OK)
 
 
 def main():
@@ -323,11 +328,11 @@ def main():
     while True:
         context = None
 
-        if func_result.response in (UserResponse.RETRY, UserResponse.INVALID) and retry_count < 3:
+        if func_result.response in (AppResponse.RETRY, AppResponse.INVALID) and retry_count < 3:
             # Modify request and try again.
             retry_count += 1
 
-            if func_result.response == UserResponse.INVALID and func_name:
+            if func_result.response == AppResponse.INVALID and func_name:
                 # filter out last called function
                 logging.debug(f'filtering out: {func_name}')
                 funcs_by_name = {f['name']:f for f in funcs if f['name'] != func_name}
@@ -359,7 +364,7 @@ def main():
             }
         ]
 
-        if func_result.response == UserResponse.SELECT:
+        if func_result.response == AppResponse.SELECT:
             # Selection requires context.
             assert func_result.context
             context = func_result.context
