@@ -23,15 +23,15 @@ _functions = [
     {
         'name': 'select_chess_puzzles',
         'description': (
-            'Select puzzles by theme tag. Theme must be valid.'
-            'Puzzles and chess openings are mutually exclusive.'
-        ),
+            'Select puzzles by theme. Must never be called with an invalid theme.'
+            'Puzzles and chess openings are mutually exclusive. '
+        ) + 'The complete list of valid themes is: ' + ','.join(_valid_puzzle_themes),
         'parameters': {
             'type': 'object',
             'properties' : {
                 'theme': {
                     'type': 'string',
-                    'description': 'Theme tag. Must be one of: ' +','.join(_valid_puzzle_themes)
+                    'description': 'theme'
                 },
             }
         }
@@ -202,7 +202,7 @@ class Assistant:
             return FunctionResult(AppResponse.RETRY)
 
         if len(matches) == 1:
-            self._play_selected_opening(matches[0])
+            self._schedule_action(partial(self._play_selected_opening, matches[0]))
             return FunctionResult(AppResponse.OK)
 
         # Lookup openings and "normalize" names
@@ -255,23 +255,22 @@ class Assistant:
         if choice is None:
             return FunctionResult(AppResponse.RETRY)
 
+        choice = int(choice)
         if choice > 0 and choice <= len(openings):
             selection = choice - 1
 
         elif len(openings) == 1:
+            selection = 0
             if choice != 0 and self._context:
                 try:
                     options = ast.literal_eval(self._context)
-                    self._play_selected_opening({'name':options[choice-1]})
-                    return FunctionResult(AppResponse.OK)
+                    openings = [{'name':options[choice-1]}]  # will raise exc if out of range
                 except:
                     pass
-
-            selection = 0
         else:
-            return FunctionResult(AppResponse.RETRY, 'Invalid selection')
+            return FunctionResult(AppResponse.RETRY)
 
-        self._play_selected_opening(openings[selection])
+        self._schedule_action(partial(self._play_selected_opening, openings[selection]))
         return FunctionResult(AppResponse.OK)
 
 
@@ -292,7 +291,7 @@ class Assistant:
             self._app.load_puzzle(selection)
 
         action = 'practice: ' + strip_punctuation(puzzle_themes.get(theme, theme)).lower()
-        Clock.schedule_once(lambda *_: self._app._new_game_action(action, play_puzzle), 0.1)
+        self._schedule_action(lambda *_: self._app._new_game_action(action, play_puzzle))
         return FunctionResult(AppResponse.OK)
 
 
@@ -308,11 +307,35 @@ class Assistant:
             Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
 
 
+    def _schedule_action(self, action, *_):
+        '''
+        Schedule action to run after the voice input interface stops.
+        '''
+        if self._app.voice_input.is_running():
+            Clock.schedule_once(partial(self._schedule_action, action))
+
+        else:
+            action()
+
+
     def reset_context(self):
         self._context = None
 
 
     def run(self, user_input, max_retries=3, timeout=3.0):
+
+        # Testing...
+        # return self._select_opening({'choice': 4, 'openings': [{'name': 'St. George Defense'}]})
+        # return self._process_openings({'openings':[
+        #     {'name': 'St. George Defense'},
+        #     {'name': 'Borg Defense'},
+        #     {'name': 'Nimzowitsch-Larsen Attack'},
+        #     {'name': 'Sodium Attack'}
+        # ]})
+
+        # self._context = "['St. George Defense', 'Nimzowitsch-Larsen Attack', 'Sodium Attack']"
+        # return self._select_opening({'choice': 2, 'openings': [{'name': 'St. George Defense'}]})
+
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
