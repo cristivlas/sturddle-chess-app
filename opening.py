@@ -22,6 +22,8 @@ import string
 
 import chess
 import chess.pgn
+import logging
+import rapidfuzz
 
 from collections import defaultdict
 from os import path, walk
@@ -34,6 +36,52 @@ def strip_punctuation(input):
 
 def _preprocess(input):
     return doublemetaphone(strip_punctuation(input))[0]
+
+
+'''
+A class that represents a chess opening.
+'''
+class Opening:
+    def __init__(self, row):
+        '''
+        Construct Opening object for ECO database row.
+        '''
+        self.row = row
+
+    @property
+    def name(self):
+        return self.row['name']
+
+    @property
+    def eco(self):
+        ''' ECO classificatio code '''
+        return self.row['eco']
+
+    @property
+    def epd(self):
+        '''
+        Extended Position Description.
+        https://www.chessprogramming.org/Extended_Position_Description
+        '''
+        return self.row['epd']
+
+    @property
+    def pgn(self):
+        '''
+        String containing the move sequence in Portable Game Notation
+        using Simplified Algebraic Notation.
+        '''
+        return row['pgn']
+
+    @property
+    def uci(self):
+        '''
+        String containing the move sequence in UCI Notation
+        '''
+        return row['uci']
+
+    def __repr__(self):
+        return repr(self.row)
 
 
 class ECO:
@@ -91,6 +139,17 @@ class ECO:
                 if i >= len(board.move_stack) or move != board.move_stack[i]:
                     return None
         return row
+
+
+    def lookup_name(self, name, *, confidence=90):
+
+        name = name.lower()  # by_name.keys() are lowercase
+        match, score, _ = rapidfuzz.process.extractOne(name, self.by_name.keys())
+
+        logging.debug(f'lookup_name: name="{name}" match="{match}" score={score:.3f}')
+
+        if score >= confidence:
+            return Opening(self.by_name[match])
 
 
     def openings(self):
