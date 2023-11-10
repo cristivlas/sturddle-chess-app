@@ -146,7 +146,7 @@ class ECO:
         phonetic_name = doublemetaphone(name)[0]
 
         result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
-        logging.debug(f'phonetical_lookup: name="{name}" phonetic_name={phonetic_name} result={result}')
+        logging.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')
 
         if result:
             match, score, _ = result
@@ -156,7 +156,7 @@ class ECO:
                 # reverse match for verification
                 result = rapidfuzz.process.extractOne(name, [matched_name])
 
-                logging.debug(f'phonetical_lookup: matched_name="{matched_name}" result={result}')
+                logging.debug(f'phonetical: matched_name="{matched_name}" result={result}')
                 if result and result[1] >= confidence:
                     return Opening(row)
 

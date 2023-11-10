@@ -246,7 +246,6 @@ class Input:
         }
 
         if command in actions:
-            self.reset_chat_context()
             func = actions[command]
             params = inspect.signature(func).parameters
             if len(params):
@@ -257,8 +256,8 @@ class Input:
             Clock.schedule_once(cmd, 0.1)
             return True
 
-        if not self._ask_mode and self._nlp.args:
-            return self._app.chat_assist(self._nlp.args)
+        if not self._ask_mode:
+            return self._app.chat_assist(self.get_user_input())
 
         return False
 
@@ -367,3 +366,7 @@ class Input:
 
     def reset_chat_context(self):
         self._app.assistant.reset_context()
+
+
+    def get_user_input(self):
+        return self._nlp.input

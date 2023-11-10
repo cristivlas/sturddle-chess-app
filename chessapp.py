@@ -75,7 +75,6 @@ from msgbox import MessageBox, ModalBox
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
-from rapidfuzz import process as fuzz_match
 
 try:
     from android.runnable import run_on_ui_thread
@@ -1693,10 +1692,16 @@ class ChessApp(App):
 
     def play_opening(self, name):
         '''
-        Lookup opening phonetically by name, and play it if found.
+        Lookup opening phonetically by name, and play it
+        if found, otherwise fail over to the chat assistant.
         '''
         if self.eco:
-            self.play_opening_sequence(self.eco.phonetical_lookup(name))
+            opening = self.eco.phonetical_lookup(name)
+            if opening:
+                self.voice_input.reset_chat_context()
+                return self.play_opening_sequence(opening)
+
+        return self.chat_assist(self.voice_input.get_user_input())
 
 
     @property

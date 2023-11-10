@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import os
@@ -11,7 +12,6 @@ from kivy.clock import Clock
 from opening import strip_punctuation
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
-from rapidfuzz import process as fuzz_match
 
 
 _opening_description = 'A name or a detailed description, preferably including variations.'
@@ -122,8 +122,6 @@ class FunctionCall:
         if self.name in FunctionCall.dispatch:
             return FunctionCall.dispatch[self.name](self.arguments)
 
-        return FunctionResult()
-
     @staticmethod
     def register(name, func):
         FunctionCall.dispatch[name] = func
@@ -138,7 +136,7 @@ class Assistant:
         self._register_funcs()
 
 
-    def _completion_request(self, messages, *, functions):
+    def _completion_request(self, messages, *, functions, timeout):
         import requests
         response = None
         headers = {
@@ -156,12 +154,19 @@ class Assistant:
                 'https://api.openai.com/v1/chat/completions',
                 headers=headers,
                 json=json_data,
+                timeout=timeout,
             )
             if response:
                 return self._handle_response(json.loads(response.content))
 
+        except requests.exceptions.ReadTimeout as e:
+            logging.warn(f'request: {e}')
+            return None, FunctionResult(AppResponse.RETRY)
+
         except:
             logging.exception('Error generating ChatCompletion response.')
+
+        return None, FunctionResult()
 
 
     def _handle_response(self, response):
@@ -218,7 +223,7 @@ class Assistant:
             ])
             self._say(f'{prefix}:\n' + '.\n'.join(choices))
 
-        return FunctionResult(AppResponse.SELECT, f'Choices: {choices}')
+        return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
 
 
     def _lookup_opening(self, name, eco, confidence=75):
@@ -252,7 +257,16 @@ class Assistant:
 
         if choice > 0 and choice <= len(openings):
             selection = choice - 1
+
         elif len(openings) == 1:
+            if choice != 0 and self._context:
+                try:
+                    options = ast.literal_eval(self._context)
+                    self._play_selected_opening({'name':options[choice-1]})
+                    return FunctionResult(AppResponse.OK)
+                except:
+                    pass
+
             selection = 0
         else:
             return FunctionResult(AppResponse.RETRY, 'Invalid selection')
@@ -264,7 +278,7 @@ class Assistant:
     def _select_puzzles(self, inputs):
         theme = inputs.get('theme', None)
         if not theme:
-             return FunctionResult(AppResponse.NONE)
+            return FunctionResult(AppResponse.INVALID)
 
         puzzles = PuzzleCollection().filter(theme)
 
@@ -298,7 +312,10 @@ class Assistant:
         self._context = None
 
 
-    def run(self, user_input, max_retries=3):
+    def run(self, user_input, max_retries=3, timeout=3.0):
+        if not user_input.strip():
+            return False  # prevent useless, expensive calls
+
         funcs = _functions
 
         for retry_count in range(max_retries):
@@ -323,17 +340,22 @@ class Assistant:
                     'content': self._context
                 })
 
-            func_name, func_result = self._completion_request(messages, functions=funcs)
-
+            func_name, func_result = self._completion_request(
+                messages,
+                functions=funcs,
+                timeout=timeout
+            )
             self._context = func_result.context  # Save the context for next time.
 
             if func_result.response in (AppResponse.INVALID, AppResponse.RETRY):
 
-                if func_name and func_result.response == AppResponse.INVALID:
+                if func_result.response == AppResponse.INVALID:
                     # Remove the function that returned INVALID response from the list.
                     funcs = {f['name']:f for f in funcs if f['name'] != func_name}
                     assert func_name not in funcs
                     funcs = list(funcs.values())
+
+                timeout *= 2
 
             else:
                 return True
