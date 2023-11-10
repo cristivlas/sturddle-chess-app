@@ -1658,13 +1658,18 @@ class ChessApp(App):
 
     def play_opening_sequence(self, opening):
         '''
-        Play the PGN move sequence from opening. Opening is a "row" in the ECO "database".
+        Schedule the PGN moves sequence from the given opening to be played.
         '''
+        if opening is None:
+            return
+
         def load_and_play(game, current = 0, *_):
+            ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
-        pgn = opening['pgn']
+        pgn = opening.pgn
+
         if game := chess.pgn.read_game(StringIO(pgn)):
             current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
             current_pgn = current_pgn.rstrip(' *')
@@ -1678,10 +1683,8 @@ class ChessApp(App):
             else:
                 # The opening sequence does not match the current game: ask
                 # user for confirmation to abandon the game and play opening.
-
-                opening_name = opening['name']
                 self._new_game_action(
-                    f'play {opening_name}',
+                    f'play {opening.name}',
                     lambda *_: Clock.schedule_once(partial(load_and_play, game))
                 )
         else:
@@ -1690,41 +1693,10 @@ class ChessApp(App):
 
     def play_opening(self, name):
         '''
-        Lookup opening by matching the name phonetically.
-        Ask user for confirmation to play it, if found.
+        Lookup opening phonetically by name, and play it if found.
         '''
-        if not self.eco:
-            Logger.error('play_opening: no ECO')
-            return
-
-        def lookup_opening_phonetically():
-            # TODO: consider moving this function into the ECO class.
-
-            # try:
-            #     if rows := self.eco.by_eco.get(name, None):
-            #         return rows[0]  # TODO: handle variations
-            # except KeyError:
-            #     pass
-
-            openings = self.eco.by_phonetic_name
-            phonetic_name = doublemetaphone(name)[0]
-            accuracy = 65  # fuzzy matching minimum accuracy
-
-            match, score, _ = fuzz_match.extractOne(phonetic_name, openings.keys())
-            Logger.debug(f'play_opening: user="{name}" phonetic={phonetic_name} score={score:.2f}')
-
-            if score >= accuracy:
-                row = openings[match]
-                matched_name = row['name']
-
-                _, score, _ = fuzz_match.extractOne(name, [matched_name])
-                Logger.debug(f'play_opening: matched="{matched_name}" score={score:.2f}')
-
-                if score >= accuracy:
-                    return row
-
-        if row := lookup_opening_phonetically():
-            self.play_opening_sequence(row)
+        if self.eco:
+            self.play_opening_sequence(self.eco.phonetical_lookup(name))
 
 
     @property

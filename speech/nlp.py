@@ -209,13 +209,18 @@ class NLP:
     def run(self, fen, results, on_autocorrect=lambda text: text):
         moves = []
         parsed = set()
-        self.args = None
+
+        # Hold on to the results in case we need to fail over to
+        # the chat assistant. Not sure if to auto-correct or not...
+        self.args = ' '.join(results)
+
         self.command = None
 
         for text in results:
             if text:
                 text = on_autocorrect(self._autocorrect(text))
-                self.args = text  # hold on to the results for now
+
+                self.args = text
 
                 if text in parsed:
                     # auto-correction may lead to duplicates

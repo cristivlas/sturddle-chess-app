@@ -39,7 +39,7 @@ def _preprocess(input):
 
 
 '''
-A class that represents a chess opening.
+Representation of a chess opening.
 '''
 class Opening:
     def __init__(self, row):
@@ -68,17 +68,17 @@ class Opening:
     @property
     def pgn(self):
         '''
-        String containing the move sequence in Portable Game Notation
+        String containing the moves sequence in Portable Game Notation
         using Simplified Algebraic Notation.
         '''
-        return row['pgn']
+        return self.row['pgn']
 
     @property
     def uci(self):
         '''
-        String containing the move sequence in UCI Notation
+        String containing the opening moves sequence in UCI Notation
         '''
-        return row['uci']
+        return self.row['uci']
 
     def __repr__(self):
         return repr(self.row)
@@ -141,15 +141,83 @@ class ECO:
         return row
 
 
-    def lookup_name(self, name, *, confidence=90):
+    def phonetical_lookup(self, name, *, confidence=65):
+        openings = self.by_phonetic_name
+        phonetic_name = doublemetaphone(name)[0]
 
-        name = name.lower()  # by_name.keys() are lowercase
-        match, score, _ = rapidfuzz.process.extractOne(name, self.by_name.keys())
+        result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
+        logging.debug(f'phonetical_lookup: name="{name}" phonetic_name={phonetic_name} result={result}')
 
-        logging.debug(f'lookup_name: name="{name}" match="{match}" score={score:.3f}')
+        if result:
+            match, score, _ = result
+            if score >= confidence:
+                row = openings[match]
+                matched_name = row['name']
+                # reverse match for verification
+                result = rapidfuzz.process.extractOne(name, [matched_name])
 
-        if score >= confidence:
-            return Opening(self.by_name[match])
+                logging.debug(f'phonetical_lookup: matched_name="{matched_name}" result={result}')
+                if result and result[1] >= confidence:
+                    return Opening(row)
+
+    @staticmethod
+    def get_codes(eco):
+        codes = eco.lower().split('-')  # support ranges (e.g. B20-B99)
+
+        alpha = codes[0][0]
+        if len(codes) == 2 and alpha == codes[1][0]:
+            try:
+                start, end = int(codes[0][1:]), int(codes[1][1:])
+                codes = [f'{alpha}{i:02d}' for i in range(start, end + 1)]
+            except:
+                pass
+
+        return codes
+
+
+    def name_lookup(self, name, eco=None, *, confidence=90):
+        '''
+        Lookup chess opening by name and classification code using fuzzy name matching.
+
+        '''
+        if eco is not None:
+            keys = set()
+            for eco in self.get_codes(eco):
+                keys.update({r['name'].lower() for r in self.by_eco.get(eco, [])})
+        else:
+            keys = self.by_name.keys()
+
+        return self.fuzzy_lookup(
+            self.by_name,
+            keys,
+            name,
+            min_confidence_level=confidence
+        )
+
+
+    @staticmethod
+    def fuzzy_lookup(dict, keys, name, *, min_confidence_level):
+        '''
+        Lookup the given name by fuzzy matching against a subset of dictionary keys.
+
+        Params:
+            dict: a dictionary-like collection of opening "data rows", indexed by lowercase name;
+            keys: a subset of keys (can be same as dict.keys());
+            name: the name to lookup by;
+            min_confidence_level: the minimum acceptable fuzzy matching score.
+
+        Return on Opening object if successful, otherwise return None
+
+        '''
+        result = rapidfuzz.process.extractOne(name.lower(), keys)
+
+        logging.debug(f'fuzzy_lookup: name="{name}" result={result}')
+
+        if result:
+            match, score, _ = result
+
+            if score >= min_confidence_level:
+                return Opening(dict[match])
 
 
     def openings(self):

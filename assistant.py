@@ -15,14 +15,16 @@ from rapidfuzz import process as fuzz_match
 
 
 _opening_description = 'A name or a detailed description, preferably including variations.'
+_eco_code = 'ECO (Encyclopaedia of Chess Openings) code.'
+
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 _functions = [
     {
         'name': 'select_chess_puzzles',
         'description': (
-            'Select chess puzzle by theme tag.'
-            'Theme must be valid.'
+            'Select puzzles by theme tag. Theme must be valid.'
+            'Puzzles and chess openings are mutually exclusive.'
         ),
         'parameters': {
             'type': 'object',
@@ -51,7 +53,7 @@ _functions = [
                             },
                             'eco': {
                                 'type': 'string',
-                                'description': 'ECO (Encyclopaedia of Chess Openings) code.'
+                                'description': _eco_code
                             },
                         }
                     }
@@ -85,7 +87,7 @@ _functions = [
                             },
                             'eco': {
                                 'type': 'string',
-                                'description': 'ECO (Encyclopaedia of Chess Openings) code.'
+                                'description': _eco_code
                             },
                         }
                     }
@@ -135,32 +137,6 @@ class Assistant:
         self._context = None
         self._register_funcs()
 
-    '''
-    def _completion_request(self, messages, *, functions):
-        import openai
-
-        response = None
-        try:
-            response = openai.ChatCompletion.create(
-                api_key=self._app.get_openai_key(obfuscate=False),
-                model=self.model,
-                messages=messages,
-                functions=functions,
-                temperature=self.temperature
-            )
-            logging.debug(response)
-
-        except openai.error.ServiceUnavailableError as e:
-            logging.warn(e)
-
-        except:
-            logging.exception('ChatCompletion request failed')
-
-        if response:
-            self._handle_response(response)
-
-        return None, FunctionResult(AppResponse.RETRY)
-    '''
 
     def _completion_request(self, messages, *, functions):
         import requests
@@ -187,6 +163,7 @@ class Assistant:
         except:
             logging.exception('Error generating ChatCompletion response.')
 
+
     def _handle_response(self, response):
         try:
             logging.debug(f'response: {response}')
@@ -208,6 +185,7 @@ class Assistant:
 
         return None, FunctionResult()
 
+
     @staticmethod
     def _create_function_call(response):
         if call := response.get('function_call'):
@@ -226,50 +204,39 @@ class Assistant:
         choices = set()
         for opening in matches:
             name = opening['name']
-            if row := self._lookup_opening(name, opening.get('eco', None)):
-                choices.add(row['name'])
+            item = self._lookup_opening(name, opening.get('eco', None))
+            if item:
+                choices.add(item.name)
 
-        prefix = random.choice([
-            'Here are some ideas',
-            'I would suggest',
-            'Some openings to consider include'
-        ])
         logging.info(f'choices: {choices}')
-        self._say(f'{prefix}:\n' + '.\n'.join(choices))
+
+        if choices:
+            prefix = random.choice([
+                'Here are some ideas',
+                'I would suggest',
+                'Some openings to consider include'
+            ])
+            self._say(f'{prefix}:\n' + '.\n'.join(choices))
+
         return FunctionResult(AppResponse.SELECT, f'Choices: {choices}')
 
-    def _lookup_opening(self, name, eco, min_confidence=75):
-        '''
-        Lookup opening in the ECO (Encyclopaedia of Chess Openings).
-        TODO: Consider moving this into the ECO class.
-        '''
-        if not self._app.eco:
-            return None
 
-        name = name.lower()  # by_name.keys() are lowercase
-        if eco:
-            # Try looking up by ECO codes first.
-            if rows := self._app.eco.by_eco.get(eco, None):
+    def _lookup_opening(self, name, eco, confidence=75):
+        if self._app.eco:
+            result = self._app.eco.name_lookup(name, eco, confidence=90)
 
-                rows = {r['name'].lower(): r for r in rows}
-                match, score, _ = fuzz_match.extractOne(name, rows.keys())
-                logging.debug(f'_lookup_opening: match={match} score={score}')
-                if score >= 90:
-                    return rows[match]
+            if not result:
+                # Classification code returned by model may be wrong, retry without it
+                result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
-        match, score, _ = fuzz_match.extractOne(name, self._app.eco.by_name.keys())
-        logging.debug(f'_lookup_opening: name="{name}" match="{match}" score={score}')
-        if score >= min_confidence:
-            return self._app.eco.by_name[match]
+            return result
+
 
     def _play_selected_opening(self, opening):
         name = opening.get('name')
-        if eco := opening.get('eco', None):
-            # TODO: handle ECO code ranges.
-            eco = eco.lower().split('-')[0]
+        eco = opening.get('eco', None)
+        self._app.play_opening_sequence(self._lookup_opening(name, eco))
 
-        if row := self._lookup_opening(name, eco):
-            Clock.schedule_once(lambda *_: self._app.play_opening_sequence(row), 0.1)
 
     def _select_opening(self, inputs):
         '''
@@ -293,6 +260,7 @@ class Assistant:
         self._play_selected_opening(openings[selection])
         return FunctionResult(AppResponse.OK)
 
+
     def _select_puzzles(self, inputs):
         theme = inputs.get('theme', None)
         if not theme:
@@ -313,18 +281,22 @@ class Assistant:
         Clock.schedule_once(lambda *_: self._app._new_game_action(action, play_puzzle), 0.1)
         return FunctionResult(AppResponse.OK)
 
+
     def _register_funcs(self):
         FunctionCall.register('process_chess_openings', self._process_openings)
         FunctionCall.register('process_user_opening_choice', self._select_opening)
         FunctionCall.register('select_chess_puzzles', self._select_puzzles)
+
 
     def _say(self, text):
         logging.debug(f'say: {text}')
         if text and text[0].isalnum():
             Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
 
+
     def reset_context(self):
         self._context = None
+
 
     def run(self, user_input, max_retries=3):
         funcs = _functions

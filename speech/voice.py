@@ -257,8 +257,8 @@ class Input:
             Clock.schedule_once(cmd, 0.1)
             return True
 
-        elif not self._ask_mode and self._nlp.args:
-            return self._app.chat_assist(','.join(self._nlp.args))
+        if not self._ask_mode and self._nlp.args:
+            return self._app.chat_assist(self._nlp.args)
 
         return False
 
