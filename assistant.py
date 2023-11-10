@@ -24,7 +24,7 @@ _functions = [
         'name': 'select_chess_puzzles',
         'description': (
             'Select puzzles by theme. Must never be called with an invalid theme.'
-            'Puzzles and chess openings are mutually exclusive. '
+            'Do not ever use this function in response to queries about openings.'
         ) + 'The complete list of valid themes is: ' + ','.join(_valid_puzzle_themes),
         'parameters': {
             'type': 'object',
@@ -130,13 +130,12 @@ class FunctionCall:
 class Assistant:
     def __init__(self, app):
         self.model = 'gpt-3.5-turbo-1106'
-        self.temperature = 0.1
         self._app = weakref.proxy(app)
         self._context = None
         self._register_funcs()
 
 
-    def _completion_request(self, messages, *, functions, timeout):
+    def _completion_request(self, messages, *, functions, temperature, timeout):
         import requests
         response = None
         headers = {
@@ -147,7 +146,7 @@ class Assistant:
             'model': self.model,
             'messages': messages,
             'functions': functions,
-            'temperature': self.temperature
+            'temperature': temperature
         }
         try:
             response = requests.post(
@@ -196,34 +195,34 @@ class Assistant:
         if call := response.get('function_call'):
             return FunctionCall(call['name'], call['arguments'])
 
+
     def _process_openings(self, inputs):
-        matches = inputs.get('openings', None)
-        if not matches:
-            return FunctionResult(AppResponse.RETRY)
+        if openings := self._validate_opening_choices(inputs):
+            # "Normalize" the names
+            choices = [self._lookup_opening(i['name'], i.get('eco')) for i in openings]
 
-        if len(matches) == 1:
-            self._schedule_action(partial(self._play_selected_opening, matches[0]))
-            return FunctionResult(AppResponse.OK)
+            # Retain name and eco only, unique names.
+            choices = {i.name: i.eco for i in choices if i}
 
-        # Lookup openings and "normalize" names
-        choices = set()
-        for opening in matches:
-            name = opening['name']
-            item = self._lookup_opening(name, opening.get('eco', None))
-            if item:
-                choices.add(item.name)
+            # Convert back to list of dicts.
+            choices = [{'name': k, 'eco': v} for k,v in choices.items()]
+            logging.debug(f'choices: {choices}')
 
-        logging.info(f'choices: {choices}')
+            if len(choices) == 1:
+                self._schedule_action(partial(self._play_selected_opening, choices[0]))
+                return FunctionResult(AppResponse.OK)
 
-        if choices:
-            prefix = random.choice([
-                'Here are some ideas',
-                'I would suggest',
-                'Some openings to consider include'
-            ])
-            self._say(f'{prefix}:\n' + '.\n'.join(choices))
+            elif choices:
+                prefix = random.choice([
+                    'Here are some ideas',
+                    'I would suggest',
+                    'Some openings to consider include'
+                ])
+                choices = [c['name'] for c in choices]  # convert to list
+                self._say(f'{prefix}:\n' + '.\n'.join(choices))
+                return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
 
-        return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
+        return FunctionResult(AppResponse.RETRY)
 
 
     def _lookup_opening(self, name, eco, confidence=75):
@@ -238,44 +237,47 @@ class Assistant:
 
 
     def _play_selected_opening(self, opening):
-        name = opening.get('name')
-        eco = opening.get('eco', None)
+        name = opening['name']
+        eco = opening.get('eco')
         self._app.play_opening_sequence(self._lookup_opening(name, eco))
 
 
     def _select_opening(self, inputs):
-        '''
-        Select opening from possible multiple inputs.
-        '''
-        openings = inputs.get('openings', None)
-        if not openings:
+
+        # Validate inputs
+        openings, choice = self._validate_opening_choices(inputs), inputs.get('choice')
+        if not openings or not choice:
             return FunctionResult(AppResponse.RETRY)
 
-        choice = inputs.get('choice', None)
-        if choice is None:
-            return FunctionResult(AppResponse.RETRY)
+        selected = None
 
-        choice = int(choice)
-        if choice > 0 and choice <= len(openings):
-            selection = choice - 1
+        choice = int(choice) - 1  # 1-based
 
-        elif len(openings) == 1:
-            selection = 0
-            if choice != 0 and self._context:
-                try:
-                    options = ast.literal_eval(self._context)
-                    openings = [{'name':options[choice-1]}]  # will raise exc if out of range
-                except:
-                    pass
-        else:
-            return FunctionResult(AppResponse.RETRY)
+        if choice >= len(openings):
+            # Attempt to recover by using the previous context
+            try:
+                options = ast.literal_eval(self._context)
+                if choice >= 0 and choice < len(options):
+                    selected = {'name': options[choice]}
+            except:
+                pass
 
-        self._schedule_action(partial(self._play_selected_opening, openings[selection]))
+        elif choice >= 0:
+            selected = openings[choice]
+
+        if selected is None:
+            message = 'The choice is out of range. '
+            choices = self._context if self._context else [o['name'] for o in openings]
+            message += 'I suggested:\n' + '.\n'.join(choices)
+            self._say(message)
+            return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
+
+        self._schedule_action(partial(self._play_selected_opening, selected))
         return FunctionResult(AppResponse.OK)
 
 
     def _select_puzzles(self, inputs):
-        theme = inputs.get('theme', None)
+        theme = inputs.get('theme')
         if not theme:
             return FunctionResult(AppResponse.INVALID)
 
@@ -318,14 +320,24 @@ class Assistant:
             action()
 
 
+    @staticmethod
+    def _validate_opening_choices(inputs):
+        '''
+        Expect the inputs to be a list of openings, each having a 'name'.
+        '''
+        openings = inputs.get('openings', [])
+        if any(('name' not in item for item in openings)):
+            openings = None
+        return openings
+
+
     def reset_context(self):
         self._context = None
 
 
-    def run(self, user_input, max_retries=3, timeout=3.0):
+    def _run_mock(self):
+        # return self._process_openings({'openings':[{'name': 'St. George Defense'}]})
 
-        # Testing...
-        # return self._select_opening({'choice': 4, 'openings': [{'name': 'St. George Defense'}]})
         # return self._process_openings({'openings':[
         #     {'name': 'St. George Defense'},
         #     {'name': 'Borg Defense'},
@@ -336,10 +348,52 @@ class Assistant:
         # self._context = "['St. George Defense', 'Nimzowitsch-Larsen Attack', 'Sodium Attack']"
         # return self._select_opening({'choice': 2, 'openings': [{'name': 'St. George Defense'}]})
 
+        # Test that missing 'name' is handled.
+        # return self._select_opening({
+        #     'choice': 2,
+        #     'openings': [
+        #         {'eco': 'B70'},
+        #         {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'},
+        #         {'name': "Queen's Pawn Game: Anglo-Slav Opening", 'eco': 'D02'}
+        #     ]})
+        # return self._process_openings({'openings':[
+        #     {'name': 'St. George Defense'},
+        #     {'tag': 'Borg Defense'},
+        #     {'name': 'Nimzowitsch-Larsen Attack'},
+        #     {'name': 'Sodium Attack'}
+        # ]})
+
+        # Invalid selection
+        # return self._select_opening({
+        #     'choice': 4,
+        #     'openings': [
+        #         {'name': 'Sicilian Defense: Dragon Variation', 'eco': 'B70'},
+        #         {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'},
+        #         {'name': "Queen's Pawn Game: Anglo-Slav Opening", 'eco': 'D02'}
+        #     ]})
+
+        # self._context = "['St. George Defense', 'Nimzowitsch-Larsen Attack', 'Sodium Attack']"
+        # return self._select_opening({'choice': 2, 'openings': [{'name': 'St. George Defense'}]})
+
+        # Test "normalization"
+        return self._process_openings ({
+            'openings': [
+                {'name': 'Bongcloud Opening'},
+                {'name': 'Orangutan Opening'},
+                {'name': 'Sokolsky Opening'},
+                {'name': "Bird's Opening"},
+                {'name': 'Nimzowitsch-Larsen Attack'}
+            ]})
+
+
+    def run(self, user_input, max_retries=3, timeout=3.0):
+        # return self._run_mock()  # test and debug
+
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
         funcs = _functions
+        temperature = 0
 
         for retry_count in range(max_retries):
             messages = [
@@ -366,7 +420,8 @@ class Assistant:
             func_name, func_result = self._completion_request(
                 messages,
                 functions=funcs,
-                timeout=timeout
+                temperature=temperature,
+                timeout=timeout,
             )
             self._context = func_result.context  # Save the context for next time.
 
@@ -379,6 +434,7 @@ class Assistant:
                     funcs = list(funcs.values())
 
                 timeout *= 2
+                temperature += 0.05
 
             else:
                 return True
