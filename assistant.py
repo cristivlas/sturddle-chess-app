@@ -20,6 +20,19 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 _functions = [
     {
+        'name': 'explain_concept',
+        'description': 'Present the user with the explanation of a chess concept.',
+        'parameters': {
+            'type': 'object',
+            'properties' : {
+                'answer': {
+                    'type': 'string',
+                    'description': 'Answer to a user query regarding an idea in chess.'
+                },
+            }
+        }
+    },
+    {
         'name': 'select_chess_puzzles',
         'description': (
             'Select puzzles by theme. Must never be called with an invalid theme.'
@@ -30,7 +43,7 @@ _functions = [
             'properties' : {
                 'theme': {
                     'type': 'string',
-                    'description': 'theme'
+                    'description': 'puzzle theme'
                 },
             }
         }
@@ -120,16 +133,31 @@ class FunctionCall:
         FunctionCall.dispatch[name] = func
 
 
-class Context:
-    def __init__(self, max_size=512):
-        self.max_size = max_size
-        self.clear()
+def format_choices(choices):
+    '''
+    Format choices to be presented to the user.
 
-    def clear(self):
+    choices: a list of [{'name': ..., 'eco': ...}, ... ] dicts; 'eco' is optional.
+    '''
+
+    if len(choices) == 1:
+        choices = choices[0]['name']
+
+    else:
+        choices = [c['name'] for c in choices]
+        choices = '; '.join([f'{i}. {n}' for i,n in enumerate(choices, start=1)])
+
+    return choices
+
+
+class Context:
+    def __init__(self, max_size=1024):
+        self.max_size = max_size
         self._options = []
         self._opening_names = []
         self._theme = None
         self._text = None
+
 
     def __str__(self):
         s = self.to_string()
@@ -141,19 +169,28 @@ class Context:
             else:
                 self._theme = None
             s = self.to_string()
+
         return s
 
+
     def to_string(self):
+        '''
+        Construct a message as if coming from the Assistant.
+        '''
         ctxt = [self._text]
+
+        if self._options:
+            ctxt.append(f'You may want to study one of these openings: {format_choices(self._options)}.')
 
         if self._opening_names:
             openings = ','.join([f'"{n}"' for n in self._opening_names])
-            ctxt.append(f'You have so far examined these openings, in historical order: {openings}.')
+            ctxt.append(f'I see that you have looked into these openings, in chronological order: {openings}.')
 
         if theme := self._theme:
-            ctxt.append(f'You have looked at puzzles themed: {theme} ({self.describe_theme(theme)}).')
+            ctxt.append(f'I see that you practiced puzzles themed: {theme} ({self.describe_theme(theme)}).')
 
-        return ' '.join([i for i in ctxt if i])
+        return '\n'.join([i for i in ctxt if i])
+
 
     def add_opening(self, opening):
         if isinstance(opening, dict):
@@ -164,15 +201,20 @@ class Context:
             self._opening_names.remove(name)
         except ValueError:
             pass
+
         self._opening_names.append(name)
+        self._options.clear()
+
 
     def set_puzzle_theme(self, theme):
         self._theme = theme
+
 
     @staticmethod
     def describe_theme(theme):
         ''' Return English description of a puzzle theme.'''
         return puzzle_themes.get(theme, theme).rstrip(',.:')
+
 
     def set_text(self, text):
         self._text = text
@@ -237,24 +279,6 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _format_choices(self, choices):
-        '''
-        Format choices to be presented to the user.
-
-        choices: a list of [{'name': ..., 'eco': ...}, ... ] dicts; 'eco' is optional.
-        '''
-        self._options = choices
-
-        if len(choices) == 1:
-            choices = choices[0]['name']
-
-        else:
-            choices = [c['name'] for c in choices]
-            choices = '; '.join([f'{i}. {n}' for i,n in enumerate(choices, start=1)])
-
-        return choices
-
-
     def _handle_response(self, response):
         try:
             logging.debug(f'response: {response}')
@@ -263,10 +287,7 @@ class Assistant:
             reason = top['finish_reason']
 
             if reason != 'function_call':
-                text = message['content']
-                self._ctxt.set_text(text)
-                self._say(text)
-                self._schedule_action(lambda *_: self._app.text_bubble(text))
+                self._show_text(message['content'])
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute()
@@ -284,6 +305,20 @@ class Assistant:
     def _create_function_call(response):
         if call := response.get('function_call'):
             return FunctionCall(call['name'], call['arguments'])
+
+
+    def _explain_concept(self, inputs):
+        answer = inputs.get('answer')
+        if not answer:
+            return FunctionResult(AppLogic.INVALID)
+
+        for choice in self._options:
+            if choice['name'] == answer:
+                self._play_opening(choice)
+                return FunctionResult(AppLogic.OK)
+
+        self._show_text(answer)
+        return FunctionResult(AppLogic.OK)
 
 
     def _process_openings(self, inputs):
@@ -306,6 +341,8 @@ class Assistant:
                 return FunctionResult(AppLogic.OK)
 
             elif choices:
+                self._options = choices
+
                 self._show_choices(choices, prefix_msg=random.choice([
                     'Consider these possibilities',
                     'You might find these interesting',
@@ -357,7 +394,7 @@ class Assistant:
         else:
             self._show_choices(
                 self._options,
-                prefix_msg='Your choice is out of range. Valid options are'
+                prefix_msg='Your choice is out of range. Valid options'
             )
 
         return FunctionResult(AppLogic.OK)
@@ -374,7 +411,7 @@ class Assistant:
             return FunctionResult(AppLogic.INVALID)
 
         def play_puzzle():
-            ''' Chose a puzzle at random from the subset that matches the theme, and play it. '''
+            ''' Choose a puzzle at random from the subset that matches the theme, and play it. '''
             selection = random.choice(puzzles)
             self._app.selected_puzzle = selection[3]
             self._app.load_puzzle(selection)
@@ -390,6 +427,7 @@ class Assistant:
 
 
     def _register_funcs(self):
+        FunctionCall.register('explain_concept', self._explain_concept)
         FunctionCall.register('process_chess_openings', self._process_openings)
         FunctionCall.register('handle_user_choice', self._select_opening)
         FunctionCall.register('select_chess_puzzles', self._select_puzzles)
@@ -402,13 +440,19 @@ class Assistant:
 
 
     def _show_choices(self, choices, *, prefix_msg):
-        text = self._format_choices(choices)
+        text = format_choices(choices)
 
         if prefix_msg:
             self._say(f'{prefix_msg}: {text}')
 
         if len(choices) > 1:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
+
+
+    def _show_text(self, text):
+        self._ctxt.set_text(text)
+        self._say(text)
+        self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
     def _schedule_action(self, action, *_):
@@ -482,6 +526,9 @@ class Assistant:
                         'Always respond by making function calls.'
                         'Always respond with JSON that conforms to the function call API.'
                         'Do not include computer source code in your replies.'
+                        'Do not suggest recently discussed openings.'
+                        'When recommending puzzles, stick with the current '
+                        'theme, unless a specific theme is requested.'
                     )
                 },
                 {
@@ -512,7 +559,7 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 timeout *= 2
-                temperature += 0.01
+                temperature += 0.005
 
             else:
                 return True
