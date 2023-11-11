@@ -733,6 +733,7 @@ class ChessApp(App):
             else:
                 if opening := self.eco.lookup(self.board_widget.model):
                     self.format_opening(opening['name'])
+                    self.assistant.add_opening(opening)
                 else:
                     self.opening.text = ''
 
@@ -1655,13 +1656,14 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
-    def play_opening_sequence(self, opening):
+    def play_opening(self, opening):
         '''
         Schedule the PGN moves sequence from the given opening to be played.
         '''
         def load_and_play(game, current = 0, *_):
             ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
+            self.assistant.add_opening(opening)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
         if opening:
@@ -1690,16 +1692,11 @@ class ChessApp(App):
                 Logger.info(f'play_opening: could not read pgn: {pgn}')
 
 
-    def play_opening(self, name):
-        '''
-        Lookup opening phonetically by name, and play it
-        if found, otherwise fail over to the chat assistant.
-        '''
+    def play_phonetical_match(self, name):
         if self.eco:
             opening = self.eco.phonetical_lookup(name)
             if opening:
-                self.voice_input.reset_chat_context()
-                return self.play_opening_sequence(opening)
+                return self.play_opening(opening)
 
         return self.chat_assist(self.voice_input.get_user_input())
 

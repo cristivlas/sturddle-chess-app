@@ -31,6 +31,11 @@
     padding: dp(4)
 
 
+<OptSlider@Slider>:
+    cursor_size: dp(22), dp(22)
+    padding: dp(16)
+
+
 <AppSettings>:
     cols: 1
     spacing: 20
@@ -79,15 +84,13 @@
         OptLabel:
             text: 'Time / move: ' + app.time_limit_str(limit.value)
 
-        Slider:
+        OptSlider:
             id: limit
             min: 0
             max: app.max_limit
             step: 1
             value: app.limit
             on_touch_up: app.limit = int(self.value)
-            cursor_size: dp(22), dp(22)
-            padding: dp(16)
 
         #
         # AI Strength (Difficulty Level)
@@ -95,15 +98,13 @@
         OptLabel:
             text: 'Strength: {level:2d}'.format(level=int(difficulty.value))
 
-        Slider:
+        OptSlider:
             id: difficulty
             min: 1
             max: app.MAX_DIFFICULTY
             step: 1
             value: app.difficulty_level
             on_touch_up: app.set_difficulty_level(self.value, cores)
-            cursor_size: dp(22), dp(22)
-            padding: dp(16)
             # changing difficulty during search may crash
             disabled: app.engine_busy
 
@@ -111,15 +112,13 @@
         OptLabel:
             text: 'CPU Cores: {cores:2d}'.format(cores=int(cores.value))
 
-        Slider:
+        OptSlider:
             id: cores
             min: 1
             max: app.cpu_cores_max
             step: 1
             value: app.cpu_cores
             on_touch_up: app.cpu_cores = self.value
-            cursor_size: dp(22), dp(22)
-            padding: dp(16)
             # changing active cores during search may crash
             disabled: app.engine_busy or app.difficulty_level != app.MAX_DIFFICULTY
 

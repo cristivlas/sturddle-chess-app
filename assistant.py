@@ -120,13 +120,88 @@ class FunctionCall:
         FunctionCall.dispatch[name] = func
 
 
+class Context:
+    def __init__(self, max_size=512):
+        self.max_size = max_size
+        self.clear()
+
+    def clear(self):
+        self._options = []
+        self._opening_names = []
+        self._theme = None
+        self._text = None
+
+    def __str__(self):
+        s = self.to_string()
+        while s and len(s) > self.max_size:
+            if self._text:
+                self._text = None
+            elif self._opening_names:
+                self._opening_names.pop(0)
+            else:
+                self._theme = None
+            s = self.to_string()
+        return s
+
+    def to_string(self):
+        ctxt = [self._text]
+
+        if self._opening_names:
+            openings = ','.join([f'"{n}"' for n in self._opening_names])
+            ctxt.append(f'You have so far examined these openings, in historical order: {openings}.')
+
+        if theme := self._theme:
+            ctxt.append(f'You have looked at puzzles themed: {theme} ({self.describe_theme(theme)}).')
+
+        return ' '.join([i for i in ctxt if i])
+
+    def add_opening(self, opening):
+        if isinstance(opening, dict):
+            name = opening['name']
+        else:
+            name = opening.name
+        try:
+            self._opening_names.remove(name)
+        except ValueError:
+            pass
+        self._opening_names.append(name)
+
+    def set_puzzle_theme(self, theme):
+        self._theme = theme
+
+    @staticmethod
+    def describe_theme(theme):
+        ''' Return English description of a puzzle theme.'''
+        return puzzle_themes.get(theme, theme).rstrip(',.:')
+
+    def set_text(self, text):
+        self._text = text
+
+
 class Assistant:
     def __init__(self, app):
         self.model = 'gpt-3.5-turbo-1106'
         self._app = weakref.proxy(app)
-        self._context = None  # Optional context to pass as the assistant role content
-        self._options = []
+        self._ctxt = Context()
         self._register_funcs()
+
+
+    def add_opening(self, opening):
+        self._ctxt.add_opening(opening)
+
+
+    @property
+    def _options(self):
+        return self._ctxt._options
+
+
+    @_options.setter
+    def _options(self, options):
+        self._ctxt._options = options
+
+
+    def context(self):
+        return str(self._ctxt)
 
 
     def _completion_request(self, messages, *, functions, temperature, timeout):
@@ -188,8 +263,10 @@ class Assistant:
             reason = top['finish_reason']
 
             if reason != 'function_call':
-                self._context = message['content']
-                self._say(self._context)
+                text = message['content']
+                self._ctxt.set_text(text)
+                self._say(text)
+                self._schedule_action(lambda *_: self._app.text_bubble(text))
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute()
@@ -225,14 +302,18 @@ class Assistant:
 
             if len(choices) == 1:
                 # Ask the user if they want to play the opening.
-                self._schedule_action(partial(self._play_selected_opening, choices[0]))
+                self._schedule_action(partial(self._play_opening, choices[0]))
                 return FunctionResult(AppLogic.OK)
 
             elif choices:
                 self._show_choices(choices, prefix_msg=random.choice([
-                    'Here are some ideas',
-                    'I would suggest',
-                    'Some openings to consider include'
+                    'Consider these possibilities',
+                    'You might find these interesting',
+                    'How about these choices',
+                    'Take a look at these openings',
+                    'Here are some openings to consider',
+                    'These might catch your interest',
+                    'A few suggestions'
                 ]))
                 return FunctionResult(AppLogic.OK)
 
@@ -250,11 +331,8 @@ class Assistant:
             return result
 
 
-    def _play_selected_opening(self, opening):
-        name, eco = opening['name'], opening.get('eco')
-
-        if self._app.play_opening_sequence(self._lookup_opening(name, eco)):
-            self.reset_context()
+    def _play_opening(self, choice):
+        self._app.play_opening(self._lookup_opening(choice['name'], choice.get('eco')))
 
 
     def _select_opening(self, inputs):
@@ -274,7 +352,7 @@ class Assistant:
 
         if choice >= 0 and choice < len(self._options):
             selection = self._options[choice]
-            self._schedule_action(partial(self._play_selected_opening, selection))
+            self._schedule_action(partial(self._play_opening, selection))
 
         else:
             self._show_choices(
@@ -295,24 +373,16 @@ class Assistant:
         if not puzzles:
             return FunctionResult(AppLogic.INVALID)
 
-        selection = random.choice(puzzles)
-
-        self.reset_context()
-
-        # Get the full English text description for the puzzle theme.
-        description = puzzle_themes.get(theme, theme).rstrip(',.:')
-
-        # Set up the assistant context for future queries.
-        self._context = (
-            f'Inquire about openings, or solve puzzles with the theme: {theme} ({description.lower()}).'
-        )
         def play_puzzle():
+            ''' Chose a puzzle at random from the subset that matches the theme, and play it. '''
+            selection = random.choice(puzzles)
             self._app.selected_puzzle = selection[3]
             self._app.load_puzzle(selection)
+            self._ctxt.set_puzzle_theme(theme)
 
         self._schedule_action(
             lambda *_: self._app.new_action(
-                'practice: ' + description,
+                'practice: ' + Context.describe_theme(theme),
                 play_puzzle
             )
         )
@@ -327,7 +397,7 @@ class Assistant:
 
     def _say(self, text):
         logging.debug(f'say: {text}')
-        if text and text[0].isalnum():
+        if text:
             Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
 
 
@@ -365,11 +435,6 @@ class Assistant:
         if any(('name' not in item for item in openings)):
             openings = None
         return openings
-
-
-    def reset_context(self):
-        self._context = None
-        self._options = []
 
 
     def _run_mock(self):
@@ -416,6 +481,7 @@ class Assistant:
                         'You are a chess tutor that assists with openings and puzzles.'
                         'Always respond by making function calls.'
                         'Always respond with JSON that conforms to the function call API.'
+                        'Do not include computer source code in your replies.'
                     )
                 },
                 {
@@ -424,10 +490,10 @@ class Assistant:
                 }
             ]
 
-            if self._context:  # Pass context back to the model.
+            if context := self.context():  # Pass context back to the model.
                 messages.append({
                     'role': 'assistant',
-                    'content': self._context
+                    'content': context
                 })
 
             func_name, func_result = self._completion_request(
@@ -443,11 +509,10 @@ class Assistant:
 
             elif func_result.response == AppLogic.INVALID:
                 funcs = remove_func(funcs, func_name)
-                self.reset_context()
 
             elif func_result.response == AppLogic.RETRY:
                 timeout *= 2
-                temperature += 0.05
+                temperature += 0.01
 
             else:
                 return True

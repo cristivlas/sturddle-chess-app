@@ -77,7 +77,6 @@ __xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <string name="sacrifice">Give up material for advantage after forced moves.</string>
 <string name="skewer">High value piece attacked, revealing lower value piece behind it. Inverse of pin.</string>
 <string name="smotheredMate">Knight checkmates king surrounded by its pieces.</string>
-<string name="superGM">Puzzles from top players' games.</string>
 <string name="trappedPiece">Piece unable to escape capture due to limited moves.</string>
 <string name="underPromotion">Promote to knight, bishop, or rook.</string>
 <string name="xRayAttack">Piece attacks or defends through an enemy piece.</string>

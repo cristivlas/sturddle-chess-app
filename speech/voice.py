@@ -237,7 +237,7 @@ class Input:
             'exit': self._app.exit,
             'hints': self._app.hints,
             'new': self._app.new_game,
-            'opening': self._app.play_opening,
+            'opening': self._app.play_phonetical_match,
             'puzzle': self._app.puzzles,
             'replay': self._app.replay,
             'settings': self._app.settings,
@@ -288,10 +288,8 @@ class Input:
         if not moves:
             return self._run_command(self._nlp.command, self._nlp.args)
         elif len(moves) > 1:
-            self.reset_chat_context()
             self._multiple_matches(moves)
         else:
-            self.reset_chat_context()
             return self._make_move(moves.pop(0))
 
 
@@ -362,10 +360,6 @@ class Input:
 
     def _toggle_listening(self, *_):
         stt.stop() if stt.is_listening() else self._start_stt()
-
-
-    def reset_chat_context(self):
-        self._app.assistant.reset_context()
 
 
     def get_user_input(self):
