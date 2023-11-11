@@ -703,7 +703,7 @@ class ChessApp(App):
 
 
     def chat_assist(self, user_input):
-        if self.get_openai_key():
+        if self.get_openai_key() and self.assistant.model:
             return self.assistant.run(user_input)
 
 
@@ -1638,8 +1638,8 @@ class ChessApp(App):
         self._modal_box('Advanced', AdvancedSettings(), close='\uF100')
 
 
-    def extra_settings(self, *_):
-        self._modal_box('Extra', ExtraSettings(), close='\uF100')
+    def assistant_settings(self, *_):
+        self._modal_box('Assistant', ExtraSettings(), close='\uF100')
 
 
     def select_opening_book(self, *_):

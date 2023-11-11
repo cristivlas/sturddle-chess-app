@@ -222,7 +222,13 @@ class Context:
 
 class Assistant:
     def __init__(self, app):
+        self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
+        self.retry_count = 3
+        self.requests_timeout = 3.0
+        self.initial_temperature = 0.01
+        self.temperature_increment = 0.01
+
         self._app = weakref.proxy(app)
         self._ctxt = Context()
         self._register_funcs()
@@ -261,7 +267,7 @@ class Assistant:
         }
         try:
             response = requests.post(
-                'https://api.openai.com/v1/chat/completions',
+                self.endpoint,
                 headers=headers,
                 json=json_data,
                 timeout=timeout,
@@ -327,7 +333,7 @@ class Assistant:
         '''
         if openings := self._validate_opening_choices(inputs):
             # "Normalize" the names
-            choices = [self._lookup_opening(i['name'], i.get('eco')) for i in openings]
+            choices = [self._lookup_opening(i) for i in openings]
 
             # Retain name and eco only, unique names.
             choices = {i.name: i.eco for i in choices if i}
@@ -336,8 +342,7 @@ class Assistant:
             choices = [{'name': k, 'eco': v} for k,v in choices.items()]
 
             if len(choices) == 1:
-                # Ask the user if they want to play the opening.
-                self._schedule_action(partial(self._play_opening, choices[0]))
+                self._play_opening(choices[0])
                 return FunctionResult(AppLogic.OK)
 
             elif choices:
@@ -357,8 +362,10 @@ class Assistant:
         return FunctionResult(AppLogic.RETRY)
 
 
-    def _lookup_opening(self, name, eco, confidence=75):
+    def _lookup_opening(self, choice, confidence=75):
         if self._app.eco:
+            name = choice['name']
+            eco = choice.get('eco')
             result = self._app.eco.name_lookup(name, eco, confidence=90)
 
             if not result:
@@ -369,7 +376,9 @@ class Assistant:
 
 
     def _play_opening(self, choice):
-        self._app.play_opening(self._lookup_opening(choice['name'], choice.get('eco')))
+        self._schedule_action(
+            lambda *_: self._app.play_opening(self._lookup_opening(choice))
+        )
 
 
     def _select_opening(self, inputs):
@@ -389,7 +398,7 @@ class Assistant:
 
         if choice >= 0 and choice < len(self._options):
             selection = self._options[choice]
-            self._schedule_action(partial(self._play_opening, selection))
+            self._play_opening(selection)
 
         else:
             self._show_choices(
@@ -508,16 +517,17 @@ class Assistant:
             ]})
 
 
-    def run(self, user_input, max_retries=3, timeout=3.0):
+    def run(self, user_input):
         # return self._run_mock()  # test and debug
 
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
         funcs = _functions
-        temperature = 0.01
+        temperature = self.initial_temperature
+        timeout = self.requests_timeout
 
-        for retry_count in range(max_retries):
+        for retry_count in range(self.retry_count):
             messages = [
                 {
                     'role': 'system',
@@ -526,7 +536,7 @@ class Assistant:
                         'Always respond by making function calls.'
                         'Always respond with JSON that conforms to the function call API.'
                         'Do not include computer source code in your replies.'
-                        'Do not suggest recently discussed openings.'
+                        'Do not suggest openings that have recently been looked into.'
                         'When recommending puzzles, stick with the current '
                         'theme, unless a specific theme is requested.'
                     )
@@ -559,7 +569,7 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 timeout *= 2
-                temperature += 0.005
+                temperature += self.temperature_increment
 
             else:
                 return True

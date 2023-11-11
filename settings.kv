@@ -257,20 +257,20 @@
         height: dp(32)
         AwesomeActionButton:
             markup: True
-            text: '[font=Roboto]Extra  [/font]\uF101'
-            on_release: app.extra_settings()
+            text: '[font=Roboto]Assistant  [/font]\uF101'
+            on_release: app.assistant_settings()
             pos_hint: { 'right': 1, 'center_y': 0.5 }
 
 
 <ExtraSettings>:
     cols: 1
     spacing: 20
-    size_hint: 1, 1
+    size_hint: 1,1
     BoxLayout:
         orientation: 'horizontal'
         padding: 0, dp(10)
         size_hint_y: None
-        height: dp(34)
+        height: dp(46)
         GridLayout:
             cols: 4
             OptLabel:
@@ -284,12 +284,67 @@
             AwesomeActionButton:
                 text: ' \uF070 '
                 on_release: app.toggle_key_visible(self, api_key)
-            Button:
-                text: 'Set'
-                size_hint: None, None
-                size: sp(60), sp(30)
-                pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
+            AwesomeActionButton:
+                text: ' \uF00C '
                 on_release: app.set_openai_key(api_key.text)
+
+    OptGrid:
+        OptLabel:
+            text: 'Model'
+        BoxLayout:
+            padding: [0, dp(20), 0, dp(20)]
+            TextInput:
+                height: dp(26)
+                size_hint_y: None
+                multiline: False
+                text: app.assistant.model
+                on_text: app.assistant.model = self.text
+        OptLabel:
+            text: 'Endpoint URL'
+        BoxLayout:
+            padding: [0, dp(20), 0, dp(20)]
+            TextInput:
+                height: dp(26)
+                size_hint_y: None
+                multiline: False
+                text: app.assistant.endpoint
+                on_text: app.assistant.endpoint = self.text
+        OptLabel:
+            text: 'Max Retry Count: {}'.format(int(retry_count.value))
+        OptSlider:
+            id: retry_count
+            min: 1
+            max: 10
+            step: 1
+            value: app.assistant.retry_count
+            on_touch_up: app.assistant.retry_count = int(self.value)
+        OptLabel:
+            text: 'Temperature: {:.3f}'.format(init_temp.value)
+        OptSlider:
+            id: init_temp
+            min: 0
+            max: 1 - temp_incr.value
+            step: 0.001
+            value: app.assistant.initial_temperature
+            on_touch_up: app.assistant.initial_temperature = self.value
+        OptLabel:
+            text: 'Temp Increment: {:.3f}'.format(temp_incr.value)
+        OptSlider:
+            id: temp_incr
+            min: 0
+            max: 0.1
+            step: 0.0025
+            value: app.assistant.temperature_increment
+            on_touch_up: app.assistant.temperature_increment = self.value
+        OptLabel:
+            text: 'Initial Timeout: {:.2f}'.format(int(req_timeout.value))
+        OptSlider:
+            id: req_timeout
+            min: 0
+            max: 10
+            step: 0.01
+            value: app.assistant.requests_timeout
+            on_touch_up: app.assistant.requests_timeout = self.value
 
 
 <PolyglotChooser>:
