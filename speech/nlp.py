@@ -133,13 +133,13 @@ class NLP:
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
-        hints = pp.Opt('show') + pp.Keyword('hints')
+        hints = pp.Keyword('show') + (pp.Keyword('hints') | pp.Keyword('variations'))
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         opening = (pp.Keyword('play') +
             pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
             pp.Opt(OPENING)
         )
-        puzzle = pp.Keyword('puzzle') | pp.Keyword('show') + pp.Opt('me') + THE + pp.Keyword('puzzles')
+        puzzle = pp.Keyword('show') + pp.Keyword('puzzles')
         replay = pp.Keyword('replay') | pp.Keyword('playback')
         settings = pp.Opt('application') + pp.Keyword('settings')
         yes_no = self.YES | self.NO  # for answering confirmation dialogs by voice

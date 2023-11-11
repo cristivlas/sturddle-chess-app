@@ -63,9 +63,9 @@ _functions = [
         }
     },
     {
-        'name': 'process_user_opening_choice',
+        'name': 'handle_user_choice',
         'description': (
-            'Process the user selection from a list of openings,'
+            'Process the user selection from a list of options.'
             'use only when the user message clearly suggests a selection or choice.'
             'Do not use this function when user message ends with question mark.'
         ),
@@ -76,38 +76,32 @@ _functions = [
                     'type': 'integer',
                     'description': 'One-based selection index.'
                 },
-                'openings' : {
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'properties': {
-                            'name': {
-                                'type': 'string',
-                                'description': _opening_description,
-                            },
-                            'eco': {
-                                'type': 'string',
-                                'description': _eco_code
-                            },
-                        }
-                    }
-                }
             },
-            'required': ['choice', 'openings']
+            'required': ['choice']
         }
     },
 ]
 
 
-class AppResponse(Enum):
+class AppLogic(Enum):
     NONE = 0
     OK = 1
     RETRY = 2
-    SELECT = 3
-    INVALID = 4
+    INVALID = 3
+    CONTEXT = 4
 
 
-FunctionResult = namedtuple('FunctionCallResult', 'response context', defaults=(AppResponse.NONE, None))
+FunctionResult = namedtuple('FunctionCallResult', 'response context', defaults=(AppLogic.NONE, None))
+
+
+def remove_func(funcs, func_name):
+    '''
+    Remove function named func_name from list of function dicts.
+    '''
+    funcs = {f['name']:f for f in funcs if f['name'] != func_name}  # convert to dictionary
+    assert func_name not in funcs  # verify it is removed
+
+    return list(funcs.values())  # convert back to list
 
 
 class FunctionCall:
@@ -131,7 +125,8 @@ class Assistant:
     def __init__(self, app):
         self.model = 'gpt-3.5-turbo-1106'
         self._app = weakref.proxy(app)
-        self._context = None
+        self._context = None  # Optional context to pass as the assistant role content
+        self._options = []
         self._register_funcs()
 
 
@@ -160,12 +155,31 @@ class Assistant:
 
         except requests.exceptions.ReadTimeout as e:
             logging.warn(f'request: {e}')
-            return None, FunctionResult(AppResponse.RETRY)
+            return None, FunctionResult(AppLogic.RETRY)
 
         except:
             logging.exception('Error generating ChatCompletion response.')
 
         return None, FunctionResult()
+
+
+    def _format_choices(self, choices):
+        '''
+        Format choices to be presented to the user.
+
+        choices: a list of [{'name': ..., 'eco': ...}, ... ] dicts; 'eco' is optional.
+        '''
+        self._options = choices
+
+        if len(choices) == 1:
+            choices = choices[0]['name']
+
+        else:
+            choices = [c['name'] for c in choices]
+            choices = '; '.join([f'{i}. {n}' for i,n in enumerate(choices, start=1)])
+
+        self._context = choices  # save context for future queries
+        return choices
 
 
     def _handle_response(self, response):
@@ -181,7 +195,7 @@ class Assistant:
             elif function_call := self._create_function_call(message):
                 result = function_call.execute()
                 if not result:
-                    result = FunctionResult(AppResponse.NONE, f'{message}')
+                    result = FunctionResult(AppLogic.NONE, f'{message}')
 
                 return function_call.name, result
         except:
@@ -197,6 +211,9 @@ class Assistant:
 
 
     def _process_openings(self, inputs):
+        '''
+        Present the user with openings suggestion(s).
+        '''
         if openings := self._validate_opening_choices(inputs):
             # "Normalize" the names
             choices = [self._lookup_opening(i['name'], i.get('eco')) for i in openings]
@@ -206,23 +223,21 @@ class Assistant:
 
             # Convert back to list of dicts.
             choices = [{'name': k, 'eco': v} for k,v in choices.items()]
-            logging.debug(f'choices: {choices}')
 
             if len(choices) == 1:
+                # Ask the user if they want to play the opening.
                 self._schedule_action(partial(self._play_selected_opening, choices[0]))
-                return FunctionResult(AppResponse.OK)
+                return FunctionResult(AppLogic.OK)
 
             elif choices:
-                prefix = random.choice([
+                self._show_choices(choices, message=random.choice([
                     'Here are some ideas',
                     'I would suggest',
                     'Some openings to consider include'
-                ])
-                choices = [c['name'] for c in choices]  # convert to list
-                self._say(f'{prefix}:\n' + '.\n'.join(choices))
-                return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
+                ]))
+                return FunctionResult(AppLogic.OK)
 
-        return FunctionResult(AppResponse.RETRY)
+        return FunctionResult(AppLogic.RETRY)
 
 
     def _lookup_opening(self, name, eco, confidence=75):
@@ -230,61 +245,53 @@ class Assistant:
             result = self._app.eco.name_lookup(name, eco, confidence=90)
 
             if not result:
-                # Classification code returned by model may be wrong, retry without it
+                # Classification code returned by model may be wrong, retry without it.
                 result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
             return result
 
 
     def _play_selected_opening(self, opening):
-        name = opening['name']
-        eco = opening.get('eco')
-        self._app.play_opening_sequence(self._lookup_opening(name, eco))
+        name, eco = opening['name'], opening.get('eco')
+
+        if self._app.play_opening_sequence(self._lookup_opening(name, eco)):
+            self.reset_context()
 
 
     def _select_opening(self, inputs):
+        '''
+        Called in response to the user expressing a choice of openings.
 
-        # Validate inputs
-        openings, choice = self._validate_opening_choices(inputs), inputs.get('choice')
-        if not openings or not choice:
-            return FunctionResult(AppResponse.RETRY)
+        Expect that contextual state is valid; the model is not assumed to be stateful.
+        '''
+        if not self._options:
+            return FunctionResult(AppLogic.CONTEXT)
 
-        selected = None
+        choice = inputs.get('choice')
+        if not choice:
+            return FunctionResult(AppLogic.RETRY)
 
         choice = int(choice) - 1  # 1-based
 
-        if choice >= len(openings):
-            # Attempt to recover by using the previous context
-            try:
-                options = ast.literal_eval(self._context)
-                if choice >= 0 and choice < len(options):
-                    selected = {'name': options[choice]}
-            except:
-                pass
+        if choice >= 0 and choice < len(self._options):
+            selection = self._options[choice]
+            self._schedule_action(partial(self._play_selected_opening, selection))
 
-        elif choice >= 0:
-            selected = openings[choice]
+        else:
+            self._show_choices(self._options, message='Choice is out of range. Valid options are')
 
-        if selected is None:
-            message = 'The choice is out of range. '
-            choices = self._context if self._context else [o['name'] for o in openings]
-            message += 'I suggested:\n' + '.\n'.join(choices)
-            self._say(message)
-            return FunctionResult(AppResponse.SELECT, f'{list(choices)}')
-
-        self._schedule_action(partial(self._play_selected_opening, selected))
-        return FunctionResult(AppResponse.OK)
+        return FunctionResult(AppLogic.OK)
 
 
     def _select_puzzles(self, inputs):
         theme = inputs.get('theme')
         if not theme:
-            return FunctionResult(AppResponse.INVALID)
+            return FunctionResult(AppLogic.INVALID)
 
         puzzles = PuzzleCollection().filter(theme)
 
         if not puzzles:
-            return FunctionResult(AppResponse.INVALID)
+            return FunctionResult(AppLogic.INVALID)
 
         selection = random.choice(puzzles)
 
@@ -293,13 +300,16 @@ class Assistant:
             self._app.load_puzzle(selection)
 
         action = 'practice: ' + strip_punctuation(puzzle_themes.get(theme, theme)).lower()
+        self.reset_context()
+        self._context = action
         self._schedule_action(lambda *_: self._app._new_game_action(action, play_puzzle))
-        return FunctionResult(AppResponse.OK)
+
+        return FunctionResult(AppLogic.OK)
 
 
     def _register_funcs(self):
         FunctionCall.register('process_chess_openings', self._process_openings)
-        FunctionCall.register('process_user_opening_choice', self._select_opening)
+        FunctionCall.register('handle_user_choice', self._select_opening)
         FunctionCall.register('select_chess_puzzles', self._select_puzzles)
 
 
@@ -309,11 +319,25 @@ class Assistant:
             Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
 
 
+    def _show_choices(self, choices, *, message):
+        text = self._format_choices(choices)
+
+        if message:
+            self._say(f'{message}: {text}')
+
+        if len(choices) > 1:
+            self._schedule_action(lambda *_: self._app.text_bubble(text))
+
+
     def _schedule_action(self, action, *_):
         '''
-        Schedule action to run after the voice input interface stops.
+        Schedule action to run after all modal popups are dismissed.
+
         '''
-        if self._app.voice_input.is_running():
+        from kivy.core.window import Window
+        from kivy.uix.modalview import ModalView
+
+        if isinstance(Window.children[0], ModalView):
             Clock.schedule_once(partial(self._schedule_action, action))
 
         else:
@@ -333,49 +357,18 @@ class Assistant:
 
     def reset_context(self):
         self._context = None
+        self._options = []
 
 
     def _run_mock(self):
-        # return self._process_openings({'openings':[{'name': 'St. George Defense'}]})
+        # self._options = [
+        #     {'name': "Queen's Pawn Game: Anglo-Slav Opening", 'eco': 'A40'},
+        #     {'name': "Polish Opening: King's Indian Variation, Sokolsky Attack", 'eco': 'A00'},
+        #     {'name': 'Bird Opening', 'eco': 'A02'},
+        #     {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'}
+        # ]
+        # return self._select_opening({'choice': 42})
 
-        # return self._process_openings({'openings':[
-        #     {'name': 'St. George Defense'},
-        #     {'name': 'Borg Defense'},
-        #     {'name': 'Nimzowitsch-Larsen Attack'},
-        #     {'name': 'Sodium Attack'}
-        # ]})
-
-        # self._context = "['St. George Defense', 'Nimzowitsch-Larsen Attack', 'Sodium Attack']"
-        # return self._select_opening({'choice': 2, 'openings': [{'name': 'St. George Defense'}]})
-
-        # Test that missing 'name' is handled.
-        # return self._select_opening({
-        #     'choice': 2,
-        #     'openings': [
-        #         {'eco': 'B70'},
-        #         {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'},
-        #         {'name': "Queen's Pawn Game: Anglo-Slav Opening", 'eco': 'D02'}
-        #     ]})
-        # return self._process_openings({'openings':[
-        #     {'name': 'St. George Defense'},
-        #     {'tag': 'Borg Defense'},
-        #     {'name': 'Nimzowitsch-Larsen Attack'},
-        #     {'name': 'Sodium Attack'}
-        # ]})
-
-        # Invalid selection
-        # return self._select_opening({
-        #     'choice': 4,
-        #     'openings': [
-        #         {'name': 'Sicilian Defense: Dragon Variation', 'eco': 'B70'},
-        #         {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'},
-        #         {'name': "Queen's Pawn Game: Anglo-Slav Opening", 'eco': 'D02'}
-        #     ]})
-
-        # self._context = "['St. George Defense', 'Nimzowitsch-Larsen Attack', 'Sodium Attack']"
-        # return self._select_opening({'choice': 2, 'openings': [{'name': 'St. George Defense'}]})
-
-        # Test "normalization"
         return self._process_openings ({
             'openings': [
                 {'name': 'Bongcloud Opening'},
@@ -423,16 +416,15 @@ class Assistant:
                 temperature=temperature,
                 timeout=timeout,
             )
-            self._context = func_result.context  # Save the context for next time.
 
-            if func_result.response in (AppResponse.INVALID, AppResponse.RETRY):
+            if func_result.response == AppLogic.CONTEXT:
+                self._say('I do not understand the context.')
+                user_input = 'Help'
 
-                if func_result.response == AppResponse.INVALID:
-                    # Remove the function that returned INVALID response from the list.
-                    funcs = {f['name']:f for f in funcs if f['name'] != func_name}
-                    assert func_name not in funcs
-                    funcs = list(funcs.values())
+            elif func_result.response == AppLogic.INVALID:
+                funcs = remove_func(funcs, func_name)
 
+            elif func_result.response == AppLogic.RETRY:
                 timeout *= 2
                 temperature += 0.05
 
