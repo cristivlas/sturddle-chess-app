@@ -43,10 +43,15 @@ class Tests:
 
     def test_name_lookup(self):
         test_cases = {
+            "Bongcloud Opening": Opening({'name':'Bongcloud Attack', 'eco': 'C20'}),
+            "Orangutan Opening": Opening({'name':'English Orangutan', 'eco': 'A15'}),
+            "kasparov's attack": Opening({'name':'Caro-Kann Defense: Karpov Variation, Modern Variation, Kasparov Attack', 'eco': 'B17'}),
+            "Kasparov opening": Opening({'name': 'French Defense: Rubinstein Variation, Kasparov Attack', 'eco': 'C10'}),
             "Sicilian Defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Silician Defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Monkey's Bum": Opening({'name': "Modern Defense: Bishop Attack, Monkey's Bum", 'eco': 'B06'}),
             "Goring Gambit Declined": Opening({'name': 'Scotch Game: Scotch Gambit, Göring Gambit Declined', 'eco': 'C44'}),
+            "albin's gambit": Opening({'name': 'Italian Game: Classical Variation, Albin Gambit', 'eco': 'C50'}),
         }
         for name, expected in test_cases.items():
             opening = self.eco.name_lookup(name, confidence=85)

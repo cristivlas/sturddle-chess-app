@@ -9,7 +9,6 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from kivy.clock import Clock
-from opening import strip_punctuation
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
 
@@ -178,7 +177,6 @@ class Assistant:
             choices = [c['name'] for c in choices]
             choices = '; '.join([f'{i}. {n}' for i,n in enumerate(choices, start=1)])
 
-        self._context = choices  # save context for future queries
         return choices
 
 
@@ -190,12 +188,13 @@ class Assistant:
             reason = top['finish_reason']
 
             if reason != 'function_call':
-                self._say(message['content'])
+                self._context = message['content']
+                self._say(self._context)
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute()
                 if not result:
-                    result = FunctionResult(AppLogic.NONE, f'{message}')
+                    result = FunctionResult()
 
                 return function_call.name, result
         except:
@@ -230,7 +229,7 @@ class Assistant:
                 return FunctionResult(AppLogic.OK)
 
             elif choices:
-                self._show_choices(choices, message=random.choice([
+                self._show_choices(choices, prefix_msg=random.choice([
                     'Here are some ideas',
                     'I would suggest',
                     'Some openings to consider include'
@@ -278,7 +277,10 @@ class Assistant:
             self._schedule_action(partial(self._play_selected_opening, selection))
 
         else:
-            self._show_choices(self._options, message='Choice is out of range. Valid options are')
+            self._show_choices(
+                self._options,
+                prefix_msg='Your choice is out of range. Valid options are'
+            )
 
         return FunctionResult(AppLogic.OK)
 
@@ -295,15 +297,25 @@ class Assistant:
 
         selection = random.choice(puzzles)
 
+        self.reset_context()
+
+        # Get the full English text description for the puzzle theme.
+        description = puzzle_themes.get(theme, theme).rstrip(',.:')
+
+        # Set up the assistant context for future queries.
+        self._context = (
+            f'Inquire about openings, or solve puzzles with the theme: {theme} ({description.lower()}).'
+        )
         def play_puzzle():
             self._app.selected_puzzle = selection[3]
             self._app.load_puzzle(selection)
 
-        action = 'practice: ' + strip_punctuation(puzzle_themes.get(theme, theme)).lower()
-        self.reset_context()
-        self._context = action
-        self._schedule_action(lambda *_: self._app._new_game_action(action, play_puzzle))
-
+        self._schedule_action(
+            lambda *_: self._app.new_action(
+                'practice: ' + description,
+                play_puzzle
+            )
+        )
         return FunctionResult(AppLogic.OK)
 
 
@@ -319,11 +331,11 @@ class Assistant:
             Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
 
 
-    def _show_choices(self, choices, *, message):
+    def _show_choices(self, choices, *, prefix_msg):
         text = self._format_choices(choices)
 
-        if message:
-            self._say(f'{message}: {text}')
+        if prefix_msg:
+            self._say(f'{prefix_msg}: {text}')
 
         if len(choices) > 1:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
@@ -369,13 +381,21 @@ class Assistant:
         # ]
         # return self._select_opening({'choice': 42})
 
-        return self._process_openings ({
+        # return self._process_openings({
+        #     'openings': [
+        #         {'name': 'Bongcloud Opening'},
+        #         {'name': 'Orangutan Opening'},
+        #         {'name': 'Sokolsky Opening'},
+        #         {'name': "Bird's Opening"},
+        #         {'name': 'Nimzowitsch-Larsen Attack'}
+        #     ]})
+
+        return self._process_openings({
             'openings': [
-                {'name': 'Bongcloud Opening'},
-                {'name': 'Orangutan Opening'},
-                {'name': 'Sokolsky Opening'},
-                {'name': "Bird's Opening"},
-                {'name': 'Nimzowitsch-Larsen Attack'}
+                {'name': 'Englund Gambit', 'eco': 'A40'},
+                {'name': 'Benko Gambit', 'eco': 'A57'},
+                {'name': 'Blackburne Shilling Gambit', 'eco': 'C44'},
+                {'name': 'Latvian Gambit', 'eco': 'C40'}
             ]})
 
 
@@ -386,7 +406,7 @@ class Assistant:
             return False  # prevent useless, expensive calls
 
         funcs = _functions
-        temperature = 0
+        temperature = 0.01
 
         for retry_count in range(max_retries):
             messages = [
@@ -419,10 +439,11 @@ class Assistant:
 
             if func_result.response == AppLogic.CONTEXT:
                 self._say('I do not understand the context.')
-                user_input = 'Help'
+                user_input = 'help'
 
             elif func_result.response == AppLogic.INVALID:
                 funcs = remove_func(funcs, func_name)
+                self.reset_context()
 
             elif func_result.response == AppLogic.RETRY:
                 timeout *= 2

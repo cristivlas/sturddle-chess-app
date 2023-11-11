@@ -30,12 +30,12 @@ from os import path, walk
 from metaphone import doublemetaphone
 
 
-def strip_punctuation(input):
+def _strip_punctuation(input):
     return ''.join(char for char in input if char not in string.punctuation)
 
 
 def _preprocess(input):
-    return doublemetaphone(strip_punctuation(input))[0]
+    return doublemetaphone(_strip_punctuation(input))[0]
 
 
 '''
@@ -209,15 +209,38 @@ class ECO:
         Return on Opening object if successful, otherwise return None
 
         '''
-        result = rapidfuzz.process.extractOne(name.lower(), keys)
+        corrections = {
+            "opening": "attack",
+            "opening": "",
+            "'s": "",
+            None: None,
+        }
+        best_match = None
+        best_score = 0
 
-        logging.debug(f'fuzzy_lookup: name="{name}" result={result}')
+        name = name.lower()
 
-        if result:
-            match, score, _ = result
+        for k, v in corrections.items():
+            if k:
+                query = name.replace(k, v).strip()
+                if query == name:
+                    continue
+            else:
+                query = name
 
-            if score >= min_confidence_level:
-                return Opening(dict[match])
+            result = rapidfuzz.process.extractOne(query, keys)
+
+            logging.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_level}')
+
+            if result:
+                match, score, _ = result
+
+                if score >= min_confidence_level:
+                    if score > best_score:
+                        best_match, best_score = match, score
+
+        if best_match:
+            return Opening(dict[best_match])
 
 
     def openings(self):

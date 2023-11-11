@@ -1265,7 +1265,7 @@ class ChessApp(App):
     def load_pgn(self, pgn, what):
         if game := chess.pgn.read_game(pgn):
             action = f'paste {what} from clipboard'
-            self._new_game_action(action, lambda *_: Clock.schedule_once(partial(self._load_pgn, game)))
+            self.new_action(action, lambda *_: Clock.schedule_once(partial(self._load_pgn, game)))
 
 
     def _load_pgn(self, node, *_):
@@ -1329,7 +1329,7 @@ class ChessApp(App):
         return len(self.engine.board.move_stack)
 
 
-    def _new_game_action(self, text, action):
+    def new_action(self, text, action):
         if self.game_in_progress() or self.edit:
             if self.edit:
                 if self.edit_has_changes():
@@ -1347,7 +1347,7 @@ class ChessApp(App):
 
     def new_game(self, *_):
         assert self.can_restart()
-        self._new_game_action(f'start a new game', self.start_new_game)
+        self.new_action(f'start a new game', self.start_new_game)
 
 
     def start_new_game(self, auto_move=True, editing=False):
@@ -1593,7 +1593,7 @@ class ChessApp(App):
 
         def confirm_puzzle_selection(puzzle):
             if confirm and self.puzzle != puzzle:
-                self._new_game_action('play selected puzzle', partial(select_puzzle, puzzle))
+                self.new_action('play selected puzzle', partial(select_puzzle, puzzle))
             else:
                 select_puzzle(puzzle)
 
@@ -1680,7 +1680,7 @@ class ChessApp(App):
                 else:
                     # The opening sequence does not match the current game: ask
                     # user for confirmation to abandon the game and play opening.
-                    self._new_game_action(
+                    self.new_action(
                         f'play {opening.name}',
                         lambda *_: Clock.schedule_once(partial(load_and_play, game))
                     )
