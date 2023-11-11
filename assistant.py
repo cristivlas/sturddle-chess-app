@@ -8,7 +8,7 @@ import weakref
 from collections import namedtuple
 from enum import Enum
 from functools import partial
-from kivy.clock import Clock
+from kivy.clock import Clock, mainthread
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
 
@@ -324,11 +324,13 @@ class Assistant:
                 self._play_opening(choice)
                 return FunctionResult(AppLogic.OK)
 
-        choice = {'name': answer}
-        opening = self._lookup_opening(choice)
-        if opening and len(opening.name) >= len(answer):
-            self._play_opening(choice)
-            return FunctionResult(AppLogic.OK)
+        # This can get very expensive when searching for long strings.
+        if len(answer) <= 100:
+            choice = {'name': answer}
+            opening = self._lookup_opening(choice)
+            if opening:
+                self._play_opening(choice)
+                return FunctionResult(AppLogic.OK)
 
         # Handle the case of the model repeating back a puzzle theme:
         if answer in puzzle_themes:
@@ -453,10 +455,11 @@ class Assistant:
         FunctionCall.register('select_chess_puzzles', self._select_puzzles)
 
 
+    @mainthread
     def _say(self, text):
-        logging.debug(f'say: {text}')
+        logging.debug(f'_say: {text}')
         if text:
-            Clock.schedule_once(lambda *_: self._app.speak(text), 0.1)
+            self._app.speak(text)
 
 
     def _show_choices(self, choices, *, prefix_msg):
@@ -483,10 +486,16 @@ class Assistant:
         from kivy.core.window import Window
         from kivy.uix.modalview import ModalView
 
+        if self._app.voice_input.is_running():
+            logging.debug('_schedule_action: stop voice')
+            self._app.voice_input.stop()
+
         if isinstance(Window.children[0], ModalView):
-            Clock.schedule_once(partial(self._schedule_action, action))
+            Clock.schedule_once(partial(self._schedule_action, action), 0.5)
+            logging.debug('_schedule_action: rescheduled.')
 
         else:
+            logging.debug(f'_schedule_action: calling {action}')
             action()
 
 

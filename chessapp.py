@@ -445,7 +445,7 @@ class ChessApp(App):
         chess.pgn.LOGGER.setLevel(50)
         self.animation = False  # animation in progress?
         self.assistant = Assistant(self)
-        self.openai_api_key = os.environ.get('OPENAI_API_KEY', None)
+        self.openai_api_key = os.environ.get('OPENAI_API_KEY', '')
         self.modal = None
         self.store = DictStore('game.dat')
         self.eco = None
@@ -686,6 +686,10 @@ class ChessApp(App):
             btn.bind(on_release=cancel_move_if_busy)
 
 
+    def can_use_assistant(self):
+        return self.openai_api_key and self.assistant.model
+
+
     def can_undo(self):
         if self.study_mode:
             return not self.puzzle and bool(self.engine.board.move_stack)
@@ -703,7 +707,7 @@ class ChessApp(App):
 
 
     def chat_assist(self, user_input):
-        if self.get_openai_key() and self.assistant.model:
+        if self.can_use_assistant():
             return self.assistant.run(user_input)
 
 
@@ -799,8 +803,8 @@ class ChessApp(App):
             # Time for 'analyze' vocal command
             self.analysis_time = store.get('analysis_time', 3)
 
-            if self.openai_api_key is None:
-                self.openai_api_key = store.get('openai_api_key', None)
+            if not self.openai_api_key:
+                self.openai_api_key = store.get('openai_api_key', '')
 
 
     def save(self, *_):
@@ -2211,17 +2215,15 @@ class ChessApp(App):
 
 
     def get_openai_key(self, obfuscate=True):
-        if self.openai_api_key:
-            if obfuscate:
-                return '*****'
-            else:
-                return self.openai_api_key
-        return ''
+        if obfuscate:
+            return '*****'
+        else:
+            return self.openai_api_key
 
 
     def set_openai_key(self, key):
-        if self.get_openai_key():
-            self.confirm('Key already exists, overwrite', partial(self._set_api_key, key))
+        if self.openai_api_key:
+            self.confirm('Key already set, overwrite', partial(self._set_api_key, key))
         else:
             self._set_api_key(key)
 
