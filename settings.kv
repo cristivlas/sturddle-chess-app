@@ -206,11 +206,11 @@
             disabled: not app.tts_supported
 
         OptLabel:
-            text: 'Device Speech Recognition'
+            text: 'Online Speech Recognition'
             disabled: not stt.is_offline_supported()
         Switch:
-            active: stt.prefer_offline
-            on_active: stt.prefer_offline = self.active
+            active: not stt.prefer_offline
+            on_active: stt.prefer_offline = not self.active
             disabled: not stt.is_offline_supported() or not speak_moves.active
 
 
