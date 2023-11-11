@@ -26,6 +26,7 @@ import logging
 import rapidfuzz
 
 from collections import defaultdict
+from functools import lru_cache
 from os import path, walk
 from metaphone import doublemetaphone
 
@@ -160,6 +161,7 @@ class ECO:
                 if result and result[1] >= confidence:
                     return Opening(row)
 
+
     @staticmethod
     def get_codes(eco):
         codes = eco.lower().split('-')  # support ranges (e.g. B20-B99)
@@ -175,6 +177,7 @@ class ECO:
         return codes
 
 
+    @lru_cache(maxsize=256)
     def name_lookup(self, name, eco=None, *, confidence=90):
         '''
         Lookup chess opening by name and classification code using fuzzy name matching.
