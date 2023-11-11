@@ -318,10 +318,21 @@ class Assistant:
         if not answer:
             return FunctionResult(AppLogic.INVALID)
 
+        # Handle the case of the model repeating back an opening name:
         for choice in self._options:
             if choice['name'] == answer:
                 self._play_opening(choice)
                 return FunctionResult(AppLogic.OK)
+
+        choice = {'name': answer}
+        opening = self._lookup_opening(choice)
+        if opening and len(opening.name) >= len(answer):
+            self._play_opening(choice)
+            return FunctionResult(AppLogic.OK)
+
+        # Handle the case of the model repeating back a puzzle theme:
+        if answer in puzzle_themes:
+            return self._select_puzzles({'theme': answer})
 
         self._show_text(answer)
         return FunctionResult(AppLogic.OK)
@@ -502,19 +513,14 @@ class Assistant:
         # return self._process_openings({
         #     'openings': [
         #         {'name': 'Bongcloud Opening'},
-        #         {'name': 'Orangutan Opening'},
-        #         {'name': 'Sokolsky Opening'},
-        #         {'name': "Bird's Opening"},
-        #         {'name': 'Nimzowitsch-Larsen Attack'}
+        #         {'name': 'Englund Gambit', 'eco': 'A40'},
+        #         {'name': 'Benko Gambit', 'eco': 'A57'},
+        #         {'name': 'Blackburne Shilling Gambit', 'eco': 'C44'},
+        #         {'name': 'Latvian Gambit', 'eco': 'C40'}
         #     ]})
 
-        return self._process_openings({
-            'openings': [
-                {'name': 'Englund Gambit', 'eco': 'A40'},
-                {'name': 'Benko Gambit', 'eco': 'A57'},
-                {'name': 'Blackburne Shilling Gambit', 'eco': 'C44'},
-                {'name': 'Latvian Gambit', 'eco': 'C40'}
-            ]})
+        return self._explain_concept({'answer': 'Nimzo-Larsen Attack'})
+        # return self._explain_concept({'answer': 'underPromotion'})
 
 
     def run(self, user_input):
@@ -530,16 +536,19 @@ class Assistant:
         for retry_count in range(self.retry_count):
             messages = [
                 {
-                    'role': 'system',
+                    'role': 'system',  # --- System Prompt ------------------------------
                     'content': (
                         'You are a chess tutor that assists with openings and puzzles.'
                         'Always respond by making function calls.'
                         'Always respond with JSON that conforms to the function call API.'
                         'Do not include computer source code in your replies.'
-                        'Do not suggest openings that have recently been looked into.'
-                        'When recommending puzzles, stick with the current '
-                        'theme, unless a specific theme is requested.'
-                    )
+                        'Do not suggest openings that have been recently looked into, '
+                        'unless expressly asked to recapitulate or to summarize.'
+                        'When recommending puzzles, stick with the current theme, unless '
+                        'a specific theme is requested. Politely refuse to answer queries '
+                        'outside the scope of chess. Concept explanations must be concise '
+                        'and avoid move sequence examples.'
+                    )  # ----------------------------------------------------------------
                 },
                 {
                     'role': 'user',
