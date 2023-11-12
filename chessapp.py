@@ -687,7 +687,7 @@ class ChessApp(App):
 
 
     def can_use_assistant(self):
-        return self.openai_api_key and self.assistant.model
+        return self.openai_api_key and self.assistant.enabled
 
 
     def can_undo(self):

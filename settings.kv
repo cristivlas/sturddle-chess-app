@@ -290,10 +290,17 @@
 
     OptGrid:
         OptLabel:
+            text: 'Assistant'
+        Switch:
+            active: app.assistant.enabled
+            on_active: app.assistant.enabled = self.active
+            id: enabled
+        OptLabel:
             text: 'Model'
         BoxLayout:
             padding: [0, dp(20), 0, dp(20)]
             TextInput:
+                disabled: not enabled.active
                 height: dp(26)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
@@ -305,6 +312,7 @@
         BoxLayout:
             padding: [0, dp(20), 0, dp(20)]
             TextInput:
+                disabled: not enabled.active
                 height: dp(26)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
@@ -314,6 +322,7 @@
         OptLabel:
             text: 'Max Retry Count: {}'.format(int(retry_count.value))
         OptSlider:
+            disabled: not enabled.active
             id: retry_count
             min: 1
             max: 10
@@ -323,6 +332,7 @@
         OptLabel:
             text: 'Temperature: {:.3f}'.format(init_temp.value)
         OptSlider:
+            disabled: not enabled.active
             id: init_temp
             min: 0
             max: 1 - temp_incr.value
@@ -332,6 +342,7 @@
         OptLabel:
             text: 'Temp Increment: {:.3f}'.format(temp_incr.value)
         OptSlider:
+            disabled: not enabled.active
             id: temp_incr
             min: 0
             max: 0.1
@@ -341,6 +352,7 @@
         OptLabel:
             text: 'Initial Timeout: {:.2f}'.format(int(req_timeout.value))
         OptSlider:
+            disabled: not enabled.active
             id: req_timeout
             min: 0
             max: 10

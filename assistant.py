@@ -95,8 +95,8 @@ _functions = [
     {
         'name': 'handle_user_choice',
         'description': (
-            'Process the user selection from a list of options.'
-            'use only when the user message clearly suggests a selection or choice.'
+            'Process the user selection from a list of options (1-based).'
+            'Use only when the user message clearly suggests a selection or choice.'
             'Do not use this function when user message ends with question mark.'
         ),
         'parameters': {
@@ -240,6 +240,7 @@ class Context:
 
 class Assistant:
     def __init__(self, app):
+        self.enabled = True
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
         self.retry_count = 3
