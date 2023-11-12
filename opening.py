@@ -22,11 +22,11 @@ import string
 
 import chess
 import chess.pgn
-import logging
 import rapidfuzz
 
 from collections import defaultdict
 from functools import lru_cache
+from kivy.logger import Logger
 from os import path, walk
 from metaphone import doublemetaphone
 
@@ -147,7 +147,7 @@ class ECO:
         phonetic_name = doublemetaphone(name)[0]
 
         result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
-        logging.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')
+        Logger.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')
 
         if result:
             match, score, _ = result
@@ -157,7 +157,7 @@ class ECO:
                 # reverse match for verification
                 result = rapidfuzz.process.extractOne(name, [matched_name])
 
-                logging.debug(f'phonetical: matched_name="{matched_name}" result={result}')
+                Logger.debug(f'phonetical: matched_name="{matched_name}" result={result}')
                 if result and result[1] >= confidence:
                     return Opening(row)
 
@@ -233,7 +233,7 @@ class ECO:
 
             result = rapidfuzz.process.extractOne(query, keys)
 
-            logging.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_level}')
+            Logger.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_level}')
 
             if result:
                 match, score, _ = result

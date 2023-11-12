@@ -21,14 +21,18 @@ import json
 import logging
 import os
 import random
+import requests
 import weakref
 
 from collections import namedtuple
 from enum import Enum
 from functools import partial
 from kivy.clock import Clock, mainthread
+from kivy.logger import Logger
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
+
+logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
 
 _opening_description = 'A name or a detailed description, preferably including variations.'
@@ -142,7 +146,7 @@ class FunctionCall:
         self.arguments = json.loads(arguments)
 
     def execute(self):
-        logging.info(f'FunctionCall: {self.name}({self.arguments})')
+        Logger.info(f'FunctionCall: {self.name}({self.arguments})')
         if self.name in FunctionCall.dispatch:
             return FunctionCall.dispatch[self.name](self.arguments)
 
@@ -272,7 +276,6 @@ class Assistant:
 
 
     def _completion_request(self, messages, *, functions, temperature, timeout):
-        import requests
         response = None
         headers = {
             'Content-Type': 'application/json',
@@ -295,18 +298,18 @@ class Assistant:
                 return self._handle_response(json.loads(response.content))
 
         except requests.exceptions.ReadTimeout as e:
-            logging.warn(f'request: {e}')
+            Logger.warning(f'request: {e}')
             return None, FunctionResult(AppLogic.RETRY)
 
         except:
-            logging.exception('Error generating ChatCompletion response.')
+            Logger.exception('Error generating ChatCompletion response.')
 
         return None, FunctionResult()
 
 
     def _handle_response(self, response):
         try:
-            logging.debug(f'response: {response}')
+            Logger.debug(f'response: {response}')
             top = response['choices'][0]
             message = top['message']
             reason = top['finish_reason']
@@ -321,7 +324,7 @@ class Assistant:
 
                 return function_call.name, result
         except:
-            logging.exception('Error handling ChatCompletion response.')
+            Logger.exception('Error handling ChatCompletion response.')
 
         return None, FunctionResult()
 
@@ -476,7 +479,7 @@ class Assistant:
 
     @mainthread
     def _say(self, text):
-        logging.debug(f'_say: {text}')
+        Logger.debug(f'_say: {text}')
         if text:
             self._app.speak(text)
 
@@ -506,15 +509,15 @@ class Assistant:
         from kivy.uix.modalview import ModalView
 
         if self._app.voice_input.is_running():
-            logging.debug('_schedule_action: stop voice')
+            Logger.debug('_schedule_action: stop voice')
             self._app.voice_input.stop()
 
         if isinstance(Window.children[0], ModalView):
             Clock.schedule_once(partial(self._schedule_action, action), 0.5)
-            logging.debug('_schedule_action: rescheduled.')
+            Logger.debug('_schedule_action: rescheduled.')
 
         else:
-            logging.debug(f'_schedule_action: calling {action}')
+            Logger.debug(f'_schedule_action: calling {action}')
             action()
 
 
