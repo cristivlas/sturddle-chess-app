@@ -933,7 +933,8 @@ class ChessApp(App):
 
 
     def on_long_press(self, _):
-        self.speech_input()
+        tts.stop()  # cancel any text-to-speech in progress
+        self.speech_input()  # start the voice user interface
 
 
     def speech_input(self, modal=True):

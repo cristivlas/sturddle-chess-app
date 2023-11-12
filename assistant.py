@@ -38,7 +38,12 @@ from speech.nlp import describe_move
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
+'''
+Functions.
 
+https://platform.openai.com/docs/guides/function-calling
+
+'''
 _opening_description = 'A name or a detailed description, preferably including variations.'
 _eco_code = 'ECO (Encyclopaedia of Chess Openings) code.'
 
@@ -46,14 +51,14 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 _functions = [
     {
-        'name': 'explain_concept',
-        'description': 'Present the explanation of a chess idea, concept or opening.',
+        'name': 'handle_query',
+        'description': 'Handle general queries about chess ideas, concepts or openings.',
         'parameters': {
             'type': 'object',
             'properties' : {
                 'answer': {
                     'type': 'string',
-                    'description': 'Answer to a user query regarding an idea in chess.'
+                    'description': 'Answer a question regarding the game of chess.'
                 },
             }
         }
@@ -120,7 +125,8 @@ _functions = [
     },
 ]
 
-
+# Note: Request MUST contain JSON word for json-mode to work.
+# https://platform.openai.com/docs/guides/text-generation/json-mode
 _system_prompt = (
     'You are a chess tutor that assists with openings and puzzles.'
     'Always respond by making function calls.'
@@ -130,8 +136,7 @@ _system_prompt = (
     'unless expressly asked to recapitulate or to summarize.'
     'When recommending puzzles, stick with the current theme, unless '
     'a specific theme is requested. Politely refuse to answer queries '
-    'outside the scope of chess. Concept explanations must be concise '
-    'and avoid move sequence examples.'
+    'outside the scope of chess. Concept explanations must be concise.'
 )
 
 
@@ -151,7 +156,7 @@ def remove_func(funcs, func_name):
     Remove function named func_name from list of function dicts.
     '''
     funcs = {f['name']:f for f in funcs if f['name'] != func_name}  # convert to dictionary
-    assert func_name not in funcs  # verify it is removed
+    assert func_name not in funcs  # verify that it is removed
 
     return list(funcs.values())  # convert back to list
 
@@ -348,10 +353,14 @@ class Assistant:
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + self._app.get_openai_key(obfuscate=False),
         }
+
         json_data = {
             'model': self.model,
             'messages': messages,
             'functions': functions,
+            # 'response_format': {
+            #     'type': 'json_object'  # https://platform.openai.com/docs/guides/text-generation/json-mode
+            # },
             'temperature': temperature
         }
         try:
@@ -402,7 +411,7 @@ class Assistant:
             return FunctionCall(call['name'], call['arguments'])
 
 
-    def _explain_concept(self, inputs):
+    def _handle_query(self, inputs):
         answer = inputs.get('answer')
         if not answer:
             return FunctionResult(AppLogic.INVALID)
@@ -414,12 +423,12 @@ class Assistant:
                 return FunctionResult(AppLogic.OK)
 
         # This can get very expensive when searching for long strings.
-        if len(answer) <= 100:
-            choice = {'name': answer}
-            opening = self._lookup_opening(choice)
-            if opening:
-                self._play_opening(choice)
-                return FunctionResult(AppLogic.OK)
+        # if len(answer) <= 100:
+        #     choice = {'name': answer}
+        #     opening = self._lookup_opening(choice)
+        #     if opening:
+        #         self._play_opening(choice)
+        #         return FunctionResult(AppLogic.OK)
 
         # Handle the case of the model repeating back a puzzle theme:
         if answer in puzzle_themes:
@@ -543,7 +552,7 @@ class Assistant:
 
 
     def _register_funcs(self):
-        FunctionCall.register('explain_concept', self._explain_concept)
+        FunctionCall.register('handle_query', self._handle_query)
         FunctionCall.register('process_chess_openings', self._process_openings)
         FunctionCall.register('handle_user_choice', self._select_opening)
         FunctionCall.register('select_chess_puzzles', self._select_puzzles)
@@ -618,9 +627,9 @@ class Assistant:
         #         {'name': 'Latvian Gambit', 'eco': 'C40'}
         #     ]})
         ...
-        # return self._explain_concept({'answer': 'Nimzo-Larsen Attack'})
-        # return self._explain_concept({'answer': 'underPromotion'})
-        # return self._explain_concept({
+        # return self._handle_query({'answer': 'Nimzo-Larsen Attack'})
+        # return self._handle_query({'answer': 'underPromotion'})
+        # return self._handle_query({
         #     "answer":
         #     "The Hyperaccelerated Dragon is a variation of the Sicilian Defense that "
         #     "arises after the moves 1.e4 c5 2.Nf3 g6. It is characterized by an early "
