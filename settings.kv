@@ -270,7 +270,7 @@
         orientation: 'horizontal'
         padding: 0, dp(10)
         size_hint_y: None
-        height: dp(46)
+        height: dp(50)
         GridLayout:
             cols: 4
             OptLabel:
@@ -298,10 +298,10 @@
         OptLabel:
             text: 'Model'
         BoxLayout:
-            padding: [0, dp(20), 0, dp(20)]
+            padding: [0, dp(10), 0, dp(10)]
             TextInput:
                 disabled: not enabled.active
-                height: dp(26)
+                height: dp(30)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
                 multiline: False
@@ -310,10 +310,10 @@
         OptLabel:
             text: 'Endpoint URL'
         BoxLayout:
-            padding: [0, dp(20), 0, dp(20)]
+            padding: [0, dp(10), 0, dp(10)]
             TextInput:
                 disabled: not enabled.active
-                height: dp(26)
+                height: dp(30)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
                 multiline: False

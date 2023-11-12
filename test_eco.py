@@ -1,7 +1,6 @@
-import logging
-
 from chess import Board
 from opening import ECO, Opening
+from kivy.logger import Logger, LOG_LEVELS
 
 class Tests:
     def __init__(self):
@@ -86,6 +85,7 @@ class Tests:
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.DEBUG)
+    Logger.setLevel(LOG_LEVELS['debug'])
+
     tests = Tests()
     tests.run()

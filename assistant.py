@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 import ast
+import chess
+import io
+import itertools
 import json
 import logging
 import os
@@ -31,6 +34,7 @@ from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
+from speech.nlp import describe_move
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
@@ -43,7 +47,7 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 _functions = [
     {
         'name': 'explain_concept',
-        'description': 'Present the user with the explanation of a chess concept.',
+        'description': 'Present the explanation of a chess idea, concept or opening.',
         'parameters': {
             'type': 'object',
             'properties' : {
@@ -202,11 +206,11 @@ class Context:
         ctxt = [self._text]
 
         if self._options:
-            ctxt.append(f'You may want to study one of these openings: {format_choices(self._options)}.')
+            ctxt.append(f'These openings match your previous queries: {format_choices(self._options)}.')
 
         if self._opening_names:
             openings = ','.join([f'"{n}"' for n in self._opening_names])
-            ctxt.append(f'I see that you have looked into these openings, in chronological order: {openings}.')
+            ctxt.append(f'I see that you have studied the following openings, in chronological order: {openings}.')
 
         if theme := self._theme:
             ctxt.append(f'I see that you practiced puzzles themed: {theme} ({self.describe_theme(theme)}).')
@@ -240,6 +244,55 @@ class Context:
 
     def set_text(self, text):
         self._text = text
+
+def find_moves(text):
+    '''
+    Find first PGN snippet that starts with " moves 1. "
+    '''
+    mark = ' moves 1.'
+    start, end = text.find(mark), -1
+    if start >= 0:
+        i = start + len(mark)
+        for n in itertools.count(2):
+            mark = f'{n}.'
+            j = text.find(mark, i)
+            if j < 0:
+                break
+            i = j + len(mark)
+        end = text.find('.', i)
+        start += len(' moves ')
+    return start, end
+
+
+def transcribe_moves(text):
+    '''
+    Replace first PGN snippet of " moves 1. ... " with moves described in English.
+    '''
+    start, end = find_moves(text)
+    if start >= 0:
+        moves = []
+        game = chess.pgn.read_game(io.StringIO(text[start:end]))
+        if game:
+            # Iterate through all moves and play them on a board.
+            board = game.board()
+            for move in game.mainline_moves():
+                # Collect move descriptions in English
+                moves.append(
+                    describe_move(
+                        board,
+                        move,
+                        announce_check=True,
+                        announce_capture=True,
+                        spell_digits=True
+                    ))
+                board.push(move)
+
+            # Replace moves with the sequence of verbose descriptions
+            old = text[start:end]
+            new = ','.join(moves)
+            text = text.replace(old, new)
+
+    return text
 
 
 class Assistant:
@@ -496,7 +549,7 @@ class Assistant:
 
     def _show_text(self, text):
         self._ctxt.set_text(text)
-        self._say(text)
+        self._say(transcribe_moves(text))
         self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
@@ -509,15 +562,11 @@ class Assistant:
         from kivy.uix.modalview import ModalView
 
         if self._app.voice_input.is_running():
-            Logger.debug('_schedule_action: stop voice')
             self._app.voice_input.stop()
 
         if isinstance(Window.children[0], ModalView):
-            Clock.schedule_once(partial(self._schedule_action, action), 0.5)
-            Logger.debug('_schedule_action: rescheduled.')
-
+            Clock.schedule_once(partial(self._schedule_action, action), 0.1)
         else:
-            Logger.debug(f'_schedule_action: calling {action}')
             action()
 
 
@@ -540,7 +589,7 @@ class Assistant:
         #     {'name': 'Nimzo-Larsen Attack', 'eco': 'A01'}
         # ]
         # return self._select_opening({'choice': 42})
-
+        ...
         # return self._process_openings({
         #     'openings': [
         #         {'name': 'Bongcloud Opening'},
@@ -549,9 +598,18 @@ class Assistant:
         #         {'name': 'Blackburne Shilling Gambit', 'eco': 'C44'},
         #         {'name': 'Latvian Gambit', 'eco': 'C40'}
         #     ]})
-
-        return self._explain_concept({'answer': 'Nimzo-Larsen Attack'})
+        ...
+        # return self._explain_concept({'answer': 'Nimzo-Larsen Attack'})
         # return self._explain_concept({'answer': 'underPromotion'})
+        # return self._explain_concept({
+        #     "answer":
+        #     "The Hyperaccelerated Dragon is a variation of the Sicilian Defense that "
+        #     "arises after the moves 1.e4 c5 2.Nf3 g6. It is characterized by an early "
+        #     "fianchetto of the dark-squared bishop and aims to create an asymmetrical pawn "
+        #     "structure. The Hyperaccelerated Dragon allows Black to avoid some of the main "
+        #     "lines of the Sicilian Defense and leads to dynamic and unbalanced positions."
+        # })
+        ...
 
 
     def run(self, user_input):
@@ -588,6 +646,7 @@ class Assistant:
             ]
 
             if context := self.context():  # Pass context back to the model.
+                Logger.debug(f'context: {context}')
                 messages.append({
                     'role': 'assistant',
                     'content': context
