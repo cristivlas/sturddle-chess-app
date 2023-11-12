@@ -480,7 +480,7 @@ class ChessApp(App):
         self.set_difficulty_level(1)
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
-        Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
+        Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'debug')])
 
 
     def about(self, *_):
@@ -939,8 +939,6 @@ class ChessApp(App):
     def speech_input(self, modal=True):
         def has_modal():
             return isinstance(Window.children[0], ModalView)
-
-        tts.stop()
 
         if all((
             self.speak_moves,

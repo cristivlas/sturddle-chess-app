@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
-import ast
+
 import chess
 import io
 import itertools
@@ -119,6 +119,20 @@ _functions = [
         }
     },
 ]
+
+
+_system_prompt = (
+    'You are a chess tutor that assists with openings and puzzles.'
+    'Always respond by making function calls.'
+    'Always respond with JSON that conforms to the function call API.'
+    'Do not include computer source code in your replies.'
+    'Do not suggest openings that have been recently looked into, '
+    'unless expressly asked to recapitulate or to summarize.'
+    'When recommending puzzles, stick with the current theme, unless '
+    'a specific theme is requested. Politely refuse to answer queries '
+    'outside the scope of chess. Concept explanations must be concise '
+    'and avoid move sequence examples.'
+)
 
 
 class AppLogic(Enum):
@@ -420,11 +434,16 @@ class Assistant:
         Present the user with openings suggestion(s).
         '''
         if openings := self._validate_opening_choices(inputs):
-            # "Normalize" the names
-            choices = [self._lookup_opening(i) for i in openings]
 
-            # Retain name and eco only, unique names.
-            choices = {i.name: i.eco for i in choices if i}
+            if False:
+                # "Normalize" the names
+                choices = [self._lookup_opening(i) for i in openings]
+
+                # Retain name and eco only, unique names.
+                choices = {i.name: i.eco for i in choices if i}
+
+            else:
+                choices = {i['name']: i.get('eco') for i in openings}
 
             # Convert back to list of dicts.
             choices = [{'name': k, 'eco': v} for k,v in choices.items()]
@@ -625,19 +644,8 @@ class Assistant:
         for retry_count in range(self.retry_count):
             messages = [
                 {
-                    'role': 'system',  # --- System Prompt ------------------------------
-                    'content': (
-                        'You are a chess tutor that assists with openings and puzzles.'
-                        'Always respond by making function calls.'
-                        'Always respond with JSON that conforms to the function call API.'
-                        'Do not include computer source code in your replies.'
-                        'Do not suggest openings that have been recently looked into, '
-                        'unless expressly asked to recapitulate or to summarize.'
-                        'When recommending puzzles, stick with the current theme, unless '
-                        'a specific theme is requested. Politely refuse to answer queries '
-                        'outside the scope of chess. Concept explanations must be concise '
-                        'and avoid move sequence examples.'
-                    )  # ----------------------------------------------------------------
+                    'role': 'system',
+                    'content': _system_prompt
                 },
                 {
                     'role': 'user',
