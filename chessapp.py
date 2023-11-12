@@ -940,6 +940,8 @@ class ChessApp(App):
         def has_modal():
             return isinstance(Window.children[0], ModalView)
 
+        tts.stop()
+
         if all((
             self.speak_moves,
             any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
@@ -961,6 +963,7 @@ class ChessApp(App):
 
 
     def on_quit(self, *args, **kwargs):
+        tts.stop()
         self.engine.cancel()
         self.engine.stop()
 

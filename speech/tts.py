@@ -129,6 +129,8 @@ def stop():
         elif isinstance(s, subprocess.Popen):
             s.terminate()
 
+        _scheduled[0] = None
+
     elif platform == 'android':
         if instance.isSpeaking():
             instance.stop()
