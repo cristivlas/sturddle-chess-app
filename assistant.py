@@ -142,7 +142,9 @@ _system_prompt = (
     # Note: Request MUST contain JSON word for json-mode to work.
     # https://platform.openai.com/docs/guides/text-generation/json-mode
     'Always respond with JSON that conforms to the function call API.'
-    'Always use the full name of chess openings variations.'
+    #'Always use the full name of chess openings variations.'
+    'Always refer to openings by their full, official names.'
+    # 'Avoid function calls when you already know the answer.'
 )
 
 
@@ -545,7 +547,7 @@ class Assistant:
         result = {
             'name': opening.name,
             'eco': opening.eco,
-            'pgn': f'{opening.pgn}.'
+            'pgn': f'{opening.pgn}.',
         } if opening else {}
 
         return FunctionResult(AppLogic.FUNCTION, {
@@ -679,7 +681,7 @@ class Assistant:
         return choices
 
 
-    def _lookup_opening(self, choice, confidence=80):
+    def _lookup_opening(self, choice, confidence=90):
         '''
         Lookup opening in the ECO "database".
         '''
@@ -687,6 +689,10 @@ class Assistant:
             name = choice['name']
             eco = choice.get('eco')
             result = self._app.eco.name_lookup(name, eco, confidence=confidence)
+
+            if not result:
+                result = self._app.eco.phonetical_lookup(name, confidence=confidence)
+
             return result
 
 
