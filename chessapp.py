@@ -1669,7 +1669,6 @@ class ChessApp(App):
         def load_and_play(game, current = 0, *_):
             ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
-            self.assistant.add_opening(opening)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
         if opening:
@@ -1827,13 +1826,19 @@ class ChessApp(App):
                 return
 
             hints = self._hint()
+
             if hints:
                 hints()
-            elif opening_book_variations and not self.engine.book:
-                msg = 'Opening book is turned off.'
-                if self.speak_moves:
-                    self.speak(msg)
-                self.message_box('Variations', msg)
+
+            elif opening_book_variations:
+                if self.can_use_assistant():
+                    self.chat_assist('Suggest other variations of the current opening.')
+
+                elif not self.engine.book:
+                    msg = 'The opening book is turned off.'
+                    if self.speak_moves:
+                        self.speak(msg)
+                    self.message_box('Variations', msg)
 
 
     def _hint(self):

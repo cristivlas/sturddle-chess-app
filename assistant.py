@@ -230,7 +230,7 @@ class Context:
     def __init__(self):
         self.queries = []
         self.invalid_puzzle_themes = set()
-        self.played_openings = set()
+        self.current_opening = None
 
 
     def corrections(self):
@@ -318,10 +318,17 @@ class Context:
         Keep track of played openings, for future ideas.
         '''
         if isinstance(opening, dict):
-            name = opening['name']
+            name, eco = opening['name'], opening['eco']
         else:
-            name = opening.name
-        self.played_openings.add(name)
+            name, eco = opening.name, opening.eco
+
+        if name != self.current_opening:
+            self.current_opening = name
+            self.queries.append(Query(
+                kind='generic',
+                request=f'What opening am I playing?',
+                result=json.dumps({'name': name, 'eco': eco})
+            ))
 
 
     @staticmethod

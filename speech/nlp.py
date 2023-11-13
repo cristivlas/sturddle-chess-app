@@ -133,7 +133,7 @@ class NLP:
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
-        hints = pp.Keyword('show') + (pp.Keyword('hints') | pp.Keyword('variations'))
+        hints = (pp.Keyword('show') | pp.Keyword('suggest')) + (pp.Keyword('hints') | pp.Keyword('variations'))
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         opening = (pp.Keyword('play') +
             pp.SkipTo(OPENING | pp.StringEnd()).set_parse_action(self._on_any) +
