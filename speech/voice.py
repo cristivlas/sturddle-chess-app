@@ -249,7 +249,8 @@ class Input:
             func = actions[command]
             params = inspect.signature(func).parameters
             if len(params):
-                assert args
+                if not args:
+                    return False
                 cmd = lambda *_: func(args)
             else:
                 cmd = lambda *_: func()
