@@ -685,15 +685,16 @@ class Assistant:
         '''
         Lookup opening in the ECO "database".
         '''
-        if self._app.eco:
-            name = choice['name']
-            eco = choice.get('eco')
-            result = self._app.eco.name_lookup(name, eco, confidence=confidence)
+        assert self._app.eco
 
-            if not result:
-                result = self._app.eco.phonetical_lookup(name, confidence=confidence)
+        name = choice['name']
+        eco = choice.get('eco')
+        result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
-            return result
+        if not result:
+            result = self._app.eco.phonetical_lookup(name, confidence=confidence)
+
+        return result
 
 
     def _play_opening(self, choice):
