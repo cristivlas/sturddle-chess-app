@@ -450,12 +450,13 @@ class Assistant:
 
     def _handle_non_function(self, user_request, message):
         content = message['content']
-
         while content:
             try:
                 response = json.loads(content)
                 if 'answer' in response:
                     return self._handle_generic_query(user_request, response)
+                else:
+                    return FunctionResult(AppLogic.RETRY)
 
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
