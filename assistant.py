@@ -78,7 +78,6 @@ _functions = [
         'name': 'select_chess_puzzles',
         'description': (
             'Select puzzles by theme. Must be called with a valid puzzle theme.'
-            # 'Do not ever use this function in response to queries about openings.'
         ) + 'The complete list of valid themes is: ' + ','.join(_valid_puzzle_themes),
         'parameters': {
             'type': 'object',
@@ -118,47 +117,41 @@ _functions = [
         }
     },
     {
-        'name': 'handle_selected_opening_choice',
-        'description': (
-            'Process the user selection from a list of options (1-based).'
-            'Should also be called when the user wants to play the opening.'
-            #'Use only when the user message clearly suggests a selection or choice.'
-            #'Do not use this function when user message ends with question mark.'
-        ),
+        'name': 'play_chess_opening',
+        'description': 'Play opening move sequence.',
         'parameters': {
             'type': 'object',
             'properties' : {
-                'choice': {
-                    'type': 'integer',
-                    'description': 'One-based selection index.'
+                'name': {
+                    'type': 'string',
+                    'description': 'The name of the opening.'
                 },
+                'eco': {
+                    'type': 'string',
+                    'description': f'ECO code.'
+                }
             },
-            'required': ['choice']
+            'required': ['name', 'eco']
         }
     },
 ]
 
 _system_prompt = (
     'You are a chess tutor that assists with openings and puzzles.'
-    'You can answer questions but you cannot actually play.'
     'Always respond by making function calls.'
     # Note: Request MUST contain JSON word for json-mode to work.
     # https://platform.openai.com/docs/guides/text-generation/json-mode
     'Always respond with JSON that conforms to the function call API.'
     'Always use the full name of chess openings variations.'
-    # 'When recommending puzzles, stick with the current theme, unless '
-    # 'a specific theme is requested. Politely refuse to answer queries '
-    # 'outside the scope of chess.'
 )
 
 
 class AppLogic(Enum):
     NONE = 0
     OK = 1
-    RETRY = 2
-    INVALID = 3
-    CONTEXT = 4
-    FUNCTION = 5
+    FUNCTION = 2
+    RETRY = 3
+    INVALID = 4
 
 
 FunctionResult = namedtuple('FunctionResult', 'response data', defaults=(AppLogic.NONE, None))
@@ -339,6 +332,7 @@ class Context:
         for i, q in reversed(list(enumerate(self.queries))):
             if q.kind == Query.Kind.FUNCTION_CALL:
                 q = self.queries.pop(i)
+                Logger.debug(f'Assistant: pop {i}/{len(self.queries)} {q.result.name}')
                 assert q.kind == Query.Kind.FUNCTION_CALL
                 break
 
@@ -390,7 +384,7 @@ class Assistant:
             'temperature': temperature,
 
             # https://platform.openai.com/docs/guides/text-generation/json-mode
-            'response_format': {'type': 'json_object'},
+            # 'response_format': {'type': 'json_object'},
         }
         try:
             response = requests.post(
@@ -409,7 +403,7 @@ class Assistant:
             return None, FunctionResult(AppLogic.RETRY)
 
         except:
-            Logger.exception('Assistant: Error generating ChatCompletion response.')
+            Logger.exception('Assistant: Error generating API response.')
 
         return None, FunctionResult()
 
@@ -443,14 +437,16 @@ class Assistant:
                 return function_call.name, result
 
         except:
-            Logger.exception('Assistant: Error handling ChatCompletion response.')
+            Logger.exception('Assistant: Error handling API response.')
 
         return None, FunctionResult()
 
 
     def _handle_non_function(self, user_request, message):
         content = message['content']
-        while content:
+        for retry in range(3):
+            if not content:
+                break
             try:
                 response = json.loads(content)
                 if 'answer' in response:
@@ -461,7 +457,7 @@ class Assistant:
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self._show_text(message['content'])
+        self._show_text(user_request, message['content'])
         return FunctionResult()
 
 
@@ -506,11 +502,7 @@ class Assistant:
             if func_result.response != AppLogic.FUNCTION:
                 self._ctxt.pop_function_call()
 
-            if func_result.response == AppLogic.CONTEXT:
-                self._say('I do not understand the context.')
-                return False
-
-            elif func_result.response == AppLogic.INVALID:
+            if func_result.response == AppLogic.INVALID:
                 funcs = remove_func(funcs, func_name)
                 retry_count += 1
 
@@ -525,7 +517,7 @@ class Assistant:
                     'name': func_name,
                     'content': json.dumps(func_result.data)
                 }
-
+            # Crucial to return True on success: prevent endless loops.
             else:
                 return True
 
@@ -537,29 +529,28 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _handle_generic_query(self, user_request, inputs):
-        answer = inputs.get('answer')
-        if not answer:
-            return FunctionResult(AppLogic.INVALID)
+        if answer := inputs.get('answer'):
+            self._show_text(user_request, answer)
+            return FunctionResult(AppLogic.OK)
 
-        self.append_history(kind='generic', request=user_request, result=answer)
-        self._show_text(answer)  # Present the answer to the user.
-
-        return FunctionResult(AppLogic.OK)
+        return FunctionResult(AppLogic.INVALID)
 
 
     def _handle_lookup_opening(self, user_request, inputs):
-        if 'name' not in inputs:
+        lookup_name = inputs.get('name')
+        if not lookup_name:
             return FunctionResult(AppLogic.INVALID)
 
-        if opening := self._lookup_opening(inputs):
-            return FunctionResult(AppLogic.FUNCTION, {
-                'name': inputs['name'],
-                'result': {
-                    'name': opening.name,
-                    'eco': opening.eco,
-                    'pgn': f'{opening.pgn}.'
-                }
-            })
+        opening = self._lookup_opening(inputs)
+        result = {
+            'name': opening.name,
+            'eco': opening.eco,
+            'pgn': f'{opening.pgn}.'
+        } if opening else {}
+
+        return FunctionResult(AppLogic.FUNCTION, {
+            'name': lookup_name, 'result': result
+        })
 
 
     def _handle_suggested_openings(self, user_request, inputs):
@@ -598,33 +589,16 @@ class Assistant:
         return FunctionResult(AppLogic.RETRY)
 
 
-    def _handle_opening_choice(self, user_request, inputs):
-        options = self._most_recent_opening_options()
-        if not options:
-            return FunctionResult(AppLogic.CONTEXT)
+    def _handle_chess_opening(self, user_request, inputs):
+        if 'name' not in inputs:
+            return FunctionResult(AppLogic.INVALID)
 
-        choice = inputs.get('choice')
-        if not choice:
-            return FunctionResult(AppLogic.RETRY)
-
-        choice = int(choice) - 1  # 1-based
-
-        if choice >= 0 and choice < len(options):
-            selection = options[choice]
-
-            # Add valid selection to the conversation history.
-            self.append_history(
-                kind='opening_selection',
-                request=user_request,
-                result=selection
-            )
-            self._play_opening(selection)
-
-        else:
-            self._show_choices(
-                options,
-                prefix_msg='Your choice is out of range. Valid options'
-            )
+        self.append_history(
+            kind='opening_selection',
+            request=user_request,
+            result=inputs
+        )
+        self._play_opening(inputs)
         return FunctionResult(AppLogic.OK)
 
 
@@ -668,7 +642,7 @@ class Assistant:
     def _register_funcs(self):
         FunctionCall.register('present_answer_to_generic_query', self._handle_generic_query)
         FunctionCall.register('present_list_of_opening_choices', self._handle_suggested_openings)
-        FunctionCall.register('handle_selected_opening_choice', self._handle_opening_choice)
+        FunctionCall.register('play_chess_opening', self._handle_chess_opening)
         FunctionCall.register('select_chess_puzzles', self._handle_puzzle_theme)
         FunctionCall.register('lookup_opening', self._handle_lookup_opening)
 
@@ -705,7 +679,7 @@ class Assistant:
         return choices
 
 
-    def _lookup_opening(self, choice, confidence=75):
+    def _lookup_opening(self, choice, confidence=80):
         '''
         Lookup opening in the ECO "database".
         '''
@@ -713,16 +687,7 @@ class Assistant:
             name = choice['name']
             eco = choice.get('eco')
             result = self._app.eco.name_lookup(name, eco, confidence=confidence)
-
-            if not result and eco:
-                # Classification code returned by model may be wrong, retry without it.
-                result = self._app.eco.name_lookup(name, eco, confidence=confidence)
-
             return result
-
-
-    def _most_recent_opening_options(self):
-        return self._ctxt.find_most_recent_opening_options()
 
 
     def _play_opening(self, choice):
@@ -747,7 +712,8 @@ class Assistant:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
-    def _show_text(self, text):
+    def _show_text(self, user_request, text):
+        self.append_history(kind='generic', request=user_request, result=text)
         self._say(transcribe_moves(text))
         self._schedule_action(lambda *_: self._app.text_bubble(text))
 

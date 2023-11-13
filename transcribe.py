@@ -62,7 +62,7 @@ def transcribe_moves(text):
     for old, new in substs.items():
         text = text.replace(old, new, 1)
 
-    return text
+    return text.replace('\n', '')
 
 
 def test_transcribe_moves():
@@ -106,13 +106,19 @@ def test_transcribe_moves():
             "way for Black to counter the Queen's Gambit and create imbalances in the position."
         )
         ],
-        [(
-            "1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Bxd4."
-        ),
+        [   "1. e4 g6 2. Bc4 Bg7 3. Qf3 e6 4. d4 Bxd4.",
         (
             "pawn to E four, pawn to G six, bishop to C four, bishop to G seven, queen to F three, "
             "pawn to E six, pawn to D four, bishop takes pawn on D four."
         )
+        ],
+        [
+            "\n1. a3 e5\n2. b3 d5\n3. c3 Nf6\n4. d3 Nc6\n5. e3 Bd6\n6. f3 O-O\n7. g3.\n",
+            (
+                "pawn to A three, pawn to E five, pawn to B three, pawn to D five, "
+                "pawn to C three, knight to F six, pawn to D three, knight to C six, "
+                "pawn to E three, bishop to D six, pawn to F three, castle king side, pawn to G three."
+            )
         ]
     ]
 
