@@ -43,22 +43,25 @@ https://platform.openai.com/docs/guides/function-calling
 
 '''
 _description = 'A name or a detailed description, preferably including variations.'
-_eco = 'Encyclopedia of Chess Openings (ECO)'
+_eco = 'Encyclopedia of Chess Openings'
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 _functions = [
     {
-        'name': 'lookup_opening',
-        'description': f'Lookup a chess opening in the {_eco}',
+        'name': 'lookup_openings',
+        'description': f'This function looks up chess openings by name in the {_eco}',
         'parameters': {
             'type': 'object',
             'properties' : {
-                'name': {
-                    'type': 'string',
-                    'description': 'The name of a chess opening.'
-                },
+                'openings': {
+                    'type': 'array',
+                    'description': 'The names to look up',
+                    'items': {
+                        'type': 'string',
+                    }
+                }
             },
-            'required': ['name']
+            'required': ['openings']
         }
     },
     {
@@ -303,7 +306,7 @@ class Context:
             self.current_opening = name
             self.queries.append(Query(
                 kind='generic',
-                request=f'What is the game currently in progress?',
+                request=f'What is the current game?',
                 result=json.dumps({'name': name, 'eco': eco})
             ))
 
@@ -530,24 +533,28 @@ class Assistant:
         return FunctionResult(AppLogic.INVALID)
 
 
-    def _handle_lookup_opening(self, user_request, inputs):
-        lookup_name = inputs.get('name')
-        if not lookup_name:
+    def _handle_lookup_openings(self, user_request, inputs):
+        requested_openings = inputs.get('openings')
+        if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
-        opening = self._lookup_opening(inputs)
-        result = {
-            'name': opening.name,
-            'eco': opening.eco,
-            'pgn': f'{opening.pgn}.',
-        } if opening else {}
+        results = []
+        for name in requested_openings:
+            eco_opening = self._lookup_opening({'name': name})
+            if not eco_opening:
+                Logger.warning(f'Assistant: Not found: {str(inputs)}')
+            else:
+                result = {
+                    'name': eco_opening.name,
+                }
+                if len(requested_openings) == 1:
+                    # include all the details if looking up a single opening
+                    result['eco'] = eco_opening.eco
+                    result['pgn'] = eco_opening.pgn
 
-        if not opening:
-            Logger.error(f'Assistant: Not found: {str(inputs)}')
+                results.append(result)
 
-        return FunctionResult(AppLogic.FUNCTION, {
-            'name': lookup_name, 'result': result
-        })
+        return FunctionResult(AppLogic.FUNCTION, results)
 
 
     def _handle_chess_opening(self, user_request, inputs):
@@ -603,7 +610,7 @@ class Assistant:
         FunctionCall.register('present_answer', self._handle_answer)
         FunctionCall.register('play_chess_opening', self._handle_chess_opening)
         FunctionCall.register('select_chess_puzzles', self._handle_puzzle_theme)
-        FunctionCall.register('lookup_opening', self._handle_lookup_opening)
+        FunctionCall.register('lookup_openings', self._handle_lookup_openings)
 
 
     # -------------------------------------------------------------------

@@ -525,10 +525,10 @@ class ChessApp(App):
         self.engine.worker.send_message(partial(self.search_move, True))
 
 
-    def _animate(self, undo_to_move=0, callback=lambda *_:None):
+    def _animate(self, from_move=0, callback=lambda *_:None):
         self.set_study_mode(True)
 
-        while self.can_undo() and self.game_len() > undo_to_move:
+        while self.can_undo() and self.game_len() > from_move:
             self.undo_move()
 
         def redo(*_):
@@ -571,7 +571,7 @@ class ChessApp(App):
 
         with no_update_callbacks(self.engine):
             if self.engine.auto_open(callback):
-                self._animate(undo_to_move=current, callback=show_opening_name)
+                self._animate(from_move=current, callback=show_opening_name)
             else:
                 # This should not happen, because engine.can_auto_open() should return False when
                 # the opening book has no suitable moves for the given position, and the UI button
@@ -1087,7 +1087,7 @@ class ChessApp(App):
         self.set_study_mode(True)
         while self.can_redo():
             self.redo_move()
-        self._animate(undo_to_move=current, callback=lambda *_: self.set_study_mode(mode))
+        self._animate(from_move=current, callback=lambda *_: self.set_study_mode(mode))
 
     #
     # Label formatting utils
@@ -1673,19 +1673,26 @@ class ChessApp(App):
         def load_and_play(game, current = 0, *_):
             ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
-            self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
+            self._animate(callback=lambda *_: self.set_study_mode(False), from_move=current)
 
         if game := chess.pgn.read_game(StringIO(pgn)):
             current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
             current_pgn = current_pgn.rstrip(' *')
 
             if current_pgn and pgn.startswith(current_pgn):
-                # The opening matches the current position, do not ask for confirmation.
-                if name:
+                if name and len(pgn) > len(current_pgn):
                     self.speak(f'{name} continuation:')
 
-                current = self.game_len()  # record current move number
+                # Record the current move number, so that the opening animation
+                # starts from here instead of going back to the start of the game.
+                current = self.game_len()
+
+                # The opening matches the current position, do not ask for confirmation.
                 Clock.schedule_once(partial(load_and_play, game, current))
+
+            elif current_pgn and current_pgn.startswith(pgn):
+                if name:
+                    self.speak(f'{name} is already in progress.')
 
             else:
                 Logger.debug(f'pgn: old="{current_pgn}"')
@@ -1694,7 +1701,7 @@ class ChessApp(App):
                 # The sequence does not match the current game: ask
                 # for confirmation to abandon the game in progress.
                 self.new_action(
-                    f'play {name if name else "moves"}',
+                    f'play {name if name else "the moves"}',
                     lambda *_: Clock.schedule_once(partial(load_and_play, game))
                 )
             return True
@@ -1838,7 +1845,7 @@ class ChessApp(App):
 
             elif opening_book_variations:
                 if self.can_use_assistant():
-                    self.chat_assist('Suggest other variations of the current opening.')
+                    self.chat_assist(self.voice_input.get_user_input())
 
                 elif not self.engine.book:
                     msg = 'The opening book is turned off.'
