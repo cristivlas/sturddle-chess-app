@@ -1676,8 +1676,7 @@ class ChessApp(App):
             self._animate(callback=lambda *_: self.set_study_mode(False), from_move=current)
 
         if game := chess.pgn.read_game(StringIO(pgn)):
-            current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
-            current_pgn = current_pgn.rstrip(' *')
+            current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
                 if name and len(pgn) > len(current_pgn):
@@ -1819,6 +1818,12 @@ class ChessApp(App):
     def _paste(self):
         if self.validate_clipboard():
             return lambda *_: self.paste()
+
+
+    def get_current_play(self):
+        pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
+        pgn = pgn.rstrip(' *')
+        return pgn
 
 
     def hints(self):

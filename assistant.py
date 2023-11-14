@@ -109,8 +109,12 @@ _functions = [
                 },
                 'eco': {
                     'type': 'string',
-                    'description': f'ECO code.'
-                }
+                    'description': 'ECO code.'
+                },
+                'epd': {
+                    'type': 'string',
+                    'description': 'Extended Position Description',
+                },
             },
             'required': ['name', 'eco']
         }
@@ -161,14 +165,12 @@ class Query:
         NONE = 0
         GENERIC = 1
         FUNCTION_CALL = 2
-        OPENING_CHOICES = 3
-        OPENING_SELECTION = 4
-        PUZZLE_THEME = 5
+        OPENING_SELECTION = 3
+        PUZZLE_THEME = 4
 
     _kinds = {
         'generic': Kind.GENERIC,
         'function_call': Kind.FUNCTION_CALL,
-        'opening_choices': Kind.OPENING_CHOICES,
         'opening_selection': Kind.OPENING_SELECTION,
         'puzzle_theme': Kind.PUZZLE_THEME,
     }
@@ -177,23 +179,6 @@ class Query:
         self.kind = Query._kinds[kind]
         self.request = request
         self.result = result
-
-
-def format_choices(choices):
-    '''
-    Format Chess Opening choices to be presented to the user.
-
-    choices: a list of [{'name': ..., 'eco': ...}, ... ] dicts; 'eco' is optional.
-    '''
-
-    if len(choices) == 1:
-        choices = choices[0]['name']
-
-    else:
-        choices = [c['name'] for c in choices]
-        choices = '; '.join([f'{i}. {n}' for i,n in enumerate(choices, start=1)])
-
-    return choices
 
 
 def get_token_count(model, messages, functions):
@@ -221,14 +206,9 @@ class Context:
         user_color = ['Black', 'White'][app.engine.opponent]
         extra.append(f'User is playing as {user_color}.')
 
+        extra.append(f'Moves played so far: {app.get_current_play()}')
+
         return extra
-
-
-    def find_most_recent_opening_options(self):
-        for query in reversed(self.queries):
-            if query.kind == Query.Kind.OPENING_CHOICES:
-                assert isinstance(query.result, list)
-                return query.result
 
 
     def messages(self, current_msg, *, app, model, functions, token_limit):
@@ -271,14 +251,11 @@ class Context:
             if item.kind == Query.Kind.GENERIC:
                 assist['content'] = item.result
 
-            elif item.kind == Query.Kind.OPENING_CHOICES:
-                assist['content'] = format_choices(item.result)
-
             elif item.kind == Query.Kind.OPENING_SELECTION:
-                assist['content'] = str(item.result)  # TODO: format?
+                assist['content'] = str(item.result)
 
             elif item.kind == Query.Kind.PUZZLE_THEME:
-                assist['content'] = item.result  # TODO: format?
+                assist['content'] = item.result
 
             elif item.kind == Query.Kind.FUNCTION_CALL:
                 call = item.result
@@ -506,6 +483,12 @@ class Assistant:
                 temperature += self.temperature_increment
                 retry_count += 1
 
+                if func_result.data:
+                    current_message = {
+                        'role': 'user',
+                        'content': func_result.data
+                    }
+
             elif func_result.response == AppLogic.FUNCTION:
                 current_message = {
                     'role': 'function',
@@ -548,8 +531,9 @@ class Assistant:
                     'name': eco_opening.name,
                 }
                 if len(requested_openings) == 1:
-                    # include all the details if looking up a single opening
+                    # include details if looking up a single opening
                     result['eco'] = eco_opening.eco
+                    result['epd'] = eco_opening.epd
                     result['pgn'] = eco_opening.pgn
 
                 results.append(result)
@@ -559,15 +543,33 @@ class Assistant:
 
     def _handle_chess_opening(self, user_request, inputs):
         if 'name' not in inputs:
+            Logger.error(f'Assistant: {inputs}')
             return FunctionResult(AppLogic.INVALID)
 
-        self.append_history(
-            kind='opening_selection',
-            request=user_request,
-            result=inputs
-        )
-        self._play_opening(inputs)
-        return FunctionResult(AppLogic.OK)
+        opening = self._lookup_opening(inputs)
+
+        if not opening:
+            Logger.error(f'Assistant: {inputs}')
+            return FunctionResult(AppLogic.INVALID)
+        else:
+            self.append_history(
+                kind='opening_selection',
+                request=user_request,
+                result=inputs
+            )
+            current = self._app.get_current_play()
+
+            if current.startswith(opening.pgn):
+                return FunctionResult(
+                    AppLogic.RETRY,
+                    (
+                        'The opening that you suggested is already in play. '
+                        'Suggest an opening with a move sequence not included in: '
+                    ) + f'{current}'
+                )
+            else:
+                self._schedule_action(lambda *_: self._app.play_opening(opening))
+                return FunctionResult(AppLogic.OK)
 
 
     def _handle_puzzle_theme(self, user_request, inputs):
@@ -635,26 +637,10 @@ class Assistant:
         return result
 
 
-    def _play_opening(self, choice):
-        self._schedule_action(
-            lambda *_: self._app.play_opening(self._lookup_opening(choice))
-        )
-
-
     @mainthread
     def _say(self, text):
         if text and self._app.speak_moves:
             self._app.speak(text)
-
-
-    def _show_choices(self, choices, *, prefix_msg):
-        text = format_choices(choices)
-
-        if prefix_msg:
-            self._say(f'{prefix_msg}: {text}')
-
-        if len(choices) > 1:
-            self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
     def _respond(self, text, topic=None, *, user_request):
