@@ -1662,40 +1662,42 @@ class ChessApp(App):
 
 
     def play_opening(self, opening):
+        if opening:
+            return self.play_pgn(opening.pgn, opening.name)
+
+
+    def play_pgn(self, pgn, name=None):
         '''
-        Schedule the PGN moves sequence from the given opening to be played.
+        Parse PGN and play moves.
         '''
         def load_and_play(game, current = 0, *_):
             ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
             self._animate(callback=lambda *_: self.set_study_mode(False), undo_to_move=current)
 
-        if opening:
-            pgn = opening.pgn
+        if game := chess.pgn.read_game(StringIO(pgn)):
+            current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
+            current_pgn = current_pgn.rstrip(' *')
 
-            if game := chess.pgn.read_game(StringIO(pgn)):
-                current_pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
-                current_pgn = current_pgn.rstrip(' *')
+            if current_pgn and pgn.startswith(current_pgn):
+                # The opening matches the current position, do not ask for confirmation.
+                if name:
+                    self.speak(f'{name} continuation:')
 
-                if current_pgn and pgn.startswith(current_pgn):
-                    # The opening matches the current position, do not ask for confirmation.
-
-                    self.speak(f'{opening.name} continuation:')
-
-                    current = self.game_len()  # record current move number
-                    Clock.schedule_once(partial(load_and_play, game, current))
-
-                else:
-                    # The opening sequence does not match the current game: ask
-                    # user for confirmation to abandon the game and play opening.
-                    self.new_action(
-                        f'play {opening.name}',
-                        lambda *_: Clock.schedule_once(partial(load_and_play, game))
-                    )
-                return True
+                current = self.game_len()  # record current move number
+                Clock.schedule_once(partial(load_and_play, game, current))
 
             else:
-                Logger.info(f'play_opening: could not read pgn: {pgn}')
+                # The sequence does not match the current game: ask
+                # for confirmation to abandon the game in progress.
+                self.new_action(
+                    f'play {name if name else "moves"}',
+                    lambda *_: Clock.schedule_once(partial(load_and_play, game))
+                )
+            return True
+
+        else:
+            Logger.info(f'play_opening: could not read pgn: {pgn}')
 
 
     def play_phonetical_match(self, name):

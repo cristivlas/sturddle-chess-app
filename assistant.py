@@ -31,7 +31,7 @@ from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
-from transcribe import transcribe_moves
+from transcribe import substitutions
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
@@ -475,7 +475,7 @@ class Assistant:
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self.show_text(message['content'], user_request=user_request)
+        self.respond(message['content'], user_request=user_request)
         return FunctionResult()
 
 
@@ -549,7 +549,7 @@ class Assistant:
 
     def _handle_generic_query(self, user_request, inputs):
         if answer := inputs.get('answer'):
-            self.show_text(answer, user_request=user_request)
+            self.respond(answer, user_request=user_request)
             return FunctionResult(AppLogic.OK)
 
         return FunctionResult(AppLogic.INVALID)
@@ -736,12 +736,28 @@ class Assistant:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
-    def show_text(self, text, *, user_request):
+    def _speak_response(self, text):
+        pgn = None
+        substs = substitutions(text).items()
+        for old, new in substs:
+            if not pgn:
+                pgn = old  # Hold on to the 1st occurence of a move sequence
+            text = text.replace(old, new, 1)
+        self._say(text)
+        if pgn:
+            self._schedule_action(lambda *_: self._app.play_pgn(pgn))
+
+
+    def respond(self, text, *, user_request):
+        '''
+        Respond to a user question with speech and text bubble.
+        '''
         text = text.replace('\n', ' ')
         if user_request:
             self.append_history(kind='generic', request=user_request, result=text)
-        self._say(transcribe_moves(text))
+
         self._schedule_action(lambda *_: self._app.text_bubble(text))
+        self._speak_response(text)
 
 
     def _schedule_action(self, action, *_):

@@ -20,7 +20,7 @@ def find_moves(text):
                 break
             i = j + len(mark)
 
-        for delim in '),. ':
+        for delim in ')., ':
             end = text.find(delim, i)
             if end >= 0:
                 break
@@ -49,7 +49,11 @@ def describe_sequence(text):
         return ', '.join(moves)
 
 
-def transcribe_moves(text):
+def substitutions(text):
+    '''
+    Find sequences of moves that can be substituted with spoken descriptions.
+    Return dictionary of substitutions.
+    '''
     fragments = re.split(' move | moves | \(', text)
     substs = {}
     for f in fragments:
@@ -58,8 +62,14 @@ def transcribe_moves(text):
             descr = describe_sequence(moves)
             if descr:
                 substs[moves] = descr
+    return substs
 
-    for old, new in substs.items():
+
+def transcribe_moves(text):
+    '''
+    Replace chess moves in the text with their spoken equivalents.
+    '''
+    for old, new in substitutions(text).items():
         text = text.replace(old, new, 1)
 
     return text
@@ -119,6 +129,19 @@ def test_transcribe_moves():
                 "pawn to C three, knight to F six, pawn to D three, knight to C six, "
                 "pawn to E three, bishop to D six, pawn to F three, castle king side, pawn to G three."
             )
+        ],
+        [(
+            "The King's Gambit is an aggressive chess opening that begins with the moves 1.e4 e5 2.f4. "
+            "White sacrifices a pawn to gain rapid development and open lines for attacking the black king. "
+            "The King's Gambit is known for its sharp and tactical nature, and it often leads to dynamic and "
+            "exciting positions on the board."
+        ),
+        (
+            "The King's Gambit is an aggressive chess opening that begins with the moves pawn to E four, pawn "
+            "to E five, pawn to F four. White sacrifices a pawn to gain rapid development and open lines for "
+            "attacking the black king. The King's Gambit is known for its sharp and tactical nature, and it often "
+            "leads to dynamic and exciting positions on the board."
+        )
         ]
     ]
 
