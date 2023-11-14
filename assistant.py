@@ -43,7 +43,7 @@ https://platform.openai.com/docs/guides/function-calling
 
 '''
 _description = 'A name or a detailed description, preferably including variations.'
-_eco = 'ECO (Encyclopedia of Chess Openings)'
+_eco = 'Encyclopedia of Chess Openings (ECO)'
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 _functions = [
@@ -69,7 +69,7 @@ _functions = [
             'properties' : {
                 'answer': {
                     'type': 'string',
-                    'description': 'Answer to a question regarding the game of chess.'
+                    'description': 'The answer to a question regarding chess.'
                 },
                 'topic' : {
                     'type': 'string',
@@ -96,7 +96,7 @@ _functions = [
     },
     {
         'name': 'play_chess_opening',
-        'description': 'Play opening move sequence.',
+        'description': 'Play an opening move sequence.',
         'parameters': {
             'type': 'object',
             'properties' : {
@@ -115,13 +115,13 @@ _functions = [
 ]
 
 _system_prompt = (
-    'You are a chess tutor that assists with openings and puzzles.'
-    'Always respond by making function calls.'
+    'You are a chess tutor that assists with openings and puzzles. '
+    'You are embedded in a chess application, and you: '
+    'Always respond by making function calls; '
     # Note: Request MUST contain JSON word for json-mode to work.
     # https://platform.openai.com/docs/guides/text-generation/json-mode
-    'Always respond with JSON that conforms to the function call API.'
-    #'Always use the full name of chess openings variations.'
-    'Always refer to openings by their full, official names.'
+    'always respond with JSON that conforms to the function call API; '
+    'always refer to openings and variations by their complete names.'
 )
 
 
@@ -303,7 +303,7 @@ class Context:
             self.current_opening = name
             self.queries.append(Query(
                 kind='generic',
-                request=f'What opening am I playing?',
+                request=f'What is the game currently in progress?',
                 result=json.dumps({'name': name, 'eco': eco})
             ))
 
@@ -510,6 +510,7 @@ class Assistant:
                     'content': json.dumps(func_result.data)
                 }
                 # function_call = 'none'
+
             # Crucial to return True on success: prevent endless loops.
             else:
                 return True
@@ -540,6 +541,9 @@ class Assistant:
             'eco': opening.eco,
             'pgn': f'{opening.pgn}.',
         } if opening else {}
+
+        if not opening:
+            Logger.error(f'Assistant: Not found: {str(inputs)}')
 
         return FunctionResult(AppLogic.FUNCTION, {
             'name': lookup_name, 'result': result

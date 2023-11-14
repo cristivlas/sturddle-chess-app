@@ -126,8 +126,8 @@ class NLP:
         analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
 
         backup_prefix = (pp.Keyword('go') + pp.Keyword('back')) | (pp.Keyword('back') + pp.Keyword('up'))
-        backup_one = backup_prefix + (pp.Keyword('one') | pp.Keyword('1')) + pp.Opt('move')
-        backup_many = backup_prefix + pp.Word(pp.alphanums) + pp.Opt('moves')
+        backup_one = backup_prefix + (pp.Keyword('one') | pp.Keyword('1')) + pp.Keyword('move')
+        backup_many = backup_prefix + pp.Word(pp.alphanums) + pp.Keyword('moves')
         backup = backup_one | backup_many
 
         edit = pp.Keyword('edit')

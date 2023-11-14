@@ -480,7 +480,7 @@ class ChessApp(App):
         self.set_difficulty_level(1)
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
-        Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'debug')])
+        Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
 
 
     def about(self, *_):
@@ -1688,6 +1688,9 @@ class ChessApp(App):
                 Clock.schedule_once(partial(load_and_play, game, current))
 
             else:
+                Logger.debug(f'pgn: old="{current_pgn}"')
+                Logger.debug(f'pgn: new="{pgn}"')
+
                 # The sequence does not match the current game: ask
                 # for confirmation to abandon the game in progress.
                 self.new_action(
