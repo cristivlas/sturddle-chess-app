@@ -43,7 +43,7 @@ https://platform.openai.com/docs/guides/function-calling
 
 '''
 _description = 'A name or a detailed description, preferably including variations.'
-_eco = 'ECO (Encyclopaedia of Chess Openings)'
+_eco = 'ECO (Encyclopedia of Chess Openings)'
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 _functions = [
@@ -233,16 +233,24 @@ class Context:
         self.current_opening = None
 
 
-    def corrections(self):
+    def system_extra(self, app):
         '''
-        Construct list of corrections to be applied to the system prompt.
+        Construct a list of additional info to be applied to the system prompt.
         '''
-        errata = []
+        extra = []
+
         # if self.invalid_puzzle_themes:
         #     themes = ','.join(self.invalid_puzzle_themes)
-        #     errata.append(f'The following puzzle themes are not valid {themes}')
+        #     extra.append(f'The following puzzle themes are not valid {themes}')
 
-        return errata
+        # pgn = app.transcribe(headers=None, variations=False, comments=False)[1]
+        # if pgn:
+        #     extra.append(f'The moves played so far are: {pgn}.')
+
+        user_color = ['Black', 'White'][app.engine.opponent]
+        extra.append(f'User is playing as {user_color}.')
+
+        return extra
 
 
     def find_most_recent_opening_options(self):
@@ -252,13 +260,14 @@ class Context:
                 return query.result
 
 
-    def messages(self, current_msg, *, model, functions, token_limit):
+    def messages(self, current_msg, *, app, model, functions, token_limit):
         '''
         Construct a list of messages to be passed to the OpenAI API call.
         '''
         while True:
             msgs = self._construct_messages(
                 current_msg,
+                app=app,
                 model=model,
                 functions=functions
             )
@@ -276,10 +285,10 @@ class Context:
         return msgs
 
 
-    def _construct_messages(self, current_msg, model, functions):
+    def _construct_messages(self, current_msg, app, model, functions):
         msgs = [{
             'role': 'system',
-            'content': _system_prompt + '.'.join(self.corrections())
+            'content': _system_prompt + '.'.join(self.system_extra(app))
         }]
 
         for item in self.queries:
@@ -466,7 +475,7 @@ class Assistant:
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self._show_text(user_request, message['content'])
+        self.show_text(message['content'], user_request=user_request)
         return FunctionResult()
 
 
@@ -493,6 +502,7 @@ class Assistant:
         while retry_count < self.retry_count:
             messages = self._ctxt.messages(
                 current_message,
+                app=self._app,
                 model=self.model,
                 functions=funcs,
                 token_limit=self.token_limit,
@@ -539,7 +549,7 @@ class Assistant:
 
     def _handle_generic_query(self, user_request, inputs):
         if answer := inputs.get('answer'):
-            self._show_text(user_request, answer)
+            self.show_text(answer, user_request=user_request)
             return FunctionResult(AppLogic.OK)
 
         return FunctionResult(AppLogic.INVALID)
@@ -566,7 +576,7 @@ class Assistant:
         '''
         Present the user with openings suggestion(s).
         '''
-        choices = self._get_opening_choices(inputs)
+        choices = self._get_opening_choices(inputs, normalize=True)
 
         if choices:
             if len(choices) == 1:
@@ -672,8 +682,8 @@ class Assistant:
         if any(('name' not in item for item in openings)):
             return None
 
-        if normalize:
-            # "Normalize" the names
+        if normalize and len(openings) <= 5:
+            # "Normalize" the names. Lookups can get expensive.
             choices = [self._lookup_opening(i) for i in openings]
 
             # Retain name and eco only, unique names.
@@ -712,7 +722,7 @@ class Assistant:
 
     @mainthread
     def _say(self, text):
-        if text:
+        if text and self._app.speak_moves:
             self._app.speak(text)
 
 
@@ -726,8 +736,10 @@ class Assistant:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
-    def _show_text(self, user_request, text):
-        self.append_history(kind='generic', request=user_request, result=text)
+    def show_text(self, text, *, user_request):
+        text = text.replace('\n', ' ')
+        if user_request:
+            self.append_history(kind='generic', request=user_request, result=text)
         self._say(transcribe_moves(text))
         self._schedule_action(lambda *_: self._app.text_bubble(text))
 

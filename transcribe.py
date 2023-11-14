@@ -62,7 +62,7 @@ def transcribe_moves(text):
     for old, new in substs.items():
         text = text.replace(old, new, 1)
 
-    return text.replace('\n', '')
+    return text
 
 
 def test_transcribe_moves():
@@ -113,7 +113,7 @@ def test_transcribe_moves():
         )
         ],
         [
-            "\n1. a3 e5\n2. b3 d5\n3. c3 Nf6\n4. d3 Nc6\n5. e3 Bd6\n6. f3 O-O\n7. g3.\n",
+            "1. a3 e5\n2. b3 d5\n3. c3 Nf6\n4. d3 Nc6\n5. e3 Bd6\n6. f3 O-O\n7. g3.",
             (
                 "pawn to A three, pawn to E five, pawn to B three, pawn to D five, "
                 "pawn to C three, knight to F six, pawn to D three, knight to C six, "

@@ -144,7 +144,7 @@ class ECO:
 
     def phonetical_lookup(self, name, *, confidence=65):
         openings = self.by_phonetic_name
-        phonetic_name = doublemetaphone(name)[0]
+        phonetic_name = _preprocess(name)
 
         result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
         Logger.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')

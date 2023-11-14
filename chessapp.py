@@ -607,7 +607,7 @@ class ChessApp(App):
 
     def backup(self, move_count=1):
         Logger.debug(f'backup: {move_count}, game_len={self.game_len()}')
-        if move_count > self.game_len() and self.speak_moves:
+        if move_count > self.game_len():
             self.speak('Going back to start of the game...')
         mode = self.study_mode
         self.set_study_mode(True)
@@ -1046,8 +1046,7 @@ class ChessApp(App):
                     if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
 
                         def success(title, *_):
-                            if self.speak_moves:
-                                self.speak(random.choice(['Correct', 'Well done', 'Nice']))
+                            self.speak(random.choice(['Correct', 'Well done', 'Nice']))
 
                             if not self.message_box(title, 'Congrats, correct move!'):
                                 return # another modal box pending
@@ -1395,7 +1394,7 @@ class ChessApp(App):
 
                 self.board_widget.enable_variation_hints = True
                 move = self.moves_record.pop()
-                if in_animation and self.speak_moves:
+                if in_animation:
                     self.speak(self.describe_move(move, spell_digits=True))
                 self.engine.apply(move)
             else:
@@ -1632,7 +1631,7 @@ class ChessApp(App):
 
             if speak_moves[0] != self.speak_moves:
                 speak_moves[0] = self.speak_moves
-                self.speak('Voice on' if self.speak_moves else 'Voice off')
+                self.speak('Voice on' if self.speak_moves else 'Voice off', True)
 
                 if self.speak_moves:
                     self.touch_hint('anywhere outside the board and hold to speak.')
@@ -1680,6 +1679,8 @@ class ChessApp(App):
 
                 if current_pgn and pgn.startswith(current_pgn):
                     # The opening matches the current position, do not ask for confirmation.
+
+                    self.speak(f'{opening.name} continuation:')
 
                     current = self.game_len()  # record current move number
                     Clock.schedule_once(partial(load_and_play, game, current))
@@ -1836,8 +1837,7 @@ class ChessApp(App):
 
                 elif not self.engine.book:
                     msg = 'The opening book is turned off.'
-                    if self.speak_moves:
-                        self.speak(msg)
+                    self.speak(msg)
                     self.message_box('Variations', msg)
 
 
@@ -1930,8 +1930,9 @@ class ChessApp(App):
                     outline_width=2)
 
 
-    def speak(self, message):
-        tts.speak(message, stt.stt)
+    def speak(self, message, always=False):
+        if always or self.speak_moves:
+            tts.speak(message, stt.stt)
 
 
     def search_move(self, analysis_mode=False):
@@ -1986,7 +1987,7 @@ class ChessApp(App):
 
             ctxt._event.cancel()
 
-            if move and self.speak_moves and not analysis_mode:
+            if move and not analysis_mode:
                 self.speak(self.describe_move(move, spell_digits=True))
 
             return move
@@ -2324,7 +2325,7 @@ class ChessApp(App):
                         text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
                     else:
                         text = text.split('(')[0]  # strip the PV
-                    self.speak(text)
+                    self.speak(text, True)
 
             Clock.schedule_once(partial(show_eval_on_main_thread, text), 0.1)
 

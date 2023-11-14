@@ -14,6 +14,7 @@ class Tests:
             "sicilian defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Monkey's Butt": Opening({'name': "Modern Defense: Bishop Attack, Monkey's Bum", 'eco': 'B06'}),
             "Goring Gambit Declined": Opening({'name': 'Scotch Game: Scotch Gambit, Göring Gambit Declined', 'eco': 'C44'}),
+            "Caro-Kann Defense: Panov-Botvinnik Attack": Opening({'name': 'Caro-Kann Defense: Panov Attack', 'eco': 'B14'}),
         }
         for name, expected in good_test_cases.items():
             opening = self.eco.name_lookup(name, expected.eco, confidence=85)
