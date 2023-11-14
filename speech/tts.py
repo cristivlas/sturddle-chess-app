@@ -113,8 +113,8 @@ def speak(message, stt, *_):
     assert(message)
 
     if is_speaking() or stt.is_listening():
-        if _scheduled[0]:
-            Clock.unschedule(_scheduled[0])
+        stop()
+
         _scheduled[0] = Clock.schedule_once(partial(speak, message, stt), 0.1)
 
     else:

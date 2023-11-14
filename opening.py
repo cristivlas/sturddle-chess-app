@@ -165,14 +165,14 @@ class ECO:
     @staticmethod
     def get_codes(eco):
         codes = eco.lower().split('-')  # support ranges (e.g. B20-B99)
-
-        alpha = codes[0][0]
-        if len(codes) == 2 and alpha == codes[1][0]:
-            try:
-                start, end = int(codes[0][1:]), int(codes[1][1:])
-                codes = [f'{alpha}{i:02d}' for i in range(start, end + 1)]
-            except:
-                pass
+        if codes[0]:
+            alpha = codes[0][0]
+            if len(codes) == 2 and alpha == codes[1][0]:
+                try:
+                    start, end = int(codes[0][1:]), int(codes[1][1:])
+                    codes = [f'{alpha}{i:02d}' for i in range(start, end + 1)]
+                except:
+                    pass
 
         return codes
 

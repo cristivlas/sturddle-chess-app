@@ -64,6 +64,7 @@ class Tests:
             "Moon Keys Bomb": Opening({'name': "Modern Defense: Bishop Attack, Monkey's Bum", 'eco': 'B06'}),
             "Goring Gambit Declined": Opening({'name': 'Scotch Game: Scotch Gambit, Göring Gambit Declined', 'eco': 'C44'}),
             "Goering Gambit": Opening({'name': 'Scotch Game: Göring Gambit', 'eco': 'C44'}),
+            "Anti Fried Liver": Opening({'name': 'Italian Game: Anti-Fried Liver Defense', 'eco': 'C50'}),
         }
         for name, expected in good_test_cases.items():
             opening = self.eco.phonetical_lookup(name, confidence=62)

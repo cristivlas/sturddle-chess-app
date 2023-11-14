@@ -630,7 +630,7 @@ class Assistant:
         result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
         if not result:
-            result = self._app.eco.phonetical_lookup(name, confidence=confidence)
+            result = self._app.eco.phonetical_lookup(name, confidence=75)
 
         return result
 
