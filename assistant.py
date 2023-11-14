@@ -111,10 +111,10 @@ _functions = [
                     'type': 'string',
                     'description': 'ECO code.'
                 },
-                'epd': {
-                    'type': 'string',
-                    'description': 'Extended Position Description',
-                },
+                # 'epd': {
+                #     'type': 'string',
+                #     'description': 'Extended Position Description',
+                # },
             },
             'required': ['name', 'eco']
         }
@@ -317,8 +317,8 @@ class Assistant:
     def __init__(self, app):
         self._app = weakref.proxy(app)
         self._ctxt = Context()
+        self._enabled = True
         self._register_funcs()
-        self.enabled = True
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
         self.retry_count = 3
@@ -334,6 +334,18 @@ class Assistant:
 
     def append_history(self, *, kind, request, result):
         self._ctxt.queries.append(Query(kind=kind, request=request, result=result))
+
+
+    @property
+    def enabled(self):
+        return self._enabled and self._app.speak_moves
+
+
+    @enabled.setter
+    def enabled(self, enable):
+        self._enabled = enable
+        if enable and not self._app.speak_moves:
+            self._app.speak_moves = True
 
 
     def _completion_request(self, user_request, messages, *, functions, function_call, temperature, timeout):
@@ -473,14 +485,13 @@ class Assistant:
 
             if func_result.response != AppLogic.FUNCTION:
                 self._ctxt.pop_function_call()
+                function_call = 'auto'
 
             if func_result.response == AppLogic.INVALID:
                 funcs = remove_func(funcs, func_name)
                 retry_count += 1
 
             elif func_result.response == AppLogic.RETRY:
-                timeout *= 2
-                temperature += self.temperature_increment
                 retry_count += 1
 
                 if func_result.data:
@@ -488,6 +499,9 @@ class Assistant:
                         'role': 'user',
                         'content': func_result.data
                     }
+                else:
+                    timeout *= 2
+                    temperature += self.temperature_increment
 
             elif func_result.response == AppLogic.FUNCTION:
                 current_message = {
@@ -495,7 +509,7 @@ class Assistant:
                     'name': func_name,
                     'content': json.dumps(func_result.data)
                 }
-                # function_call = 'none'
+                function_call = 'none'
 
             # Crucial to return True on success: prevent endless loops.
             else:
@@ -533,8 +547,8 @@ class Assistant:
                 if len(requested_openings) == 1:
                     # include details if looking up a single opening
                     result['eco'] = eco_opening.eco
-                    result['epd'] = eco_opening.epd
                     result['pgn'] = eco_opening.pgn
+                    # result['epd'] = eco_opening.epd
 
                 results.append(result)
 
@@ -563,9 +577,10 @@ class Assistant:
                 return FunctionResult(
                     AppLogic.RETRY,
                     (
-                        'The opening that you suggested is already in play. '
-                        'Suggest an opening with a move sequence not included in: '
-                    ) + f'{current}'
+                        f'The opening that you suggested is already in play.'
+                        f'Suggest another variation related to {self._ctxt.current_opening},'
+                        f'or another opening with a move sequence not included in: {current}.'
+                    )
                 )
             else:
                 self._schedule_action(lambda *_: self._app.play_opening(opening))
@@ -667,7 +682,9 @@ class Assistant:
 
         self._say(text)
 
-        if pgn:
+        if topic == self._ctxt.current_opening:
+            Logger.info(f'Assistant: {topic} matches current opening.')
+        elif pgn:
             self._schedule_action(lambda *_: self._app.play_pgn(pgn, topic))
 
 
