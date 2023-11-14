@@ -55,23 +55,28 @@ _functions = [
             'properties' : {
                 'name': {
                     'type': 'string',
-                    'description': 'A chess opening name.'
+                    'description': 'The name of a chess opening.'
                 },
             },
             'required': ['name']
         }
     },
     {
-        'name': 'present_answer_to_generic_query',
-        'description': 'Present the user with an answer to a question about a chess idea, concept or opening.',
+        'name': 'present_answer',
+        'description': 'Present an answer to a question about a chess idea, concept or opening.',
         'parameters': {
             'type': 'object',
             'properties' : {
                 'answer': {
                     'type': 'string',
-                    'description': 'Answer a question regarding the game of chess.'
+                    'description': 'Answer to a question regarding the game of chess.'
                 },
-            }
+                'topic' : {
+                    'type': 'string',
+                    'description': 'The topic of the answered question.'
+                }
+            },
+            'required': ['answer', 'topic']
         }
     },
     {
@@ -87,33 +92,6 @@ _functions = [
                     'description': 'puzzle theme'
                 },
             }
-        }
-    },
-    {
-        'name': 'present_list_of_opening_choices',
-        'description': 'Present a list of openings to the user.',
-        'parameters': {
-            'type': 'object',
-            'properties' : {
-                'openings' : {
-                    'type': 'array',
-                    'description': 'An array of chess openings.',
-                    'items': {
-                        'type': 'object',
-                        'properties': {
-                            'name': {
-                                'type': 'string',
-                                'description': _description,
-                            },
-                            'eco': {
-                                'type': 'string',
-                                'description': f'{_eco} classification code'
-                            },
-                        }
-                    }
-                }
-            },
-            'required': ['openings']
         }
     },
     {
@@ -144,7 +122,6 @@ _system_prompt = (
     'Always respond with JSON that conforms to the function call API.'
     #'Always use the full name of chess openings variations.'
     'Always refer to openings by their full, official names.'
-    # 'Avoid function calls when you already know the answer.'
 )
 
 
@@ -229,7 +206,6 @@ def get_token_count(model, messages, functions):
 class Context:
     def __init__(self):
         self.queries = []
-        self.invalid_puzzle_themes = set()
         self.current_opening = None
 
 
@@ -238,14 +214,6 @@ class Context:
         Construct a list of additional info to be applied to the system prompt.
         '''
         extra = []
-
-        # if self.invalid_puzzle_themes:
-        #     themes = ','.join(self.invalid_puzzle_themes)
-        #     extra.append(f'The following puzzle themes are not valid {themes}')
-
-        # pgn = app.transcribe(headers=None, variations=False, comments=False)[1]
-        # if pgn:
-        #     extra.append(f'The moves played so far are: {pgn}.')
 
         user_color = ['Black', 'White'][app.engine.opponent]
         extra.append(f'User is playing as {user_color}.')
@@ -388,7 +356,7 @@ class Assistant:
         self._ctxt.queries.append(Query(kind=kind, request=request, result=result))
 
 
-    def _completion_request(self, user_request, messages, *, functions, temperature, timeout):
+    def _completion_request(self, user_request, messages, *, functions, function_call, temperature, timeout):
         response = None
         headers = {
             'Content-Type': 'application/json',
@@ -399,10 +367,11 @@ class Assistant:
             'model': self.model,
             'messages': messages,
             'functions': functions,
+            'function_call': function_call,
             'temperature': temperature,
 
             # https://platform.openai.com/docs/guides/text-generation/json-mode
-            # 'response_format': {'type': 'json_object'},
+            #'response_format': {'type': 'json_object'},
         }
         try:
             response = requests.post(
@@ -462,20 +431,21 @@ class Assistant:
 
     def _handle_non_function(self, user_request, message):
         content = message['content']
+
         for retry in range(3):
             if not content:
                 break
             try:
                 response = json.loads(content)
                 if 'answer' in response:
-                    return self._handle_generic_query(user_request, response)
+                    return self._handle_answer(user_request, response)
                 else:
                     return FunctionResult(AppLogic.RETRY)
 
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self.respond(message['content'], user_request=user_request)
+        self._respond(message['content'], user_request=user_request)
         return FunctionResult()
 
 
@@ -499,6 +469,8 @@ class Assistant:
         }
 
         retry_count = 0
+        function_call = 'auto'
+
         while retry_count < self.retry_count:
             messages = self._ctxt.messages(
                 current_message,
@@ -514,6 +486,7 @@ class Assistant:
                 user_input,
                 messages,
                 functions=funcs,
+                function_call=function_call,
                 temperature=temperature,
                 timeout=timeout,
             )
@@ -536,6 +509,7 @@ class Assistant:
                     'name': func_name,
                     'content': json.dumps(func_result.data)
                 }
+                # function_call = 'none'
             # Crucial to return True on success: prevent endless loops.
             else:
                 return True
@@ -547,9 +521,9 @@ class Assistant:
     #
     # -------------------------------------------------------------------
 
-    def _handle_generic_query(self, user_request, inputs):
+    def _handle_answer(self, user_request, inputs):
         if answer := inputs.get('answer'):
-            self.respond(answer, user_request=user_request)
+            self._respond(answer, inputs.get('topic'), user_request=user_request)
             return FunctionResult(AppLogic.OK)
 
         return FunctionResult(AppLogic.INVALID)
@@ -570,42 +544,6 @@ class Assistant:
         return FunctionResult(AppLogic.FUNCTION, {
             'name': lookup_name, 'result': result
         })
-
-
-    def _handle_suggested_openings(self, user_request, inputs):
-        '''
-        Present the user with openings suggestion(s).
-        '''
-        choices = self._get_opening_choices(inputs, normalize=True)
-
-        if choices:
-            if len(choices) == 1:
-                self.append_history(
-                    kind='opening_selection',
-                    request=user_request,
-                    result=choices[0]
-                )
-                self._play_opening(choices[0])
-                return FunctionResult(AppLogic.OK)
-
-            elif choices:
-                self.append_history(
-                    kind='opening_choices',
-                    request=user_request,
-                    result=choices
-                )
-                self._show_choices(choices, prefix_msg=random.choice([
-                    'Consider these possibilities',
-                    'You might find these interesting',
-                    'How about these choices',
-                    'Take a look at these openings',
-                    'Here are some openings to consider',
-                    'These might catch your interest',
-                    'A few suggestions'
-                ]))
-                return FunctionResult(AppLogic.OK)
-
-        return FunctionResult(AppLogic.RETRY)
 
 
     def _handle_chess_opening(self, user_request, inputs):
@@ -631,7 +569,6 @@ class Assistant:
 
         puzzles = PuzzleCollection().filter(theme)
         if not puzzles:
-            self._ctxt.invalid_puzzle_themes.add(theme)
             return FunctionResult(AppLogic.INVALID)
 
         def play_puzzle():
@@ -659,8 +596,7 @@ class Assistant:
 
 
     def _register_funcs(self):
-        FunctionCall.register('present_answer_to_generic_query', self._handle_generic_query)
-        FunctionCall.register('present_list_of_opening_choices', self._handle_suggested_openings)
+        FunctionCall.register('present_answer', self._handle_answer)
         FunctionCall.register('play_chess_opening', self._handle_chess_opening)
         FunctionCall.register('select_chess_puzzles', self._handle_puzzle_theme)
         FunctionCall.register('lookup_opening', self._handle_lookup_opening)
@@ -671,32 +607,6 @@ class Assistant:
     # Miscellaneous helpers.
     #
     # -------------------------------------------------------------------
-
-    def _get_opening_choices(self, inputs, normalize=False):
-        '''
-        Validate and convert inputs to a list of opening choices.
-        '''
-        openings = inputs.get('openings', [])
-
-        # Expect the inputs to be a list of openings, each having a 'name'.
-        if any(('name' not in item for item in openings)):
-            return None
-
-        if normalize and len(openings) <= 5:
-            # "Normalize" the names. Lookups can get expensive.
-            choices = [self._lookup_opening(i) for i in openings]
-
-            # Retain name and eco only, unique names.
-            choices = {i.name: i.eco for i in choices if i}
-
-        else:
-            choices = {i['name']: i.get('eco') for i in openings}
-
-        # Convert back to list of dicts.
-        choices = [{'name': k, 'eco': v} for k,v in choices.items()]
-
-        return choices
-
 
     def _lookup_opening(self, choice, confidence=90):
         '''
@@ -736,19 +646,7 @@ class Assistant:
             self._schedule_action(lambda *_: self._app.text_bubble(text))
 
 
-    def _speak_response(self, text):
-        pgn = None
-        substs = substitutions(text).items()
-        for old, new in substs:
-            if not pgn:
-                pgn = old  # Hold on to the 1st occurence of a move sequence
-            text = text.replace(old, new, 1)
-        self._say(text)
-        if pgn:
-            self._schedule_action(lambda *_: self._app.play_pgn(pgn))
-
-
-    def respond(self, text, *, user_request):
+    def _respond(self, text, topic=None, *, user_request):
         '''
         Respond to a user question with speech and text bubble.
         '''
@@ -757,7 +655,23 @@ class Assistant:
             self.append_history(kind='generic', request=user_request, result=text)
 
         self._schedule_action(lambda *_: self._app.text_bubble(text))
-        self._speak_response(text)
+        self._speak_response(text, topic)
+
+
+    def _speak_response(self, text, topic):
+        pgn = None
+
+        # Substitute PGN snippets with pronounceable descriptions of the moves.
+        substs = substitutions(text).items()
+        for old, new in substs:
+            if not pgn:
+                pgn = old  # Hold on to the 1st occurence of a move sequence
+            text = text.replace(old, new, 1)
+
+        self._say(text)
+
+        if pgn:
+            self._schedule_action(lambda *_: self._app.play_pgn(pgn, topic))
 
 
     def _schedule_action(self, action, *_):
