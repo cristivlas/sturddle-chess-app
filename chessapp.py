@@ -737,9 +737,10 @@ class ChessApp(App):
             else:
                 if opening := self.eco.lookup(self.board_widget.model):
                     self.format_opening(opening['name'])
-                    self.assistant.add_opening(opening)
+                    self.assistant.set_game_info(opening)
                 else:
                     self.opening.text = ''
+                    self.assistant.set_game_info({'name': 'middlegame?'})
 
 
     def format_opening(self, opening_name):
@@ -1395,7 +1396,7 @@ class ChessApp(App):
                 self.board_widget.enable_variation_hints = True
                 move = self.moves_record.pop()
                 if in_animation:
-                    self.speak(self.describe_move(move, spell_digits=True))
+                    self.speak_move_description(move)
                 self.engine.apply(move)
             else:
                 self.redo_button.disabled = True
@@ -1718,6 +1719,10 @@ class ChessApp(App):
         return self.chat_assist(self.voice_input.get_user_input())
 
 
+    def speak_move_description(self, move):
+        self.speak(self.describe_move(move, spell_digits=True) + ' ... ')
+
+
     @property
     def speak_moves(self):
         return self.__speak_moves
@@ -1999,13 +2004,12 @@ class ChessApp(App):
 
 
         with TimerContext() as ctxt:
-            # call the chess engine
-            move = self._search_move(analysis_mode)
+            move = self._search_move(analysis_mode)  # call the chess engine
 
             ctxt._event.cancel()
 
             if move and not analysis_mode:
-                self.speak(self.describe_move(move, spell_digits=True))
+                self.speak_move_description(move)
 
             return move
 
@@ -2304,7 +2308,10 @@ class ChessApp(App):
 
     def on_search_complete(self, search, color, move, score, analysis=False, assist=None):
         '''
-        Callback that runs on search thread (background).
+        Callback that runs on the search thread (background).
+
+        In analysis mode, show (and speak) the evaluation.
+        If called on behalf of the Assistant, call it back asynchronously with the results.
         '''
         assert score != None
         def san(board, uci):
@@ -2334,15 +2341,13 @@ class ChessApp(App):
 
             if assist:
                 # Analysis done on behalf of the Assistant. Prepare result.
-                board = search.context.board().copy()
-
                 result = {
                     'function': assist[0],
                     'uci': move.uci(),
                     'best_move': self.describe_move(move, spell_digits=True),
                     'score': score,
-                    'pv': ' '.join([san(board, uci) for uci in pv]),
-                    'perspective': COLOR_NAMES[color],
+                    'pv': pv,
+                    'stm': COLOR_NAMES[color],
                 }
 
                 # Call back the assistant with the asynchronous result.

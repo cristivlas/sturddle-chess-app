@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
+import chess
 import json
 import logging
 import os
@@ -26,6 +27,7 @@ import weakref
 from collections import namedtuple
 from enum import Enum
 from functools import partial
+from itertools import zip_longest
 # from gpt_utils import get_token_count
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
@@ -52,6 +54,7 @@ _answer = 'answer'
 _content = 'content'
 _description = 'description'
 _eco = 'eco'
+_function = 'function'
 _items = 'items'
 _object = 'object'
 _openings = 'openings'
@@ -70,7 +73,7 @@ _user = 'user'
 ''' Functions.
 https://platform.openai.com/docs/guides/function-calling
 '''
-_functions = [
+_FUNCTIONS = [
     {
         _name: _analyze_position,
         _description: 'This function analyzes the current game position.',
@@ -143,10 +146,6 @@ _functions = [
                     _type: _string,
                     _description: 'ECO code.'
                 },
-                # 'epd': {
-                #     _type: _string,
-                #     _description: 'Extended Position Description',
-                # },
             },
             _required: [_name, _eco]
         }
@@ -154,16 +153,13 @@ _functions = [
 ]
 # print(json.dumps(_functions, indent=4))
 
+
 _system_prompt = (
     'You are a chess tutor that assists with openings and puzzles.'
-    'Your answers are run through a text-to-speech subsystem.'
     'Always use function calls.'
-    # Note: Request MUST contain JSON word for json-mode to work.
-    # https://platform.openai.com/docs/guides/text-generation/json-mode
-    #'always respond with JSON that conforms to the function call API; '
     'Always refer to openings and variations by their complete names.'
-    'Always analyze the board when asked for move recommendations, hints or PV.'
-    'You must always format principal variations (PV) as PGN ended with a dot.'
+    'Always call the analysis function when asked to provide move recommendations.'
+    'Do not suggest moves without calling analysis function.'
 )
 
 
@@ -305,14 +301,14 @@ class Context:
         return msgs
 
 
-    def add_opening(self, opening):
+    def set_game_info(self, info):
         '''
         Keep track of played openings, for future ideas.
         '''
-        if isinstance(opening, dict):
-            name, eco = opening[_name], opening[_eco]
+        if isinstance(info, dict):
+            name, eco = info[_name], info.get(_eco)
         else:
-            name, eco = opening.name, opening.eco
+            name, eco = info.name, info.eco
 
         if name != self.current_opening:
             self.current_opening = name
@@ -348,6 +344,33 @@ def remove_func(funcs, func_name):
     return list(funcs.values())  # convert back to list
 
 
+def format_pv(pv, board):
+    '''
+    Format PV as PGN. This helps with converting it to something pronounceable.
+    '''
+    pv = [board.san_and_push(chess.Move.from_uci(uci)) for uci in pv]
+    pv = zip_longest(pv[::2], pv[1::2], fillvalue='')
+    pv = ' '.join([f"{i}. {' '.join(pair)}" for i, pair in enumerate(pv, start=1)])
+    return pv
+
+
+def format_analysis(result, board):
+    '''
+    Format the result of the analyze_position function call.
+    '''
+    move = result['best_move']
+    pv = format_pv(result['pv'], board.copy())
+    stm = result['stm']
+    score = result['score']
+
+    result['pv'] = f'```{pv}.```'
+    result['best_move'] = f'```{move}```'
+    result['hint'] = f'The score {score} is from {stm}\'s perspective'
+
+    return json.dumps(result)
+
+
+
 class Assistant:
     def __init__(self, app):
         self._app = weakref.proxy(app)
@@ -365,8 +388,8 @@ class Assistant:
         self.token_limit = 2048
 
 
-    def add_opening(self, opening):
-        self._ctxt.add_opening(opening)
+    def set_game_info(self, info):
+        self._ctxt.set_game_info(info)
 
 
     def append_history(self, *, kind, request, result):
@@ -394,7 +417,7 @@ class Assistant:
         function_call,
         temperature,
         timeout,
-        result=None
+        async_result=None
     ):
         response = None
         headers = {
@@ -408,11 +431,10 @@ class Assistant:
             'functions': functions,
             'function_call': function_call,
             'temperature': temperature,
-
-            # https://platform.openai.com/docs/guides/text-generation/json-mode
-            #'response_format': {_type: 'json_object'},
         }
         try:
+            Logger.info(f'Assistant: posting request to {self.endpoint}')
+
             response = requests.post(
                 self.endpoint,
                 headers=headers,
@@ -422,13 +444,13 @@ class Assistant:
 
             if response:
                 return self._handle_api_response(
-                    user_request, json.loads(response.content), result
+                    user_request, json.loads(response.content), async_result
                 )
             else:
                 Logger.error(f'Assistant: {json.loads(response.content)}')
 
         except requests.exceptions.ReadTimeout as e:
-            Logger.warning(f'Assistant: _completion_requst failed: {e}')
+            Logger.warning(f'Assistant: request failed: {e}')
             return None, FunctionResult(AppLogic.RETRY)
 
         except:
@@ -437,7 +459,7 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_api_response(self, user_request, response, result=None):
+    def _handle_api_response(self, user_request, response, async_result=None):
         '''
         Handle response from the OpenAI API call.
         '''
@@ -448,7 +470,7 @@ class Assistant:
             reason = top['finish_reason']
 
             if reason != 'function_call':
-                return None, self._handle_non_function(reason, user_request, message, result)
+                return None, self._handle_non_function(reason, user_request, message, async_result)
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute(user_request)
@@ -502,7 +524,7 @@ class Assistant:
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
-        funcs = _functions
+        funcs = _FUNCTIONS
         temperature = self.initial_temperature
         timeout = self.requests_timeout
 
@@ -514,6 +536,19 @@ class Assistant:
         retry_count = 0
         function_call = 'auto'
 
+        result_message = None
+
+        if result:
+            function_call = 'none'  # Disable function calling.
+
+            func_name = result[_function]
+            if func_name == _analyze_position:
+                result_message = {
+                    _role: _function,
+                    _name: func_name,
+                    _content: format_analysis(result, self._app.engine.board),
+                }
+
         while retry_count < self.retry_count:
             messages = self._ctxt.messages(
                 current_message,
@@ -522,14 +557,8 @@ class Assistant:
                 functions=funcs,
                 token_limit=self.token_limit,
             )
-            if result:  # Asynchronous result?
-                func_name = result['function']
-                messages.append({
-                    _role: 'function',
-                    _name: func_name,
-                    _content: json.dumps(result)
-                })
-                function_call = 'none'
+            if result_message:
+                messages.append(result_message)
 
             Logger.debug(f'Assistant:\n{json.dumps(messages, indent=2)}')
 
@@ -539,7 +568,7 @@ class Assistant:
                 messages,
                 functions=funcs,
                 function_call=function_call,
-                result=result,
+                async_result=result,
                 temperature=temperature,
                 timeout=timeout,
             )
@@ -566,7 +595,7 @@ class Assistant:
 
             elif func_result.response == AppLogic.FUNCTION:
                 current_message = {
-                    _role: 'function',
+                    _role: _function,
                     _name: func_name,
                     _content: json.dumps(func_result.data)
                 }
@@ -576,6 +605,8 @@ class Assistant:
             else:
                 return True
 
+        Logger.error(f'Assistant: failed, retry={retry_count}/{self.retry_count}.')
+
 
     # -------------------------------------------------------------------
     #
@@ -584,6 +615,7 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _handle_analysis(self, user_request, inputs):
+        ''' Start async analysis, will call back when finished. '''
         self._app.analyze(assist=(_analyze_position, user_request))
         return FunctionResult(AppLogic.OK)
 
@@ -744,7 +776,7 @@ class Assistant:
         self._schedule_action(lambda *_: self._app.text_bubble(text))
 
         if result:
-            topic = result['function']
+            topic = result[_function]
 
         self._speak_response(text, topic)
 
@@ -762,7 +794,7 @@ class Assistant:
 
         self._say(text)
 
-        if topic in [self._ctxt.current_opening, _analyze_position]:
+        if topic and topic in [self._ctxt.current_opening, _analyze_position]:
             ...
 
         elif pgn:
