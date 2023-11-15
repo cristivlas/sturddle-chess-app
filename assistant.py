@@ -36,99 +36,134 @@ from transcribe import substitutions
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
 
-'''
-Functions.
-
-https://platform.openai.com/docs/guides/function-calling
-
-'''
-_description = 'A name or a detailed description, preferably including variations.'
-_eco = 'Encyclopedia of Chess Openings'
+_ECO = 'Encyclopedia of Chess Openings'
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
+''' Function names. '''
+_analyze_position = 'analyze_position'
+_lookup_openings = 'lookup_openings'
+_present_answer = 'present_answer'
+_select_chess_puzzles = 'select_chess_puzzles'
+_play_chess_opening = 'play_chess_opening'
+
+''' Schema constants. '''
+_array = 'array'
+_answer = 'answer'
+_content = 'content'
+_description = 'description'
+_eco = 'eco'
+_items = 'items'
+_object = 'object'
+_openings = 'openings'
+_role = 'role'
+_parameters = 'parameters'
+_properties = 'properties'
+_required = 'required'
+_name = 'name'
+_string = 'string'
+_system = 'system'
+_theme = 'theme'
+_topic = 'topic'
+_type = 'type'
+_user = 'user'
+
+''' Functions.
+https://platform.openai.com/docs/guides/function-calling
+'''
 _functions = [
     {
-        'name': 'lookup_openings',
-        'description': f'This function looks up chess openings by name in the {_eco}',
-        'parameters': {
-            'type': 'object',
-            'properties' : {
-                'openings': {
-                    'type': 'array',
-                    'description': 'The names to look up',
-                    'items': {
-                        'type': 'string',
+        _name: _analyze_position,
+        _description: 'This function analyzes the current game position.',
+        _parameters: {
+            _type: _object,
+            _properties: {}
+        }
+    },
+    {
+        _name: _lookup_openings,
+        _description: f'This function looks up chess openings by name in the {_ECO}',
+        _parameters: {
+            _type: _object,
+            _properties : {
+                _openings: {
+                    _type: _array,
+                    _description: 'The names to look up',
+                    _items: {
+                        _type: _string,
                     }
                 }
             },
-            'required': ['openings']
+            _required: [_openings]
         }
     },
     {
-        'name': 'present_answer',
-        'description': 'Present an answer to a question about a chess idea, concept or opening.',
-        'parameters': {
-            'type': 'object',
-            'properties' : {
-                'answer': {
-                    'type': 'string',
-                    'description': 'The answer to a question regarding chess.'
+        _name: _present_answer,
+        _description: 'Present an answer to a question about a chess idea, concept or opening.',
+        _parameters: {
+            _type: _object,
+            _properties : {
+                _answer: {
+                    _type: _string,
+                    _description: 'The answer to a question regarding chess.'
                 },
-                'topic' : {
-                    'type': 'string',
-                    'description': 'The topic of the answered question.'
+                _topic : {
+                    _type: _string,
+                    _description: 'The topic of the answered question.'
                 }
             },
-            'required': ['answer', 'topic']
+            _required: [_answer, _topic]
         }
     },
     {
-        'name': 'select_chess_puzzles',
-        'description': (
+        _name: _select_chess_puzzles,
+        _description: (
             'Select puzzles by theme. Must be called with a valid puzzle theme.'
         ) + 'The complete list of valid themes is: ' + ','.join(_valid_puzzle_themes),
-        'parameters': {
-            'type': 'object',
-            'properties' : {
-                'theme': {
-                    'type': 'string',
-                    'description': 'puzzle theme'
+        _parameters: {
+            _type: _object,
+            _properties : {
+                _theme: {
+                    _type: _string,
+                    _description: 'puzzle theme'
                 },
             }
         }
     },
     {
-        'name': 'play_chess_opening',
-        'description': 'Play an opening move sequence.',
-        'parameters': {
-            'type': 'object',
-            'properties' : {
-                'name': {
-                    'type': 'string',
-                    'description': 'The name of the opening.'
+        _name: _play_chess_opening,
+        _description: 'Play an opening move sequence.',
+        _parameters: {
+            _type: _object,
+            _properties : {
+                _name: {
+                    _type: _string,
+                    _description: 'The name of the opening.'
                 },
-                'eco': {
-                    'type': 'string',
-                    'description': 'ECO code.'
+                _eco: {
+                    _type: _string,
+                    _description: 'ECO code.'
                 },
                 # 'epd': {
-                #     'type': 'string',
-                #     'description': 'Extended Position Description',
+                #     _type: _string,
+                #     _description: 'Extended Position Description',
                 # },
             },
-            'required': ['name', 'eco']
+            _required: [_name, _eco]
         }
     },
 ]
+# print(json.dumps(_functions, indent=4))
 
 _system_prompt = (
-    'You are a chess tutor that assists with openings and puzzles. '
-    'You are embedded in a chess application, and you: '
-    'Always respond by making function calls; '
+    'You are a chess tutor that assists with openings and puzzles.'
+    'Your answers are run through a text-to-speech subsystem.'
+    'Always use function calls.'
     # Note: Request MUST contain JSON word for json-mode to work.
     # https://platform.openai.com/docs/guides/text-generation/json-mode
-    'always respond with JSON that conforms to the function call API; '
-    'always refer to openings and variations by their complete names.'
+    #'always respond with JSON that conforms to the function call API; '
+    'Always refer to openings and variations by their complete names.'
+    'Always analyze the board when asked for move recommendations, hints or PV.'
+    'You must always format principal variations (PV) as PGN ended with a dot.'
 )
 
 
@@ -206,7 +241,7 @@ class Context:
         user_color = ['Black', 'White'][app.engine.opponent]
         extra.append(f'User is playing as {user_color}.')
 
-        extra.append(f'Moves played so far: {app.get_current_play()}')
+        # extra.append(f'Moves played so far: {app.get_current_play()}')
 
         return extra
 
@@ -238,29 +273,29 @@ class Context:
 
     def _construct_messages(self, current_msg, app, model, functions):
         msgs = [{
-            'role': 'system',
-            'content': _system_prompt + '.'.join(self.system_extra(app))
+            _role: 'system',
+            _content: _system_prompt + '.'.join(self.system_extra(app))
         }]
 
         for item in self.queries:
-            msgs.append({'role': 'user', 'content': item.request})
+            msgs.append({_role: _user, _content: item.request})
             assist = {
-                'role': 'assistant',
-                'content': None
+                _role: 'assistant',
+                _content: None
             }
             if item.kind == Query.Kind.GENERIC:
-                assist['content'] = item.result
+                assist[_content] = item.result
 
             elif item.kind == Query.Kind.OPENING_SELECTION:
-                assist['content'] = str(item.result)
+                assist[_content] = str(item.result)
 
             elif item.kind == Query.Kind.PUZZLE_THEME:
-                assist['content'] = item.result
+                assist[_content] = item.result
 
             elif item.kind == Query.Kind.FUNCTION_CALL:
                 call = item.result
                 assist['function_call'] = {
-                    'name': call.name,
+                    _name: call.name,
                     'arguments': json.dumps(call.arguments),
                 }
             msgs.append(assist)
@@ -275,7 +310,7 @@ class Context:
         Keep track of played openings, for future ideas.
         '''
         if isinstance(opening, dict):
-            name, eco = opening['name'], opening['eco']
+            name, eco = opening[_name], opening[_eco]
         else:
             name, eco = opening.name, opening.eco
 
@@ -284,7 +319,7 @@ class Context:
             self.queries.append(Query(
                 kind='generic',
                 request=f'What is the current game?',
-                result=json.dumps({'name': name, 'eco': eco})
+                result=json.dumps({_name: name, _eco: eco})
             ))
 
 
@@ -307,7 +342,7 @@ def remove_func(funcs, func_name):
     '''
     Remove function named func_name from list of function dictionaries.
     '''
-    funcs = {f['name']:f for f in funcs if f['name'] != func_name}  # convert to dictionary
+    funcs = {f[_name]:f for f in funcs if f[_name] != func_name}  # convert to dictionary
     assert func_name not in funcs  # verify that it is removed
 
     return list(funcs.values())  # convert back to list
@@ -318,7 +353,9 @@ class Assistant:
         self._app = weakref.proxy(app)
         self._ctxt = Context()
         self._enabled = True
+        self._handlers = {}
         self._register_funcs()
+        self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
         self.retry_count = 3
@@ -348,7 +385,17 @@ class Assistant:
             self._app.speak_moves = True
 
 
-    def _completion_request(self, user_request, messages, *, functions, function_call, temperature, timeout):
+    def _completion_request(
+        self,
+        user_request,
+        messages,
+        *,
+        functions,
+        function_call,
+        temperature,
+        timeout,
+        result=None
+    ):
         response = None
         headers = {
             'Content-Type': 'application/json',
@@ -363,7 +410,7 @@ class Assistant:
             'temperature': temperature,
 
             # https://platform.openai.com/docs/guides/text-generation/json-mode
-            #'response_format': {'type': 'json_object'},
+            #'response_format': {_type: 'json_object'},
         }
         try:
             response = requests.post(
@@ -372,8 +419,11 @@ class Assistant:
                 json=json_data,
                 timeout=timeout,
             )
+
             if response:
-                return self._handle_api_response(user_request, json.loads(response.content))
+                return self._handle_api_response(
+                    user_request, json.loads(response.content), result
+                )
             else:
                 Logger.error(f'Assistant: {json.loads(response.content)}')
 
@@ -387,7 +437,7 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_api_response(self, user_request, response):
+    def _handle_api_response(self, user_request, response, result=None):
         '''
         Handle response from the OpenAI API call.
         '''
@@ -398,7 +448,7 @@ class Assistant:
             reason = top['finish_reason']
 
             if reason != 'function_call':
-                return None, self._handle_non_function(user_request, message)
+                return None, self._handle_non_function(reason, user_request, message, result)
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute(user_request)
@@ -421,33 +471,34 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_non_function(self, user_request, message):
-        content = message['content']
+    def _handle_non_function(self, reason, user_request, message, result):
+        content = message[_content]
 
         for retry in range(3):
             if not content:
                 break
             try:
                 response = json.loads(content)
-                if 'answer' in response:
-                    return self._handle_answer(user_request, response)
-                else:
-                    return FunctionResult(AppLogic.RETRY)
+
+                for k,h in self._handlers.items():
+                    if k in response:
+                        return h(user_request, response)
+                break
 
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self._respond(message['content'], user_request=user_request)
+        self._respond(message[_content], user_request=user_request, result=result)
         return FunctionResult()
 
 
     @staticmethod
     def _create_function_call(response):
         if call := response.get('function_call'):
-            return FunctionCall(call['name'], call['arguments'])
+            return FunctionCall(call[_name], call['arguments'])
 
 
-    def run(self, user_input):
+    def run(self, user_input, result=None):
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
@@ -456,8 +507,8 @@ class Assistant:
         timeout = self.requests_timeout
 
         current_message = {
-            'role': 'user',
-            'content': user_input,
+            _role: _user,
+            _content: user_input,
         }
 
         retry_count = 0
@@ -471,6 +522,15 @@ class Assistant:
                 functions=funcs,
                 token_limit=self.token_limit,
             )
+            if result:  # Asynchronous result?
+                func_name = result['function']
+                messages.append({
+                    _role: 'function',
+                    _name: func_name,
+                    _content: json.dumps(result)
+                })
+                function_call = 'none'
+
             Logger.debug(f'Assistant:\n{json.dumps(messages, indent=2)}')
 
             # Call the OpenAI API.
@@ -479,6 +539,7 @@ class Assistant:
                 messages,
                 functions=funcs,
                 function_call=function_call,
+                result=result,
                 temperature=temperature,
                 timeout=timeout,
             )
@@ -496,8 +557,8 @@ class Assistant:
 
                 if func_result.data:
                     current_message = {
-                        'role': 'user',
-                        'content': func_result.data
+                        _role: _user,
+                        _content: func_result.data
                     }
                 else:
                     timeout *= 2
@@ -505,9 +566,9 @@ class Assistant:
 
             elif func_result.response == AppLogic.FUNCTION:
                 current_message = {
-                    'role': 'function',
-                    'name': func_name,
-                    'content': json.dumps(func_result.data)
+                    _role: 'function',
+                    _name: func_name,
+                    _content: json.dumps(func_result.data)
                 }
                 function_call = 'none'
 
@@ -522,27 +583,32 @@ class Assistant:
     #
     # -------------------------------------------------------------------
 
+    def _handle_analysis(self, user_request, inputs):
+        self._app.analyze(assist=(_analyze_position, user_request))
+        return FunctionResult(AppLogic.OK)
+
+
     def _handle_answer(self, user_request, inputs):
-        if answer := inputs.get('answer'):
-            self._respond(answer, inputs.get('topic'), user_request=user_request)
+        if answer := inputs.get(_answer):
+            self._respond(answer, inputs.get(_topic), user_request=user_request)
             return FunctionResult(AppLogic.OK)
 
         return FunctionResult(AppLogic.INVALID)
 
 
     def _handle_lookup_openings(self, user_request, inputs):
-        requested_openings = inputs.get('openings')
+        requested_openings = inputs.get(_openings)
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
         results = []
         for name in requested_openings:
-            eco_opening = self._lookup_opening({'name': name})
+            eco_opening = self._lookup_opening({_name: name})
             if not eco_opening:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
             else:
                 result = {
-                    'name': eco_opening.name,
+                    _name: eco_opening.name,
                 }
                 if len(requested_openings) == 1:
                     # include details if looking up a single opening
@@ -556,7 +622,7 @@ class Assistant:
 
 
     def _handle_chess_opening(self, user_request, inputs):
-        if 'name' not in inputs:
+        if _name not in inputs:
             Logger.error(f'Assistant: {inputs}')
             return FunctionResult(AppLogic.INVALID)
 
@@ -591,7 +657,7 @@ class Assistant:
         '''
         Handle the suggestion of a puzzle theme.
         '''
-        theme = inputs.get('theme')
+        theme = inputs.get(_theme)
         if not theme:
             return FunctionResult(AppLogic.INVALID)
 
@@ -623,11 +689,19 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
+    def _register_handlers(self):
+        self._handlers[_answer] = self._handle_answer
+        self._handlers[_name] = self._handle_chess_opening
+        self._handlers[_theme] = self._handle_puzzle_theme
+        self._handlers[_openings] = self._handle_lookup_openings
+
+
     def _register_funcs(self):
-        FunctionCall.register('present_answer', self._handle_answer)
-        FunctionCall.register('play_chess_opening', self._handle_chess_opening)
-        FunctionCall.register('select_chess_puzzles', self._handle_puzzle_theme)
-        FunctionCall.register('lookup_openings', self._handle_lookup_openings)
+        FunctionCall.register(_analyze_position, self._handle_analysis)
+        FunctionCall.register(_present_answer, self._handle_answer)
+        FunctionCall.register(_play_chess_opening, self._handle_chess_opening)
+        FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
+        FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
 
 
     # -------------------------------------------------------------------
@@ -642,8 +716,8 @@ class Assistant:
         '''
         assert self._app.eco
 
-        name = choice['name']
-        eco = choice.get('eco')
+        name = choice[_name]
+        eco = choice.get(_eco)
         result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
         if not result:
@@ -655,10 +729,11 @@ class Assistant:
     @mainthread
     def _say(self, text):
         if text and self._app.speak_moves:
+            Logger.debug(f'Assistant: {text}')
             self._app.speak(text)
 
 
-    def _respond(self, text, topic=None, *, user_request):
+    def _respond(self, text, topic=None, *, user_request, result=None):
         '''
         Respond to a user question with speech and text bubble.
         '''
@@ -667,14 +742,19 @@ class Assistant:
             self.append_history(kind='generic', request=user_request, result=text)
 
         self._schedule_action(lambda *_: self._app.text_bubble(text))
+
+        if result:
+            topic = result['function']
+
         self._speak_response(text, topic)
 
 
     def _speak_response(self, text, topic):
         pgn = None
+        epd = self._app.engine.board.epd() if topic in [_analyze_position] else None
 
         # Substitute PGN snippets with pronounceable descriptions of the moves.
-        substs = substitutions(text).items()
+        substs = substitutions(text, epd).items()
         for old, new in substs:
             if not pgn:
                 pgn = old  # Hold on to the 1st occurence of a move sequence
@@ -682,8 +762,9 @@ class Assistant:
 
         self._say(text)
 
-        if topic == self._ctxt.current_opening:
-            Logger.info(f'Assistant: {topic} matches current opening.')
+        if topic in [self._ctxt.current_opening, _analyze_position]:
+            ...
+
         elif pgn:
             self._schedule_action(lambda *_: self._app.play_pgn(pgn, topic))
 

@@ -247,8 +247,11 @@ class Input:
 
         if command in actions:
             func = actions[command]
-            params = inspect.signature(func).parameters
-            if len(params):
+            params = [
+                p for p in inspect.signature(func).parameters.values()
+                if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ]
+            if params:
                 if not args:
                     return False
                 cmd = lambda *_: func(args)

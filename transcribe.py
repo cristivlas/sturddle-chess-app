@@ -28,8 +28,12 @@ def find_moves(text):
     return text[start:end]
 
 
-def describe_sequence(text):
+def describe_sequence(text, epd=None):
     moves = []
+
+    if epd:
+        text = f'[FEN "{epd}"]\n{text}'
+
     game = chess.pgn.read_game(io.StringIO(text))
     if game:
         # Iterate through all moves and play them on a board.
@@ -49,17 +53,17 @@ def describe_sequence(text):
         return ', '.join(moves)
 
 
-def substitutions(text):
+def substitutions(text, epd=None):
     '''
     Find sequences of moves that can be substituted with spoken descriptions.
     Return dictionary of substitutions.
     '''
-    fragments = re.split(' move | moves | \(', text)
+    fragments = re.split(' move | moves | \(|:|"', text)
     substs = {}
     for f in fragments:
         moves = find_moves(f)
         if moves:
-            descr = describe_sequence(moves)
+            descr = describe_sequence(moves, epd)
             if descr:
                 substs[moves] = descr
     return substs
@@ -142,7 +146,7 @@ def test_transcribe_moves():
             "attacking the black king. The King's Gambit is known for its sharp and tactical nature, and it often "
             "leads to dynamic and exciting positions on the board."
         )
-        ]
+        ],
     ]
 
     for test in test_cases:

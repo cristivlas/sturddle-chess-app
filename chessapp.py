@@ -490,7 +490,7 @@ class ChessApp(App):
         self.modal.popup.message_max_font_size = sp(14)
 
 
-    def analyze(self):
+    def analyze(self, *, assist=None):
         # Save current settings
         book = self.engine.book
         search_callback = self.engine.search_callback
@@ -504,9 +504,9 @@ class ChessApp(App):
                 self.engine.pause()
             self.update_status()
 
-        def on_analysis_complete(search, color, score):
+        def on_analysis_complete(search, color, move, score):
             try:
-                self.on_search_complete(search, color, score, analysis=True)
+                self.on_search_complete(search, color, move, score, analysis=True, assist=assist)
             finally:
                 self.engine.book = book
                 self.engine.depth_limit = depth_limit
@@ -2302,7 +2302,7 @@ class ChessApp(App):
         return f'{limit:2d} min'
 
 
-    def on_search_complete(self, search, color, score, analysis=False):
+    def on_search_complete(self, search, color, move, score, analysis=False, assist=None):
         '''
         Callback that runs on search thread (background).
         '''
@@ -2332,19 +2332,37 @@ class ChessApp(App):
             else:
                 score = f'{score/100:.1f}'
 
-            text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
+            if assist:
+                # Analysis done on behalf of the Assistant. Prepare result.
+                board = search.context.board().copy()
 
-            def show_eval_on_main_thread(text, *_):
-                self.show_comment(text)
-                if self.speak_moves:
-                    if distance_to_mate:
-                        moves = 'moves' if distance_to_mate > 1 else 'move'
-                        text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
-                    else:
-                        text = text.split('(')[0]  # strip the PV
-                    self.speak(text, True)
+                result = {
+                    'function': assist[0],
+                    'uci': move.uci(),
+                    'best_move': self.describe_move(move, spell_digits=True),
+                    'score': score,
+                    'pv': ' '.join([san(board, uci) for uci in pv]),
+                    'perspective': COLOR_NAMES[color],
+                }
 
-            Clock.schedule_once(partial(show_eval_on_main_thread, text), 0.1)
+                # Call back the assistant with the asynchronous result.
+                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], result=result))
+
+            else:
+                text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
+
+                def show_eval_on_main_thread(text, *_):
+                    self.show_comment(text)
+                    if self.speak_moves:
+                        if distance_to_mate:
+                            moves = 'moves' if distance_to_mate > 1 else 'move'
+                            text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
+                        else:
+                            text = text.split('(')[0]  # strip the PV
+
+                        self.speak(text, True)
+
+                Clock.schedule_once(partial(show_eval_on_main_thread, text), 0.1)
 
 
     def search_callback(self, search, millisec):
