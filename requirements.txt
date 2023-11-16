@@ -3,6 +3,7 @@ kivy
 Cython
 metaphone
 numpy
+num2words
 openai
 pyautogui
 plyer

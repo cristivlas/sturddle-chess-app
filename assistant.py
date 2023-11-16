@@ -43,7 +43,7 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 ''' Function names. '''
 _analyze_position = 'analyze_position'
-_get_game_transcript = 'get_PGN'
+_get_game_transcript = 'get_pgn'
 _lookup_openings = 'lookup_openings'
 _play_chess_opening = 'play_chess_opening'
 _present_answer = 'present_answer'
@@ -174,18 +174,18 @@ _FUNCTIONS = [
 # print(json.dumps(_FUNCTIONS, indent=4))
 
 _system_prompt = (
-    "You are a chess tutor embedded within a chess app, assisting with openings, puzzles, and game analysis. "
-    "When providing move recommendations or discussing game positions, always use the 'analyze_position' function. "
-    "This function is essential for analyzing the current game state and should be your primary tool for any in-game analysis or move suggestions. "
-    "Remember to always refer to the latest 'pgn' transcript provided for the current state of the game. "
-    "The 'pgn' data reflects all the recent moves and is crucial for accurate analysis and recommendations. "
-    "For questions about specific chess openings or demonstrating opening sequences, use the 'play_chess_opening' function, "
-    "but only when the user explicitly requests information about a particular opening by name or ECO code. "
-    "When asked to look up chess openings, refer to the 'lookup_openings' function, using complete names as per the Encyclopedia of Chess Openings. "
-    "If the conversation involves explaining chess concepts, openings, or responding to specific questions about chess ideas, "
-    "use the 'present_answer' function, ensuring that your response is aligned with the query's topic. "
-    "For selecting chess puzzles, the 'select_chess_puzzles' function should be used, focusing on the theme specified by the user. "
-    "Remember, do not suggest moves or game progressions without consulting the 'analyze_position' function to maintain accuracy and relevance."
+    f"You are a chess tutor in a chess app, guiding on openings, puzzles, "
+    f"and game analysis. Use {_analyze_position} specifically for analyzing the "
+    f"current board position and recommending moves. After a move recommendation, "
+    f"if asked how the game would look, focus only on the game progression from "
+    f"that recommended move forward. Consult {_get_game_transcript} to retrieve "
+    f"the game's full PGN transcript for a complete game overview. Use "
+    f"{_play_chess_opening} for demonstrating specific chess openings upon "
+    f"explicit requests with the opening name and ECO code. Employ {_lookup_openings} "
+    f"for detailed information on chess openings. Utilize {_present_answer} to "
+    f"clarify chess concepts and answer queries. Select puzzles with "
+    f"{_select_chess_puzzles} based on the user's theme. Base all strategies and "
+    f"suggestions on the latest game information and analysis."
 )
 
 
@@ -251,7 +251,7 @@ class Context:
         extra = []
 
         user_color = ['Black', 'White'][app.engine.opponent]
-        extra.append(f'User is playing as {user_color}. Override any information that indicates otherwise.')
+        extra.append(f' User is playing as {user_color}. Override any information that indicates otherwise.')
 
         return extra
 
@@ -776,7 +776,7 @@ class Assistant:
 
 
     def _speak_response(self, text, topic):
-        tts_text = substitute_chess_moves(text, ';')
+        tts_text = substitute_chess_moves(text, ';', True)
         self._say(tts_text)
 
 

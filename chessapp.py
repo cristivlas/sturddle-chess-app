@@ -532,15 +532,19 @@ class ChessApp(App):
             self.undo_move()
 
         def redo(*_):
-            if self.can_redo():
-                if not tts.is_speaking():
+            if tts.is_speaking():
+                Clock.schedule_once(redo, 0.5)
+
+            else:
+                if self.can_redo():
                     self.animation = True
                     self.redo_move(in_animation=True)
-                Clock.schedule_once(redo, 1)
-            else:
-                callback()
-                self.animation = False
-                self.update_button_states()
+                    Clock.schedule_once(redo)
+
+                else:
+                    callback()
+                    self.animation = False
+                    self.update_button_states()
 
         redo()
 
@@ -1720,7 +1724,7 @@ class ChessApp(App):
 
 
     def speak_move_description(self, move):
-        self.speak(self.describe_move(move, spell_digits=True) + ' ... ')
+        self.speak(self.describe_move(move, spell_digits=True))
 
 
     @property
@@ -2345,7 +2349,7 @@ class ChessApp(App):
                 # Analysis done on behalf of the Assistant. Prepare result.
                 result = {
                     'function': assist[0],
-                    'hint': 'PV does not include the recommended (best) move.',
+                    'hint': 'PV contains the moves that would follow after the recommended (best) move.',
                     'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
                     'recommend': san(search.context.board().copy(), move),

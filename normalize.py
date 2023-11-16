@@ -1,4 +1,5 @@
 import re
+from num2words import num2words
 
 # Regular expression for chess moves in SAN
 # \b: Word boundary to ensure we're capturing full moves.
@@ -13,16 +14,16 @@ import re
 # [\+#]?: Optional '+' or '#' at the end to denote check ('+') or checkmate ('#').
 
 #regex = r'\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
-regex = r'(?<! to | on )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
+regex = r'(?<! to | on |the )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
 
 
-def substitute_chess_moves(text, insert_delim=None):
+def substitute_chess_moves(text, insert_delim=None, num_words=False):
     '''
     Replace moves in SAN notation with pronounceable text, suitable for text-to-speech.
     '''
     def replace_match(match):
         move = match.group(1)
-        return translate_chess_move(move) + (insert_delim or '')
+        return translate_chess_move(move, num_words) + (insert_delim or '')
 
     # Replace each move in the text with its translated version
     translated_text = re.sub(regex, replace_match, text)
@@ -30,7 +31,7 @@ def substitute_chess_moves(text, insert_delim=None):
     return translated_text
 
 
-def translate_chess_move(move):
+def translate_chess_move(move, num_words=False):
     # Translation for each piece
     piece_dict = {'K': 'king', 'Q': 'queen', 'B': 'bishop', 'N': 'knight', 'R': 'rook'}
 
@@ -60,6 +61,9 @@ def translate_chess_move(move):
 
     # Extract only the destination square (last two characters)
     destination = move[-2:]
+
+    if num_words:
+        destination = destination.replace(destination[1], ' ' + num2words(destination[1]))
 
     # Piece or pawn?
     piece = piece_dict[move[0]] if move[0] in piece_dict else "pawn"
@@ -171,6 +175,10 @@ if __name__ == '__main__':
         [
             "pawn on c3",
             "pawn on c3"
+        ],
+        [
+            "the c3 pawn",
+            "the c3 pawn"
         ]
     ]
 
