@@ -600,6 +600,10 @@ class Engine:
                 if opening := eco.lookup(board):
                     title = opening['name']
                     game.headers['ECO'] = opening['eco']
+                    name = opening['name'].split(':')
+                    game.headers['Opening'] = name[0].strip()
+                    if len(name) > 1:
+                        game.headers['Variation'] = name[1].strip()
 
         if headers is not None:
             if self.is_game_over():

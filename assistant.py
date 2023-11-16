@@ -156,9 +156,10 @@ _FUNCTIONS = [
 
 _system_prompt = (
     'You are a chess tutor that assists with openings and puzzles.'
-    'Always use function calls.'
+    'Always use function calls. You are embedded in a chess app.'
     'Always refer to openings and variations by their complete names.'
-    'Always call the analysis function when asked for move recommendations.'
+    'Always call the analysis function when asked for move recommendations,'
+    'and in all cases that refer to the situation on the board.'
     'Do not suggest moves without calling the analysis function.'
 )
 
@@ -235,9 +236,7 @@ class Context:
         extra = []
 
         user_color = ['Black', 'White'][app.engine.opponent]
-        extra.append(f'User is playing as {user_color}.')
-
-        # extra.append(f'Moves played so far: {app.get_current_play()}')
+        extra.append(f'User is playing as {user_color}. Override any information that indicates otherwise.')
 
         return extra
 
@@ -312,11 +311,11 @@ class Context:
 
         if name != self.current_opening:
             self.current_opening = name
-            self.queries.append(Query(
-                kind='generic',
-                request=f'What is the current game?',
-                result=json.dumps({_name: name, _eco: eco})
-            ))
+            # self.queries.append(Query(
+            #     kind='generic',
+            #     request=f'What is the current game?',
+            #     result=json.dumps({_name: name, _eco: eco})
+            # ))
 
 
     @staticmethod

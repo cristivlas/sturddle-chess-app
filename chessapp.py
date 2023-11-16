@@ -740,7 +740,7 @@ class ChessApp(App):
                     self.assistant.set_game_info(opening)
                 else:
                     self.opening.text = ''
-                    self.assistant.set_game_info({'name': 'middle game?'})
+                    self.assistant.set_game_info({'name': None})
 
 
     def format_opening(self, opening_name):
@@ -2343,9 +2343,9 @@ class ChessApp(App):
 
             if assist:
                 # Analysis done on behalf of the Assistant. Prepare result.
-                score = float(score)
                 result = {
                     'function': assist[0],
+                    'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
                     'recommend': san(search.context.board().copy(), move),
                     'score': score,
