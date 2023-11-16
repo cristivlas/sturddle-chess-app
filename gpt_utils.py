@@ -1,3 +1,5 @@
+'''
+
 import tiktoken
 
 # https://stackoverflow.com/questions/77168202/calculating-total-tokens-for-api-request-to-chatgpt-including-functions
@@ -74,3 +76,15 @@ def get_token_count(model, messages, functions):
         func_token_count += func_end
     
     return msg_token_count + func_token_count
+'''
+
+
+def get_token_count(model, messages, functions):
+    '''
+    Quick-and-dirty workaround for tiktoken.so being broken on Android (bad ELF).
+    '''
+    msg = json.dumps(messages)
+    fun = json.dumps(functions)
+    tok = (len(msg) + len(fun)) / 4.5  # approximate characters per token.
+    return int(tok)
+

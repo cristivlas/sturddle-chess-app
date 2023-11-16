@@ -28,7 +28,7 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from itertools import zip_longest
-# from gpt_utils import get_token_count
+from gpt_utils import get_token_count
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
@@ -211,16 +211,6 @@ class Query:
         self.kind = Query._kinds[kind]
         self.request = request
         self.result = result
-
-
-def get_token_count(model, messages, functions):
-    '''
-    Quick-and-dirty workaround for tiktoken.so being broken on Android (bad ELF).
-    '''
-    msg = json.dumps(messages)
-    fun = json.dumps(functions)
-    tok = (len(msg) + len(fun)) / 4.5  # approximate characters per token.
-    return int(tok)
 
 
 class Context:
