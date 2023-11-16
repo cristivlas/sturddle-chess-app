@@ -175,6 +175,8 @@ _system_prompt = (
     "You are a chess tutor embedded within a chess app, assisting with openings, puzzles, and game analysis. "
     "When providing move recommendations or discussing game positions, always use the 'analyze_position' function. "
     "This function is essential for analyzing the current game state and should be your primary tool for any in-game analysis or move suggestions. "
+    "Remember to always refer to the latest 'pgn' transcript provided for the current state of the game. "
+    "The 'pgn' data reflects all the recent moves and is crucial for accurate analysis and recommendations. "
     "For questions about specific chess openings or demonstrating opening sequences, use the 'play_chess_opening' function, "
     "but only when the user explicitly requests information about a particular opening by name or ECO code. "
     "When asked to look up chess openings, refer to the 'lookup_openings' function, using complete names as per the Encyclopedia of Chess Openings. "
@@ -591,7 +593,15 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _handle_analysis(self, user_request, inputs):
-        ''' Start async analysis, will call back when finished. '''
+
+        if self._app.engine.is_game_over():
+            return FunctionResult(AppLogic.FUNCTION, str({
+                'function': _analyze_position,
+                'pgn': self._app.transcribe()[1],
+                'result': self._app.engine.result()
+            }))
+
+        # Start async analysis, will call back when finished.
         self._app.analyze(assist=(_analyze_position, user_request))
         return FunctionResult(AppLogic.OK)
 
@@ -600,7 +610,7 @@ class Assistant:
         _, pgn = self._app.transcribe()
         result = {
             'pgn': pgn,
-        } 
+        }
         return FunctionResult(AppLogic.FUNCTION, result)
 
 
