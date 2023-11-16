@@ -1,5 +1,6 @@
-'''
+import json
 
+'''
 import tiktoken
 
 # https://stackoverflow.com/questions/77168202/calculating-total-tokens-for-api-request-to-chatgpt-including-functions

@@ -43,10 +43,11 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 ''' Function names. '''
 _analyze_position = 'analyze_position'
+_get_game_transcript = 'get_PGN'
 _lookup_openings = 'lookup_openings'
+_play_chess_opening = 'play_chess_opening'
 _present_answer = 'present_answer'
 _select_chess_puzzles = 'select_chess_puzzles'
-_play_chess_opening = 'play_chess_opening'
 
 ''' Schema constants. '''
 _array = 'array'
@@ -67,6 +68,7 @@ _string = 'string'
 _system = 'system'
 _theme = 'theme'
 _topic = 'topic'
+_transcript = 'transcript'
 _type = 'type'
 _user = 'user'
 
@@ -77,6 +79,18 @@ _FUNCTIONS = [
     {
         _name: _analyze_position,
         _description: 'This function analyzes the current game position.',
+        _parameters: {
+            _type: _object,
+            _properties: {}
+        }
+    },
+    {
+        _name: _get_game_transcript,
+        _description: (
+            'This function returns the PGN transcript of the current game,'
+            'which includes information about the opening being played and '
+            'the list of moves played so far.'
+        ),
         _parameters: {
             _type: _object,
             _properties: {}
@@ -299,13 +313,7 @@ class Context:
         else:
             name, eco = info.name, info.eco
 
-        if name != self.current_opening:
-            self.current_opening = name
-            # self.queries.append(Query(
-            #     kind='generic',
-            #     request=f'What is the current game?',
-            #     result=json.dumps({_name: name, _eco: eco})
-            # ))
+        self.current_opening = name
 
 
     @staticmethod
@@ -331,7 +339,6 @@ def remove_func(funcs, func_name):
     assert func_name not in funcs  # verify that it is removed
 
     return list(funcs.values())  # convert back to list
-
 
 
 class Assistant:
@@ -582,6 +589,14 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
+    def _handle_get_transcript(self, user_request, inputs):
+        _, pgn = self._app.transcribe()
+        result = {
+            'pgn': pgn,
+        } 
+        return FunctionResult(AppLogic.FUNCTION, result)
+
+
     def _handle_answer(self, user_request, inputs):
         if answer := inputs.get(_answer):
             self._respond(answer, inputs.get(_topic), user_request=user_request)
@@ -608,7 +623,6 @@ class Assistant:
                     # include details if looking up a single opening
                     result['eco'] = eco_opening.eco
                     result['pgn'] = eco_opening.pgn
-                    # result['epd'] = eco_opening.epd
 
                 results.append(result)
 
@@ -685,17 +699,18 @@ class Assistant:
 
     def _register_handlers(self):
         self._handlers[_answer] = self._handle_answer
+        self._handlers[_openings] = self._handle_lookup_openings
         self._handlers[_name] = self._handle_chess_opening
         self._handlers[_theme] = self._handle_puzzle_theme
-        self._handlers[_openings] = self._handle_lookup_openings
 
 
     def _register_funcs(self):
         FunctionCall.register(_analyze_position, self._handle_analysis)
+        FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_present_answer, self._handle_answer)
         FunctionCall.register(_play_chess_opening, self._handle_chess_opening)
         FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
-        FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
+        FunctionCall.register(_get_game_transcript, self._handle_get_transcript)
 
 
     # -------------------------------------------------------------------
