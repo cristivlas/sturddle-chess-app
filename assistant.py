@@ -50,12 +50,14 @@ _present_answer = 'present_answer'
 _select_chess_puzzles = 'select_chess_puzzles'
 
 ''' Schema constants. '''
+_arguments = 'arguments'
 _array = 'array'
 _answer = 'answer'
 _content = 'content'
 _description = 'description'
 _eco = 'eco'
 _function = 'function'
+_function_call = 'function_call'
 _items = 'items'
 _object = 'object'
 _openings = 'openings'
@@ -225,7 +227,7 @@ class Query:
 
     _kinds = {
         'generic': Kind.GENERIC,
-        'function_call': Kind.FUNCTION_CALL,
+        _function_call: Kind.FUNCTION_CALL,
         'opening_selection': Kind.OPENING_SELECTION,
         'puzzle_theme': Kind.PUZZLE_THEME,
     }
@@ -302,9 +304,9 @@ class Context:
 
             elif item.kind == Query.Kind.FUNCTION_CALL:
                 call = item.result
-                assist['function_call'] = {
+                assist[_function_call] = {
                     _name: call.name,
-                    'arguments': json.dumps(call.arguments),
+                    _arguments: json.dumps(call.arguments),
                 }
             msgs.append(assist)
 
@@ -408,7 +410,7 @@ class Assistant:
             'model': self.model,
             'messages': messages,
             'functions': functions,
-            'function_call': function_call,
+            _function_call: function_call,
             'temperature': temperature,
         }
         try:
@@ -448,7 +450,9 @@ class Assistant:
             message = top['message']
             reason = top['finish_reason']
 
-            if reason != 'function_call':
+            if reason != _function_call:
+                Logger.info(f'Assistant: {reason}')
+
                 return None, self._handle_non_function(reason, user_request, message, async_result)
 
             elif function_call := self._create_function_call(message):
@@ -459,7 +463,7 @@ class Assistant:
 
                 if result.response == AppLogic.FUNCTION:
                     self.append_history(
-                        kind='function_call',
+                        kind=_function_call,
                         request=user_request,
                         result=function_call,
                     )
@@ -495,8 +499,8 @@ class Assistant:
 
     @staticmethod
     def _create_function_call(response):
-        if call := response.get('function_call'):
-            return FunctionCall(call[_name], call['arguments'])
+        if call := response.get(_function_call):
+            return FunctionCall(call[_name], call[_arguments])
 
 
     def run(self, user_input, result=None):
