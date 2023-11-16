@@ -135,7 +135,7 @@ _FUNCTIONS = [
         _name: _select_chess_puzzles,
         _description: (
             'Select puzzles by theme. Must be called with a valid puzzle theme.'
-        ) + 'The complete list of valid themes is: ' + ','.join(_valid_puzzle_themes),
+        ) + 'The complete list of valid themes is: ' + ', '.join(_valid_puzzle_themes),
         _parameters: {
             _type: _object,
             _properties : {
@@ -148,7 +148,11 @@ _FUNCTIONS = [
     },
     {
         _name: _play_chess_opening,
-        _description: 'Play an opening move sequence.',
+        _description: (
+            'Play an opening move sequence.'
+            'This function should not be used for general game analysis or to predict '
+            'game progression but is reserved for specific requests about openings.'
+        ),
         _parameters: {
             _type: _object,
             _properties : {
@@ -165,16 +169,19 @@ _FUNCTIONS = [
         }
     },
 ]
-# print(json.dumps(_functions, indent=4))
-
+# print(json.dumps(_FUNCTIONS, indent=4))
 
 _system_prompt = (
-    'You are a chess tutor that assists with openings and puzzles.'
-    'Always use function calls. You are embedded in a chess app.'
-    'Always refer to openings and variations by their complete names.'
-    'Always call the analysis function when asked for move recommendations,'
-    'and in all cases that refer to the situation on the board.'
-    'Do not suggest moves without calling the analysis function.'
+    "You are a chess tutor embedded within a chess app, assisting with openings, puzzles, and game analysis. "
+    "When providing move recommendations or discussing game positions, always use the 'analyze_position' function. "
+    "This function is essential for analyzing the current game state and should be your primary tool for any in-game analysis or move suggestions. "
+    "For questions about specific chess openings or demonstrating opening sequences, use the 'play_chess_opening' function, "
+    "but only when the user explicitly requests information about a particular opening by name or ECO code. "
+    "When asked to look up chess openings, refer to the 'lookup_openings' function, using complete names as per the Encyclopedia of Chess Openings. "
+    "If the conversation involves explaining chess concepts, openings, or responding to specific questions about chess ideas, "
+    "use the 'present_answer' function, ensuring that your response is aligned with the query's topic. "
+    "For selecting chess puzzles, the 'select_chess_puzzles' function should be used, focusing on the theme specified by the user. "
+    "Remember, do not suggest moves or game progressions without consulting the 'analyze_position' function to maintain accuracy and relevance."
 )
 
 

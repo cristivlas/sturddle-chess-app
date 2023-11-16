@@ -13,7 +13,7 @@ import re
 # [\+#]?: Optional '+' or '#' at the end to denote check ('+') or checkmate ('#').
 
 #regex = r'\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
-regex = r'(?<! to )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
+regex = r'(?<! to | on )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
 
 
 def substitute_chess_moves(text, insert_delim=None):
@@ -167,6 +167,10 @@ if __name__ == '__main__':
         [
             "king to c3",
             "king to c3"
+        ],
+        [
+            "pawn on c3",
+            "pawn on c3"
         ]
     ]
 

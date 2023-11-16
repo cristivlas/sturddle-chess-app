@@ -2345,6 +2345,7 @@ class ChessApp(App):
                 # Analysis done on behalf of the Assistant. Prepare result.
                 result = {
                     'function': assist[0],
+                    'hint': 'PV does not include the recommended (best) move.',
                     'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
                     'recommend': san(search.context.board().copy(), move),
@@ -2352,9 +2353,10 @@ class ChessApp(App):
                     'side_to_move': COLOR_NAMES[color],
                     'winning': COLOR_NAMES[winning_side],
                 }
-
                 # Call back the assistant with the asynchronous result.
-                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], result=result))
+                Logger.info('Assistant: asynchronous callback.')
+
+                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], result=result), 0.1)
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
