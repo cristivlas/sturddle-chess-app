@@ -740,7 +740,7 @@ class ChessApp(App):
                     self.assistant.set_game_info(opening)
                 else:
                     self.opening.text = ''
-                    self.assistant.set_game_info({'name': 'middlegame?'})
+                    self.assistant.set_game_info({'name': 'middle game?'})
 
 
     def format_opening(self, opening_name):
@@ -2316,15 +2316,17 @@ class ChessApp(App):
         assert score != None
         def san(board, uci):
             try:
-                return board.san_and_push(chess.Move.from_uci(uci))
+                if not isinstance(uci, chess.Move):
+                    uci = chess.Move.from_uci(uci)
+                return board.san_and_push(uci)
             except:
                 return ''
 
-        def format_pv(pv):
-            if self.engine.notation == 'san':
-                board = search.context.board().copy()
-                pv = [san(board, uci) for uci in pv]
-            return ' '.join(pv[not analysis:])
+        def format_pv(pv, *, start):
+            assert analysis
+            board = search.context.board().copy()
+            pv = [san(board, uci) for uci in pv]
+            return ' '.join(pv[start:])
 
         if analysis and not self.engine.is_game_over():
             pv = self.engine.pv
@@ -2341,20 +2343,21 @@ class ChessApp(App):
 
             if assist:
                 # Analysis done on behalf of the Assistant. Prepare result.
+                score = float(score)
                 result = {
                     'function': assist[0],
-                    'uci': move.uci(),
-                    'best_move': self.describe_move(move, spell_digits=True),
+                    'pv': format_pv(pv, start=1),
+                    'recommend': san(search.context.board().copy(), move),
                     'score': score,
-                    'pv': pv,
-                    'stm': COLOR_NAMES[color],
+                    'side_to_move': COLOR_NAMES[color],
+                    'winning': COLOR_NAMES[winning_side],
                 }
 
                 # Call back the assistant with the asynchronous result.
                 Clock.schedule_once(lambda *_: self.assistant.run(assist[1], result=result))
 
             else:
-                text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv)})"
+                text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
 
                 def show_eval_on_main_thread(text, *_):
                     self.show_comment(text)

@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
-import chess
+
 import json
 import logging
 import os
@@ -31,9 +31,9 @@ from itertools import zip_longest
 # from gpt_utils import get_token_count
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
+from normalize import substitute_chess_moves
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
-from transcribe import substitutions
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
@@ -158,8 +158,8 @@ _system_prompt = (
     'You are a chess tutor that assists with openings and puzzles.'
     'Always use function calls.'
     'Always refer to openings and variations by their complete names.'
-    'Always call the analysis function when asked to provide move recommendations.'
-    'Do not suggest moves without calling analysis function.'
+    'Always call the analysis function when asked for move recommendations.'
+    'Do not suggest moves without calling the analysis function.'
 )
 
 
@@ -344,32 +344,6 @@ def remove_func(funcs, func_name):
     return list(funcs.values())  # convert back to list
 
 
-def format_pv(pv, board):
-    '''
-    Format PV as PGN. This helps with converting it to something pronounceable.
-    '''
-    pv = [board.san_and_push(chess.Move.from_uci(uci)) for uci in pv]
-    pv = zip_longest(pv[::2], pv[1::2], fillvalue='')
-    pv = ' '.join([f"{i}. {' '.join(pair)}" for i, pair in enumerate(pv, start=1)])
-    return pv
-
-
-def format_analysis(result, board):
-    '''
-    Format the result of the analyze_position function call.
-    '''
-    move = result['best_move']
-    pv = format_pv(result['pv'], board.copy())
-    stm = result['stm']
-    score = result['score']
-
-    result['pv'] = f'```{pv}.```'
-    result['best_move'] = f'```{move}```'
-    result['hint'] = f'The score {score} is from {stm}\'s perspective'
-
-    return json.dumps(result)
-
-
 
 class Assistant:
     def __init__(self, app):
@@ -541,13 +515,12 @@ class Assistant:
         if result:
             function_call = 'none'  # Disable function calling.
 
-            func_name = result[_function]
-            if func_name == _analyze_position:
-                result_message = {
-                    _role: _function,
-                    _name: func_name,
-                    _content: format_analysis(result, self._app.engine.board),
-                }
+            func_name = result.pop(_function)
+            result_message = {
+                _role: _function,
+                _name: func_name,
+                _content: json.dumps(result),
+            }
 
         while retry_count < self.retry_count:
             messages = self._ctxt.messages(
@@ -774,31 +747,12 @@ class Assistant:
             self.append_history(kind='generic', request=user_request, result=text)
 
         self._schedule_action(lambda *_: self._app.text_bubble(text))
-
-        if result:
-            topic = result[_function]
-
         self._speak_response(text, topic)
 
 
     def _speak_response(self, text, topic):
-        pgn = None
-        epd = self._app.engine.board.epd() if topic in [_analyze_position] else None
-
-        # Substitute PGN snippets with pronounceable descriptions of the moves.
-        substs = substitutions(text, epd).items()
-        for old, new in substs:
-            if not pgn:
-                pgn = old  # Hold on to the 1st occurence of a move sequence
-            text = text.replace(old, new, 1)
-
-        self._say(text)
-
-        if topic and topic in [self._ctxt.current_opening, _analyze_position]:
-            ...
-
-        elif pgn:
-            self._schedule_action(lambda *_: self._app.play_pgn(pgn, topic))
+        tts_text = substitute_chess_moves(text, ';')
+        self._say(tts_text)
 
 
     def _schedule_action(self, action, *_):
