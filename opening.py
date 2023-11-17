@@ -43,11 +43,13 @@ def _preprocess(input):
 Representation of a chess opening.
 '''
 class Opening:
-    def __init__(self, row):
+    def __init__(self, row, match=None, score=None):
         '''
         Construct Opening object for ECO database row.
         '''
         self.row = row
+        self.match = match
+        self.score = score
 
     @property
     def name(self):
@@ -142,7 +144,7 @@ class ECO:
         return row
 
 
-    def phonetical_lookup(self, name, *, confidence=65):
+    def phonetical_lookup(self, name, *, confidence=75):
         openings = self.by_phonetic_name
         phonetic_name = _preprocess(name)
 
@@ -159,7 +161,7 @@ class ECO:
 
                 Logger.debug(f'phonetical: matched_name="{matched_name}" result={result}')
                 if result and result[1] >= confidence:
-                    return Opening(row)
+                    return Opening(row, match='phonetic', score=result[1])
 
 
     @staticmethod
@@ -243,7 +245,7 @@ class ECO:
                         best_match, best_score = match, score
 
         if best_match:
-            return Opening(dict[best_match])
+            return Opening(dict[best_match], match='name', score=best_score)
 
 
     def openings(self):

@@ -39,7 +39,8 @@ from worker import WorkerThread
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
 
-_ECO = 'Encyclopedia of Chess Openings'
+#_ECO = 'Encyclopedia of Chess Openings'
+_ECO = 'ECO'
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 ''' Function names. '''
@@ -101,7 +102,11 @@ _FUNCTIONS = [
     },
     {
         _name: _lookup_openings,
-        _description: f'This function looks up chess openings by name in the {_ECO}',
+        _description: (
+            f'This function searches chess openings by name in the {_ECO}. '
+            f'It uses fuzzy matching algorithms. You must always pay attention '
+            f'to the matching scores and matching criteria of the results.'
+        ),
         _parameters: {
             _type: _object,
             _properties : {
@@ -186,11 +191,11 @@ _system_prompt = (
     f"for detailed information on chess openings. Utilize {_present_answer} to "
     f"clarify chess concepts and answer queries. Select puzzles with "
     f"{_select_chess_puzzles} based on the user's theme. Base all strategies and "
-    f"suggestions on the latest game information and analysis. "
-
-    f"When you list openings, gambits, or other options, you must "
-    f"always insert a semicolon after each item for distinct pauses "
-    f"(example: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game)."
+    f"suggestions on the latest game information and analysis. Always include in "
+    f"your answers the result scores and matching criteria for {_lookup_openings}. "
+    f"When listing openings, gambits, or other options, you must "
+    f"always insert semicolons after each item for distinct pauses "
+    f"(e.g.: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game)."
 )
 
 
@@ -372,6 +377,7 @@ class Assistant:
         self._ctxt = Context()
         self._enabled = True
         self._handlers = {}
+        self._cached_openings = {}
         self._register_funcs()
         self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
@@ -380,7 +386,7 @@ class Assistant:
         self.requests_timeout = 3.0
         self.initial_temperature = 0.01
         self.temperature_increment = 0.01
-        self.token_limit = 2048
+        self.token_limit = 3072
         self._worker = WorkerThread()
 
 
@@ -531,7 +537,7 @@ class Assistant:
             self._app.update()
 
         self._busy = True
-        self._app.menu_button.start_rotation()
+        self._app.start_spinner()
         self._worker.send_message(run_in_background)
 
         return True
@@ -670,10 +676,14 @@ class Assistant:
             eco_opening = self._search_opening({_name: name})
             if not eco_opening:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
+
             else:
                 result = {
                     _name: eco_opening.name,
+                    'matched_by': eco_opening.match,
+                    'result_score': eco_opening.score,
                 }
+
                 if len(requested_openings) == 1:
                     # include details if looking up a single opening
                     result['eco'] = eco_opening.eco
@@ -782,10 +792,17 @@ class Assistant:
 
         name = choice[_name]
         eco = choice.get(_eco)
-        result = self._app.eco.name_lookup(name, eco, confidence=confidence)
+
+        result = self._cached_openings.get(name)
 
         if not result:
-            result = self._app.eco.phonetical_lookup(name)
+            result = self._app.eco.name_lookup(name, eco, confidence=confidence)
+
+            if not result:
+                result = self._app.eco.phonetical_lookup(name)
+
+            if result:
+                self._cached_openings[result.name] = result
 
         return result
 

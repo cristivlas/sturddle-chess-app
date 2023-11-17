@@ -234,8 +234,10 @@ class Engine:
         return len(moves_list) > 1 and not self.busy
 
 
-    """ Check if last two (half) moves match the Redo list """
     def check_redo(self):
+        '''
+        Check if last two (half) moves match the Redo list
+        '''
         if self.redo_list:
             if self.redo_list[-2:] == self.last_moves():
                 self.redo_list = self.redo_list[:-2]

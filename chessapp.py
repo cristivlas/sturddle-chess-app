@@ -188,11 +188,12 @@ class RotatingActionPrevious(ActionPrevious):
         self.anim = None
 
     def start_rotation(self):
-        self.anim = Animation(angle=360, duration=5) + Animation(angle=0, duration=0)
-        self.anim.repeat = True
-        self.anim.start(self)
-        self.original_icon = self.app_icon
-        self.app_icon = self.spinner_icon  # Change to spinner icon
+        if not self.anim:
+            self.anim = Animation(angle=360, duration=3) + Animation(angle=0, duration=0)
+            self.anim.repeat = True
+            self.anim.start(self)
+            self.original_icon = self.app_icon
+            self.app_icon = self.spinner_icon  # Change to spinner icon
 
     def stop_rotation(self):
         if self.anim:
@@ -538,6 +539,9 @@ class ChessApp(App):
         def update_on_main_thread():
             if engine_paused:
                 self.engine.pause()
+
+            self.stop_spinner()
+            self.update_button_states()
             self.update_status()
 
         def on_analysis_complete(search, color, move, score):
@@ -558,6 +562,9 @@ class ChessApp(App):
         self.engine.search_complete_callback = on_analysis_complete
         if engine_paused:
             self.engine.resume(auto_move=False)
+
+        self.start_spinner()
+        self.update_button_states()
         self.engine.worker.send_message(partial(self.search_move, True))
 
 
@@ -727,31 +734,69 @@ class ChessApp(App):
 
 
     def can_auto_open(self):
-        return not self.in_game_animation and self.engine.can_auto_open()
+        return (
+            self.engine.can_auto_open() and
+            not self.in_game_animation and
+            not self.is_analyzing()
+        )
 
 
     def can_edit(self):
-        return not self.in_game_animation and not self.engine.busy
+        return (
+            not self.engine.busy and
+            not self.in_game_animation and
+            not self.is_analyzing()
+        )
+
+
+    def can_pause_play(self):
+        return (
+            not bool(self.edit) and
+            not self.in_game_animation and
+            not self.is_analyzing()
+        )
+
+
+    def can_switch(self):
+        ''' Can switch sides (i.e. flip the board)? '''
+        return (
+            self.engine.can_switch() and
+            not bool(self.edit) and  # The editor has its own button for this.
+            not self.is_analyzing()
+        )
 
 
     def can_use_assistant(self):
-        return self.openai_api_key and self.assistant.enabled and self.eco
+        return (
+            self.openai_api_key and
+            self.assistant.enabled and
+            not self.assistant.busy and
+            self.eco  # required for looking up openings
+        )
 
 
     def can_undo(self):
+        if self.is_analyzing():
+            return False
         if self.study_mode:
             return not self.puzzle and bool(self.engine.board.move_stack)
         return self.engine.can_undo()
 
 
     def can_redo(self):
+        if self.is_analyzing():
+            return False
         if self.study_mode:
             return not self.puzzle and self.moves_record.current_move
-        return self.engine.can_redo()
+        return self.engine.can_undo()
 
 
     def can_restart(self):
-        return not self.engine.busy and self.game_in_progress() and not self.in_game_animation
+        return (
+            not self.engine.busy and
+            self.game_in_progress() and  # otherwise there's nothing to restart
+            not self.in_game_animation
+        )
 
 
     def chat_assist(self, user_input):
@@ -775,6 +820,15 @@ class ChessApp(App):
         self.confirm('Exit application (game will be saved)', self.stop)
 
 
+    def format_opening(self, opening_name):
+        opening = opening_name
+        if not opening.endswith(' Opening'):
+            opening += ' Opening'
+
+        opening_name = f'[i][ref=https://www.google.com/search?q={opening}][b]{opening_name}[/b][/ref][/i]'
+        self.opening.text = opening_name
+
+
     def identify_opening(self):
         '''
         Use ECO categorization to match moves played so far against classic openings
@@ -791,13 +845,8 @@ class ChessApp(App):
                     self.assistant.set_game_info({'name': None})
 
 
-    def format_opening(self, opening_name):
-        opening = opening_name
-        if not opening.endswith(' Opening'):
-            opening += ' Opening'
-
-        opening_name = f'[i][ref=https://www.google.com/search?q={opening}][b]{opening_name}[/b][/ref][/i]'
-        self.opening.text = opening_name
+    def is_analyzing(self):
+        return self.engine.search_complete_callback != self.on_search_complete
 
 
     def load_game_study(self, store):
@@ -1158,9 +1207,9 @@ class ChessApp(App):
 
 
     def _status(self):
-        """
+        '''
         Get status text and background, to reflect application state. Called by update_status()
-        """
+        '''
         background = [0.4,0.7,0.6,0.45] if self.study_mode else FontScalingLabel.default_background
         if self.edit:
             return f'Edit Mode ({COLOR_NAMES[self.board_widget.model.turn]} to play)', background
@@ -1189,10 +1238,10 @@ class ChessApp(App):
         ]
 
 
-    """
-    Switch sides and rotate the board around.
-    """
     def flip_board(self):
+        '''
+        Switch sides and rotate the board around.
+        '''
         if self.engine.can_switch():
             self.board_widget.rotate()
             self.engine.opponent ^= True
@@ -1208,9 +1257,9 @@ class ChessApp(App):
         self.new_button.disabled = not self.can_restart()
         self.undo_button.disabled = bool(self.edit) or not self.can_undo()
         self.redo_button.disabled = bool(self.edit) or not self.can_redo()
-        self.switch_button.disabled = bool(self.edit) or not self.engine.can_switch()
+        self.switch_button.disabled = not self.can_switch()
         self.share_button.disabled = bool(self.edit) or not self.game_in_progress()
-        self.play_button.disabled = bool(self.edit) or self.in_game_animation
+        self.play_button.disabled = not self.can_pause_play()
         self.puzzles_button.disabled = self.in_game_animation
         self.settings_button.disabled = self.in_game_animation
         self.settings_menu_button.disabled = self.in_game_animation
@@ -1235,8 +1284,8 @@ class ChessApp(App):
     def update(self, move=None, show_comment=True):
         self.engine.bootstrap.set()
 
-        if not self.assistant.busy:
-            self.menu_button.stop_rotation()
+        if not self.engine.busy:
+            self.stop_spinner()
 
         with self.board_widget.model._lock:
             self.update_status()
@@ -1423,6 +1472,15 @@ class ChessApp(App):
         self.update_hash_usage()
         assert not self.puzzle
         self.puzzle_play = False
+
+
+    def start_spinner(self):
+        ''' Start spinning, indicating a (possibly long running) background task. '''
+        self.menu_button.start_rotation()
+
+
+    def stop_spinner(self):
+        self.menu_button.stop_rotation()
 
 
     def undo_move(self, b=None, long_press_delay=0.35):
