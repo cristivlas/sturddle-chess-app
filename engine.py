@@ -447,7 +447,7 @@ class Engine:
 
         search = self.search
 
-        if score:
+        if score is not None:
             self.search_complete_callback(search, self.board.turn, score)
 
         self.search = None
