@@ -461,7 +461,7 @@ def _from_clipboard():
 class ChessApp(App):
     icon = 'images/chess.png'
     font_awesome = 'fonts/Font Awesome 5 Free Solid.ttf'
-    engine_busy = ObjectProperty(bool)
+    engine_busy = ObjectProperty(bool)  # used in settings.kv
 
     # Node-per-second limits by "skill-level". The engine does not
     # implement strength levels, the application layer injects delays
@@ -527,6 +527,7 @@ class ChessApp(App):
         self.modal.popup.message_max_font_size = sp(14)
 
 
+    @mainthread
     def analyze(self, *, assist=None):
         # Save current settings
         book = self.engine.book
@@ -539,8 +540,11 @@ class ChessApp(App):
         def update_on_main_thread():
             if engine_paused:
                 self.engine.pause()
+            else:
+                # The engine may be paused by the user touching / clicking
+                # on the main button (which shows a spinner during analysis).
+                self.engine.resume(auto_move=False)
 
-            self.stop_spinner()
             self.update_button_states()
             self.update_status()
 
@@ -560,10 +564,10 @@ class ChessApp(App):
         self.engine.time_limit = self.analysis_time
         self.engine.search_callback = None
         self.engine.search_complete_callback = on_analysis_complete
+
         if engine_paused:
             self.engine.resume(auto_move=False)
 
-        self.start_spinner()
         self.update_button_states()
         self.engine.worker.send_message(partial(self.search_move, True))
 
@@ -735,43 +739,43 @@ class ChessApp(App):
 
     def can_auto_open(self):
         return (
-            self.engine.can_auto_open() and
-            not self.in_game_animation and
-            not self.is_analyzing()
+            self.engine.can_auto_open()
+            and not self.in_game_animation
+            and not self.is_analyzing()
         )
 
 
     def can_edit(self):
         return (
-            not self.engine.busy and
-            not self.in_game_animation and
-            not self.is_analyzing()
+            not self.engine.busy
+            and not self.in_game_animation
+            and not self.is_analyzing()
         )
 
 
     def can_pause_play(self):
         return (
-            not bool(self.edit) and
-            not self.in_game_animation and
-            not self.is_analyzing()
+            not bool(self.edit)
+            and not self.in_game_animation
+            and not self.is_analyzing()
         )
 
 
     def can_switch(self):
         ''' Can switch sides (i.e. flip the board)? '''
         return (
-            self.engine.can_switch() and
-            not bool(self.edit) and  # The editor has its own button for this.
-            not self.is_analyzing()
+            self.engine.can_switch()
+            and not bool(self.edit)  # The editor has its own button for this.
+            and not self.is_analyzing()
         )
 
 
     def can_use_assistant(self):
         return (
-            self.openai_api_key and
-            self.assistant.enabled and
-            not self.assistant.busy and
-            self.eco  # required for looking up openings
+            self.openai_api_key
+            and self.assistant.enabled
+            and not self.assistant.busy
+            and self.eco  # required for looking up openings
         )
 
 
@@ -788,14 +792,14 @@ class ChessApp(App):
             return False
         if self.study_mode:
             return not self.puzzle and self.moves_record.current_move
-        return self.engine.can_undo()
+        return self.engine.can_redo()
 
 
     def can_restart(self):
         return (
-            not self.engine.busy and
-            self.game_in_progress() and  # otherwise there's nothing to restart
-            not self.in_game_animation
+            not self.engine.busy
+            and self.game_in_progress()  # otherwise there's nothing to restart
+            and not self.in_game_animation
         )
 
 
@@ -1035,6 +1039,15 @@ class ChessApp(App):
         self.speech_input()  # start the voice user interface
 
 
+    def on_menu_button(self, btn, *_):
+        if self.is_analyzing():
+            self.engine.pause()  # Cancel analysis.
+        elif self.assistant.busy:
+            self.assistant.cancel()
+        else:
+            self.menu.open(btn)
+
+
     def speech_input(self, modal=True):
         def has_modal():
             return isinstance(Window.children[0], ModalView)
@@ -1272,7 +1285,12 @@ class ChessApp(App):
             self.edit_button.text = 'Edit Board'
             self.edit_button.on_release = self.edit_start
 
-        self.engine_busy = self.engine.busy  # Advertise busy state changes.
+        if self.is_analyzing():
+            self.start_spinner()
+        elif not self.assistant.busy:
+            self.stop_spinner()
+
+        self.engine_busy = self.engine.busy
 
 
     def update_hash_usage(self):
@@ -1283,9 +1301,6 @@ class ChessApp(App):
     @mainthread
     def update(self, move=None, show_comment=True):
         self.engine.bootstrap.set()
-
-        if not self.engine.busy:
-            self.stop_spinner()
 
         with self.board_widget.model._lock:
             self.update_status()
@@ -2467,7 +2482,7 @@ class ChessApp(App):
                 # Call back the assistant with the asynchronous result.
                 Logger.info('Assistant: asynchronous callback.')
 
-                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], result=result), 0.1)
+                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], callback_result=result), 0.1)
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"

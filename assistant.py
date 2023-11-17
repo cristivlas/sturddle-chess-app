@@ -205,6 +205,7 @@ class AppLogic(Enum):
     FUNCTION = 2
     RETRY = 3
     INVALID = 4
+    CANCELLED = 5
 
 
 FunctionResult = namedtuple('FunctionResult', 'response data', defaults=(AppLogic.NONE, None))
@@ -269,7 +270,7 @@ class Context:
         extra = []
 
         user_color = ['Black', 'White'][app.engine.opponent]
-        extra.append(f' User is playing as {user_color}. Override any information that indicates otherwise.')
+        extra.append(f' User is playing as {user_color}. Override anything that contradicts this.')
 
         return extra
 
@@ -374,6 +375,7 @@ class Assistant:
     def __init__(self, app):
         self._app = weakref.proxy(app)
         self._busy = False
+        self._cancelled = False
         self._ctxt = Context()
         self._enabled = True
         self._handlers = {}
@@ -390,22 +392,29 @@ class Assistant:
         self._worker = WorkerThread()
 
 
+    def append_history(self, *, kind, request, result):
+        self._ctxt.queries.append(Query(kind=kind, request=request, result=result))
+
+
+    def cancel(self):
+        if self._busy:
+            self._app.stop_spinner()
+            self._busy = False
+            self._cancelled = True
+
+
     @property
     def busy(self):
         return self._busy
 
 
-    def set_game_info(self, info):
-        self._ctxt.set_game_info(info)
-
-
-    def append_history(self, *, kind, request, result):
-        self._ctxt.queries.append(Query(kind=kind, request=request, result=result))
-
-
     @property
     def enabled(self):
-        return self._enabled and self._app.speak_moves
+        return (
+            self._app.speak_moves  # requires the voice interface, for now
+            and self._enabled
+            and not self._cancelled  # wait for the cancelled task to finish
+        )
 
 
     @enabled.setter
@@ -413,6 +422,10 @@ class Assistant:
         self._enabled = enable
         if enable and not self._app.speak_moves:
             self._app.speak_moves = True
+
+
+    def set_game_info(self, info):
+        self._ctxt.set_game_info(info)
 
 
     def _completion_request(
@@ -424,8 +437,11 @@ class Assistant:
         function_call,
         temperature,
         timeout,
-        async_result=None
+        callback_result=None
     ):
+        '''
+        Return a tuple containing the name of the handler (or None), and a FunctionResult.
+        '''
         response = None
         headers = {
             'Content-Type': 'application/json',
@@ -448,10 +464,15 @@ class Assistant:
                 json=json_data,
                 timeout=timeout,
             )
+            if self._cancelled:
+                Logger.info(f'Assistant: response cancelled')
+                return None, FunctionResult(AppLogic.CANCELLED)
 
             if response:
                 return self._handle_api_response(
-                    user_request, parse_json(response.content), async_result
+                    user_request,
+                    parse_json(response.content),
+                    callback_result
                 )
             else:
                 Logger.error(f'Assistant: {parse_json(response.content)}')
@@ -479,7 +500,8 @@ class Assistant:
             if reason != _function_call:
                 Logger.info(f'Assistant: {reason}')
 
-                return None, self._handle_non_function(reason, user_request, message, async_result)
+                result = self._handle_non_function(reason, user_request, message, async_result)
+                return None, result
 
             elif function_call := self._create_function_call(message):
                 result = function_call.execute(user_request)
@@ -530,10 +552,19 @@ class Assistant:
             return FunctionCall(call[_name], call[_arguments])
 
 
-    def run(self, user_input, result=None):
+    def run(self, user_input, callback_result=None):
+        assert not self._busy  # Caller must check the busy state.
+
+        if self._cancelled:
+            return False  # Wait for the cancelled job to finish.
+
+        if not user_input:
+            return False
+
         def run_in_background():
-            self._run(user_input, result)
+            self._run(user_input, callback_result)
             self._busy = False
+            self._cancelled = False
             self._app.update()
 
         self._busy = True
@@ -543,9 +574,8 @@ class Assistant:
         return True
 
 
-    def _run(self, user_input, result=None):
-        if not user_input.strip():
-            return False  # prevent useless, expensive calls
+    def _run(self, user_input, callback_result=None):
+        assert user_input
 
         funcs = _FUNCTIONS
         temperature = self.initial_temperature
@@ -561,14 +591,14 @@ class Assistant:
 
         result_message = None
 
-        if result:
+        if callback_result:
             function_call = 'none'  # Disable function calling.
 
-            func_name = result.pop(_function)
+            func_name = callback_result.pop(_function)
             result_message = {
                 _role: _function,
                 _name: func_name,
-                _content: json.dumps(result),
+                _content: json.dumps(callback_result),
             }
 
         while retry_count < self.retry_count:
@@ -590,10 +620,13 @@ class Assistant:
                 messages,
                 functions=funcs,
                 function_call=function_call,
-                async_result=result,
+                callback_result=callback_result,
                 temperature=temperature,
                 timeout=timeout,
             )
+
+            if func_result.response == AppLogic.CANCELLED:
+                return False
 
             if func_result.response != AppLogic.FUNCTION:
                 self._ctxt.pop_function_call()
@@ -623,11 +656,11 @@ class Assistant:
                 }
                 function_call = 'none'
 
-            # Crucial to return True on success: prevent endless loops.
             else:
                 return True
 
         Logger.error(f'Assistant: failed, retry={retry_count}/{self.retry_count}.')
+        self._respond('The request timed out.', user_request=user_input)
 
 
     # -------------------------------------------------------------------
