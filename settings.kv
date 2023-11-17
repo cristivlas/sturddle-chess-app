@@ -272,21 +272,21 @@
         size_hint_y: None
         height: dp(50)
         GridLayout:
-            cols: 4
+            cols: 3
             OptLabel:
                 text: 'OpenAI Key'
+
+            AwesomeActionButton:
+                text: ' \uF070 '
+                on_release: app.toggle_key_visible(self, api_key)
+
             TextInput:
                 id: api_key
                 size_hint: 1,1
                 multiline: False
                 password: True
-                text: '*****'
-            AwesomeActionButton:
-                text: ' \uF070 '
-                on_release: app.toggle_key_visible(self, api_key)
-            AwesomeActionButton:
-                text: ' \uF00C '
-                on_release: app.set_openai_key(api_key.text)
+                text: app.assistant.temp_key
+                on_text: app.assistant.temp_key = self.text
 
     OptGrid:
         OptLabel:

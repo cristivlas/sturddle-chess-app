@@ -612,6 +612,8 @@ class Engine:
         if headers is not None:
             if self.is_game_over():
                 game.headers['Result'] = self.result()
+            else:
+                game.headers.pop('Result', None)  # Do not include result for game in progress.
 
             for tag, val in headers.items():
                 game.headers[tag] = val

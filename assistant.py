@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import random
+import re
 import requests
 import weakref
 
@@ -104,8 +105,8 @@ _FUNCTIONS = [
         _name: _lookup_openings,
         _description: (
             f'This function searches chess openings by name in the {_ECO}. '
-            f'It uses fuzzy matching algorithms. You must always pay attention '
-            f'to the matching scores and matching criteria of the results.'
+            #f'It uses fuzzy matching algorithms. You must always pay attention '
+            #f'to the matching scores and matching criteria of the results.'
         ),
         _parameters: {
             _type: _object,
@@ -157,9 +158,7 @@ _FUNCTIONS = [
     {
         _name: _play_chess_opening,
         _description: (
-            'Play an opening move sequence.'
-            'This function should not be used for general game analysis or to predict '
-            'game progression but is reserved for specific requests about openings.'
+            'Set up the board by playing the move sequence of the specified opening.'
         ),
         _parameters: {
             _type: _object,
@@ -182,15 +181,20 @@ _FUNCTIONS = [
 _system_prompt = (
     f"You are a chess tutor in a chess app, guiding on openings, puzzles, "
     f"and game analysis. Use {_analyze_position} specifically for analyzing the "
-    f"current board position and recommending moves. After a move recommendation, "
-    f"if asked how the game would look, focus only on the game progression from "
-    f"that recommended move forward. Consult {_get_game_transcript} to retrieve "
-    f"the game's full PGN transcript for a complete game overview. Use "
-    f"{_play_chess_opening} for demonstrating specific chess openings. "
-    f"Employ {_lookup_openings} for detailed information on chess openings. "
-    f"Always include in your answers the result scores and matching criteria for "
-    f"{_lookup_openings}. When listing openings, gambits, or other options, you must "
-    f"always insert semicolons after each item for distinct text-to-speech pauses "
+    f"current board position and recommending best moves. After a move recommendation, "
+    f"if asked how the game would progress, focus only on how the game would go from "
+    f"the recommended move forward, but number the moves relative to the complete "
+    f"game history. Consult {_get_game_transcript} to retrieve the game's full PGN "
+    f"transcript for a complete game history and overview. Use {_play_chess_opening} "
+    f"for demonstrating specific chess openings or for setting up the board with an "
+    f"opening specified by the user. If the opening already matches the game currently "
+    f"in play, make sure to let the user know that no further action is needed. "
+    f"Employ {_lookup_openings} for searching for detailed information on chess openings. "
+    f"The results returned by {_lookup_openings} typically include scores that reflect "
+    f"how closely the results match the query, together with he matching criteria "
+    f"(name, phonetic). Always include in your answers the scores and matching criteria "
+    f"for {_lookup_openings} results. When listing openings, gambits, or other options, "
+    f"you must always insert semicolons after each item for distinct text-to-speech pauses "
     f"(e.g.: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game). Utilize "
     f"{_present_answer} to clarify chess concepts and answer queries. Select puzzles "
     f"with {_select_chess_puzzles} based on the user's theme. Base all strategies and "
@@ -712,8 +716,8 @@ class Assistant:
             else:
                 result = {
                     _name: eco_opening.name,
-                    'matched_by': eco_opening.match,
-                    'result_score': eco_opening.score,
+                    'match_criterion': eco_opening.match,
+                    'search_result_score': eco_opening.score,
                 }
 
                 if len(requested_openings) == 1:
@@ -859,7 +863,12 @@ class Assistant:
 
 
     def _speak_response(self, text, topic):
+        # Make sure St. George is pronounced Saint George, not Street George
+        tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
+
+        # Convert list of moves (in short algebraic notation - SAN) to pronounceable text
         tts_text = substitute_chess_moves(text, ';', True)
+
         self._say(tts_text)
 
 
@@ -868,13 +877,10 @@ class Assistant:
         Schedule action to run after all modal popups are dismissed.
 
         '''
-        from kivy.core.window import Window
-        from kivy.uix.modalview import ModalView
-
         if self._app.voice_input.is_running():
             self._app.voice_input.stop()
 
-        if isinstance(Window.children[0], ModalView):
+        if self._app.has_modal_views():
             Clock.schedule_once(partial(self._schedule_action, action), 0.1)
         else:
             Clock.schedule_once(lambda *_: action(), 0.1)

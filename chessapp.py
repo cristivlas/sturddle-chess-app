@@ -189,7 +189,7 @@ class RotatingActionPrevious(ActionPrevious):
 
     def start_rotation(self):
         if not self.anim:
-            self.anim = Animation(angle=360, duration=3) + Animation(angle=0, duration=0)
+            self.anim = Animation(angle=360, duration=1) + Animation(angle=0, duration=0)
             self.anim.repeat = True
             self.anim.start(self)
             self.original_icon = self.app_icon
@@ -853,6 +853,11 @@ class ChessApp(App):
         return self.engine.search_complete_callback != self.on_search_complete
 
 
+    @staticmethod
+    def has_modal_views():
+        return isinstance(Window.children[0], ModalView)
+
+
     def load_game_study(self, store):
         label = store.get('study_name', None)
         game = chess.pgn.read_game(StringIO(store.get('named_study', '')))
@@ -1049,8 +1054,6 @@ class ChessApp(App):
 
 
     def speech_input(self, modal=True):
-        def has_modal():
-            return isinstance(Window.children[0], ModalView)
 
         if all((
             self.speak_moves,
@@ -1060,7 +1063,7 @@ class ChessApp(App):
             not self.in_game_animation,
             not self.voice_input.is_running(),
             not self.edit,
-            not modal or not has_modal()
+            not modal or not self.has_modal_views()
         )):
             self.voice_input.start(modal)
             return True
@@ -1661,11 +1664,11 @@ class ChessApp(App):
             self.speech_input(modal=False)
 
 
-    def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda:None):
+    def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda *_:None):
 
-        def dismiss(*_):
+        def dismiss(*args):
             self.save()
-            on_close()
+            on_close(*args)
             self.update(self.engine.last_moves()[-1], show_comment=False)
 
         popup = ModalBox(
@@ -1745,33 +1748,57 @@ class ChessApp(App):
 
 
     def settings(self, *_):
+        '''
+        Run the main application settings dialog.
+
+        '''
+        # Memorize the current voice setting (before running the dialog).
         speak_moves = [self.speak_moves]
 
-        def _on_close(*_):
+        def speak_voice_setting(*_):
 
-            # reschedule self for later if modal dialog is on,
-            # because any text bubbles will not pop up while
-            # another modal window is active
-            if isinstance(Window.children[0], ModalView):
-                Clock.schedule_once(_on_close)
-                return
+            if self.has_modal_views():
+                # Reschedule self for later if modal dialog is on,
+                # because any text bubbles will not pop up while
+                # another modal window is active.
+                Clock.schedule_once(speak_voice_setting)
 
-            if speak_moves[0] != self.speak_moves:
+            elif speak_moves[0] != self.speak_moves:
                 speak_moves[0] = self.speak_moves
                 self.speak('Voice on' if self.speak_moves else 'Voice off', True)
 
                 if self.speak_moves:
                     self.touch_hint('anywhere outside the board and hold to speak.')
 
-        self._modal_box('Settings', AppSettings(), on_close=_on_close)
+        def commit_settings(*_):
+            self.set_openai_key(self.assistant.temp_key)
+            speak_voice_setting()
+
+        self.assistant.temp_key = self.get_openai_key(obfuscate=False)
+
+        self._modal_box('Settings', AppSettings(), on_close=commit_settings)
 
 
     def advanced_settings(self, *_):
+        '''
+        Show the Advanced Settings dialog page.
+        '''
         self._modal_box('Advanced', AdvancedSettings(), close='\uF100')
 
 
     def assistant_settings(self, *_):
-        self._modal_box('Assistant', ExtraSettings(), close='\uF100')
+        '''
+        Show the settings for the ChatGPT powered Assistant.
+        '''
+
+        def update_controls(*_):
+            ''' Update controls upon closing the dialog '''
+            assert len(Window.children) == 4  # three setting pages, plus the root App
+            advanced_settings = Window.children[1]
+            assert isinstance(advanced_settings, ModalView)
+            advanced_settings.content.ids.speak_moves.active = self.speak_moves
+
+        self._modal_box('Assistant', ExtraSettings(), close='\uF100', on_close=update_controls)
 
 
     def select_opening_book(self, *_):
@@ -2378,7 +2405,8 @@ class ChessApp(App):
 
     def set_openai_key(self, key):
         if self.openai_api_key:
-            self.confirm('Key already set, overwrite', partial(self._set_api_key, key))
+            if self.openai_api_key != key:
+                self.confirm('The API key is already set, overwrite', partial(self._set_api_key, key))
         else:
             self._set_api_key(key)
 
@@ -2390,7 +2418,6 @@ class ChessApp(App):
     def toggle_key_visible(self, btn, text):
         text.password = not text.password
         btn.text = ' \uF070 ' if text.password else ' \uF06E '
-        text.text = self.get_openai_key(obfuscate=text.password)
         text.cursor = (0, 0)
 
 
