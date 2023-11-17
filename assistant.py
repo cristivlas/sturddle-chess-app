@@ -34,6 +34,7 @@ from kivy.logger import Logger
 from normalize import substitute_chess_moves
 from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
+from worker import WorkerThread
 
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
@@ -185,7 +186,11 @@ _system_prompt = (
     f"for detailed information on chess openings. Utilize {_present_answer} to "
     f"clarify chess concepts and answer queries. Select puzzles with "
     f"{_select_chess_puzzles} based on the user's theme. Base all strategies and "
-    f"suggestions on the latest game information and analysis."
+    f"suggestions on the latest game information and analysis. "
+
+    f"When you list openings, gambits, or other options, you must "
+    f"always insert a semicolon after each item for distinct pauses "
+    f"(example: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game)."
 )
 
 
@@ -200,12 +205,20 @@ class AppLogic(Enum):
 FunctionResult = namedtuple('FunctionResult', 'response data', defaults=(AppLogic.NONE, None))
 
 
+def parse_json(text):
+    try:
+        return json.loads(text)
+
+    except Exception as e:
+        Logger.error(f'Assistant: {e} {text}')
+
+
 class FunctionCall:
     dispatch = {}
 
     def __init__(self, name, arguments):
         self.name = name
-        self.arguments = json.loads(arguments)
+        self.arguments = parse_json(arguments)
 
     def execute(self, user_request):
         Logger.info(f'Assistant: FunctionCall={self.name}({self.arguments})')
@@ -355,6 +368,7 @@ def remove_func(funcs, func_name):
 class Assistant:
     def __init__(self, app):
         self._app = weakref.proxy(app)
+        self._busy = False
         self._ctxt = Context()
         self._enabled = True
         self._handlers = {}
@@ -367,6 +381,12 @@ class Assistant:
         self.initial_temperature = 0.01
         self.temperature_increment = 0.01
         self.token_limit = 2048
+        self._worker = WorkerThread()
+
+
+    @property
+    def busy(self):
+        return self._busy
 
 
     def set_game_info(self, info):
@@ -425,10 +445,10 @@ class Assistant:
 
             if response:
                 return self._handle_api_response(
-                    user_request, json.loads(response.content), async_result
+                    user_request, parse_json(response.content), async_result
                 )
             else:
-                Logger.error(f'Assistant: {json.loads(response.content)}')
+                Logger.error(f'Assistant: {parse_json(response.content)}')
 
         except requests.exceptions.ReadTimeout as e:
             Logger.warning(f'Assistant: request failed: {e}')
@@ -479,6 +499,7 @@ class Assistant:
     def _handle_non_function(self, reason, user_request, message, result):
         content = message[_content]
 
+        # Handle plain text or JSON
         for retry in range(3):
             if not content:
                 break
@@ -504,6 +525,19 @@ class Assistant:
 
 
     def run(self, user_input, result=None):
+        def run_in_background():
+            self._run(user_input, result)
+            self._busy = False
+            self._app.update()
+
+        self._busy = True
+        self._app.menu_button.start_rotation()
+        self._worker.send_message(run_in_background)
+
+        return True
+
+
+    def _run(self, user_input, result=None):
         if not user_input.strip():
             return False  # prevent useless, expensive calls
 
@@ -633,7 +667,7 @@ class Assistant:
 
         results = []
         for name in requested_openings:
-            eco_opening = self._lookup_opening({_name: name})
+            eco_opening = self._search_opening({_name: name})
             if not eco_opening:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
             else:
@@ -655,7 +689,7 @@ class Assistant:
             Logger.error(f'Assistant: {inputs}')
             return FunctionResult(AppLogic.INVALID)
 
-        opening = self._lookup_opening(inputs)
+        opening = self._search_opening(inputs)
 
         if not opening:
             Logger.error(f'Assistant: {inputs}')
@@ -740,7 +774,7 @@ class Assistant:
     #
     # -------------------------------------------------------------------
 
-    def _lookup_opening(self, choice, confidence=90):
+    def _search_opening(self, choice, confidence=90):
         '''
         Lookup opening in the ECO "database".
         '''
@@ -751,7 +785,7 @@ class Assistant:
         result = self._app.eco.name_lookup(name, eco, confidence=confidence)
 
         if not result:
-            result = self._app.eco.phonetical_lookup(name, confidence=75)
+            result = self._app.eco.phonetical_lookup(name)
 
         return result
 
@@ -794,4 +828,4 @@ class Assistant:
         if isinstance(Window.children[0], ModalView):
             Clock.schedule_once(partial(self._schedule_action, action), 0.1)
         else:
-            action()
+            Clock.schedule_once(lambda *_: action(), 0.1)

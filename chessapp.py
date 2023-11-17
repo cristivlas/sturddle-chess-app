@@ -38,6 +38,7 @@ from time import sleep
 
 import chess.pgn
 from kivy.app import App
+from kivy.animation import Animation
 from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock, mainthread
 from kivy.core.clipboard import Clipboard
@@ -50,7 +51,7 @@ from kivy.logger import Logger, LOG_LEVELS
 from kivy.metrics import *
 from kivy.properties import *
 from kivy.storage.dictstore import DictStore
-from kivy.uix.actionbar import ActionButton
+from kivy.uix.actionbar import ActionPrevious
 from kivy.uix.bubble import Bubble
 from kivy.uix.button import Button
 from kivy.uix.checkbox import CheckBox
@@ -141,10 +142,10 @@ def bold(text):
     return f'[b]{text}[/b]'
 
 
-"""
-Draw an arrow on the chess board.
-"""
 class Arrow:
+    '''
+    Draw an arrow on the chess board.
+    '''
     def __init__(self, **kwargs):
         from_xy = kwargs.get('from_xy', (0, 0))
         to_xy = kwargs.get('to_xy', (100, 100))
@@ -176,6 +177,40 @@ class Arrow:
         SmoothLine(points=points, width=outline_width, joint='miter')
 
         PopMatrix()
+
+
+class RotatingActionPrevious(ActionPrevious):
+    angle = NumericProperty(0)
+    spinner_icon = StringProperty('images/spinner.png')  # Path to spinner icon
+
+    def __init__(self, **kwargs):
+        super(RotatingActionPrevious, self).__init__(**kwargs)
+        self.anim = None
+
+    def start_rotation(self):
+        self.anim = Animation(angle=360, duration=5) + Animation(angle=0, duration=0)
+        self.anim.repeat = True
+        self.anim.start(self)
+        self.original_icon = self.app_icon
+        self.app_icon = self.spinner_icon  # Change to spinner icon
+
+    def stop_rotation(self):
+        if self.anim:
+            self.anim.cancel(self)
+            self.anim = None
+            self.angle = 0
+            self.app_icon = self.original_icon  # Change back to original icon
+
+    def on_angle(self, instance, value):
+        canvas = self.ids.app_icon_image.canvas
+        center = self.ids.app_icon_image.center
+        canvas.before.clear()
+        with canvas.before:
+            PushMatrix()
+            Rotate(angle=value, axis=(0, 0, 1), origin=center)
+        canvas.after.clear()
+        with canvas.after:
+            PopMatrix()
 
 
 class AppSettings(GridLayout):
@@ -443,7 +478,7 @@ class ChessApp(App):
         super().__init__(**kwargs)
 
         chess.pgn.LOGGER.setLevel(50)
-        self.animation = False  # animation in progress?
+        self.in_game_animation = False  # animation in progress?
         self.assistant = Assistant(self)
         self.openai_api_key = os.environ.get('OPENAI_API_KEY', '')
         self.modal = None
@@ -454,6 +489,7 @@ class ChessApp(App):
         self.engine.promotion_callback = self.get_promotion_type
         self.engine.search_complete_callback = self.on_search_complete
         self.engine.search_callback = self.search_callback
+        self.engine.check_busy_state = lambda *_: self.assistant.busy
         #####################################################################
         # wrap engine search
         self._search_move = self.engine.search_move
@@ -537,13 +573,13 @@ class ChessApp(App):
 
             else:
                 if self.can_redo():
-                    self.animation = True
+                    self.in_game_animation = True
                     self.redo_move(in_animation=True)
                     Clock.schedule_once(redo)
 
                 else:
                     callback()
-                    self.animation = False
+                    self.in_game_animation = False
                     self.update_button_states()
 
         redo()
@@ -690,6 +726,14 @@ class ChessApp(App):
             btn.bind(on_release=cancel_move_if_busy)
 
 
+    def can_auto_open(self):
+        return not self.in_game_animation and self.engine.can_auto_open()
+
+
+    def can_edit(self):
+        return not self.in_game_animation and not self.engine.busy
+
+
     def can_use_assistant(self):
         return self.openai_api_key and self.assistant.enabled and self.eco
 
@@ -707,7 +751,7 @@ class ChessApp(App):
 
 
     def can_restart(self):
-        return not self.engine.busy and self.game_in_progress() and not self.animation
+        return not self.engine.busy and self.game_in_progress() and not self.in_game_animation
 
 
     def chat_assist(self, user_input):
@@ -948,8 +992,10 @@ class ChessApp(App):
 
         if all((
             self.speak_moves,
-            any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
-            not self.animation,
+            # This should be covered by the engine not busy conditional:
+            # any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
+            not self.engine.busy,
+            not self.in_game_animation,
             not self.voice_input.is_running(),
             not self.edit,
             not modal or not has_modal()
@@ -1157,17 +1203,17 @@ class ChessApp(App):
 
 
     def update_button_states(self):
-        self.auto_open_button.disabled = self.animation
-        self.edit_button.disabled = self.animation
+        self.auto_open_button.disabled = not self.can_auto_open()
+        self.edit_button.disabled = not self.can_edit()
         self.new_button.disabled = not self.can_restart()
         self.undo_button.disabled = bool(self.edit) or not self.can_undo()
         self.redo_button.disabled = bool(self.edit) or not self.can_redo()
         self.switch_button.disabled = bool(self.edit) or not self.engine.can_switch()
         self.share_button.disabled = bool(self.edit) or not self.game_in_progress()
-        self.play_button.disabled = bool(self.edit) or self.animation
-        self.puzzles_button.disabled = self.animation
-        self.settings_button.disabled = self.animation
-        self.settings_menu_button.disabled = self.animation
+        self.play_button.disabled = bool(self.edit) or self.in_game_animation
+        self.puzzles_button.disabled = self.in_game_animation
+        self.settings_button.disabled = self.in_game_animation
+        self.settings_menu_button.disabled = self.in_game_animation
 
         if self.edit:
             self.edit_button.text = 'Exit Editor'
@@ -1177,7 +1223,7 @@ class ChessApp(App):
             self.edit_button.text = 'Edit Board'
             self.edit_button.on_release = self.edit_start
 
-        self.engine_busy = self.engine.busy
+        self.engine_busy = self.engine.busy  # Advertise busy state changes.
 
 
     def update_hash_usage(self):
@@ -1188,6 +1234,9 @@ class ChessApp(App):
     @mainthread
     def update(self, move=None, show_comment=True):
         self.engine.bootstrap.set()
+
+        if not self.assistant.busy:
+            self.menu_button.stop_rotation()
 
         with self.board_widget.model._lock:
             self.update_status()
@@ -1883,7 +1932,7 @@ class ChessApp(App):
                 if desc:
                     hints = [desc]
 
-            elif self.engine.can_auto_open():
+            elif self.can_auto_open():
                 try:
                     board = self.engine.board.copy()
                     book_entries = self.engine.book.find_all(board)

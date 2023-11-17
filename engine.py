@@ -144,6 +144,7 @@ class Engine:
 
     def __init__(self, update_callback=None, update_move_callback=None, log=lambda _:None):
         self.board = BoardModel()
+        self.check_busy_state = None  # check for the busy state of other components
         self.search = None
         self.polyglot_file = 'book.bin'
         self.book = None
@@ -188,7 +189,8 @@ class Engine:
 
     @property
     def busy(self):
-        return bool(self.search)
+        external_components_busy = self.check_busy_state() if self.check_busy_state else False
+        return bool(self.search) or external_components_busy
 
 
     def iteration_callback(self, search_instance, node, score, n_nodes, nps, ms):
