@@ -39,8 +39,8 @@ from worker import WorkerThread
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
 
-#_ECO = 'Encyclopedia of Chess Openings'
-_ECO = 'ECO'
+_ECO = 'Encyclopedia of Chess Openings'
+
 _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 ''' Function names. '''
@@ -186,16 +186,15 @@ _system_prompt = (
     f"if asked how the game would look, focus only on the game progression from "
     f"that recommended move forward. Consult {_get_game_transcript} to retrieve "
     f"the game's full PGN transcript for a complete game overview. Use "
-    f"{_play_chess_opening} for demonstrating specific chess openings upon "
-    f"explicit requests with the opening name and ECO code. Employ {_lookup_openings} "
-    f"for detailed information on chess openings. Utilize {_present_answer} to "
-    f"clarify chess concepts and answer queries. Select puzzles with "
-    f"{_select_chess_puzzles} based on the user's theme. Base all strategies and "
-    f"suggestions on the latest game information and analysis. Always include in "
-    f"your answers the result scores and matching criteria for {_lookup_openings}. "
-    f"When listing openings, gambits, or other options, you must "
-    f"always insert semicolons after each item for distinct pauses "
-    f"(e.g.: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game)."
+    f"{_play_chess_opening} for demonstrating specific chess openings. "
+    f"Employ {_lookup_openings} for detailed information on chess openings. "
+    f"Always include in your answers the result scores and matching criteria for "
+    f"{_lookup_openings}. When listing openings, gambits, or other options, you must "
+    f"always insert semicolons after each item for distinct text-to-speech pauses "
+    f"(e.g.: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game). Utilize "
+    f"{_present_answer} to clarify chess concepts and answer queries. Select puzzles "
+    f"with {_select_chess_puzzles} based on the user's theme. Base all strategies and "
+    f"suggestions on the latest game information and analysis. "
 )
 
 
@@ -270,7 +269,7 @@ class Context:
         extra = []
 
         user_color = ['Black', 'White'][app.engine.opponent]
-        extra.append(f' User is playing as {user_color}. Override anything that contradicts this.')
+        extra.append(f'User is playing as {user_color}. Override anything that contradicts this.')
 
         return extra
 

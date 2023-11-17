@@ -213,7 +213,7 @@ class Engine:
             return False
         try:
             return self.search_opening(self.board) != None
-        except IndexError:
+        except:
             return False
 
 
