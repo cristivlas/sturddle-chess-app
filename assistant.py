@@ -182,19 +182,20 @@ _FUNCTIONS = [
 # print(json.dumps(_FUNCTIONS, indent=4))
 
 _system_prompt = (
-    f"You are a chess tutor in a chess app, guiding on openings, puzzles, "
-    f"and game analysis. Use {_analyze_position} specifically for analyzing the "
-    f"current position and for recommending best moves. After recommending a move, show the "
-    f"principal variation from the recommended move forward, not the entire game; however, "
-    f"number the principal variation moves counting from after the last move played, and NEVER from 1. "
-    f"The last move played is in the PGN. Consult {_get_game_transcript} for the PGN transcript. "
-    f"Use {_play_chess_opening} for specific chess openings or setting up the board. "
-    f"If the opening already matches the current game, inform the user. "
-    f"Use {_lookup_openings} for detailed chess opening information, including scores and "
-    f"matching criteria in your responses. When searches yield "
-    f"no results, always suggest a rephrased query, e.g. 'Smith Gambit' for 'John Smith Gambit'. "
-    f"Always apply corrections in your replies concerning famous chess player names, "
+    f"You are a chess tutor within a chess app, guiding on openings, puzzles, "
+    f"and game analysis. Use {_analyze_position} for analyzing the board, and "
+    f"for recommending moves to the user. "
+
+    f"Consult {_get_game_transcript} for the PGN transcript. "
+
+    f"Use {_play_chess_opening} for setting up the board with a specific chess opening. "
+    f"Do not use this function to infer move recommendations (see also: {_analyze_position}). "
+
+    f"Use {_lookup_openings} to search for chess opening information. "
+
+    f"When choosing parameter values for {_lookup_openings} use corrected chess player names, "
     f"e.g. replace 'Bob Lasker' with 'Emanuel Lasker', 'Jim Fisher' with 'Bobby Fischer', etc. "
+
     f"Utilize {_present_answer} for explaining chess concepts and answering queries. "
     f"Select puzzles with {_select_chess_puzzles} based on the user's theme. "
 )
@@ -258,31 +259,61 @@ class Query:
         self.result = result
 
 
+class GameState:
+    def __init__(self, app=None):
+        self.valid = False
+        if app:
+            self.epd = app.engine.board.epd()
+            # self.pgn = app.transcribe()[1]
+            self.user_color = ['Black', 'White'][app.engine.opponent]
+            self.valid = True
+
+    def __str__(self):
+        if not self.valid:
+            return 'invalid state'
+
+        return str({
+            'epd': self.epd,
+            # 'pgn': self.pgn,
+            'user_color': self.user_color
+        })
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+
 class Context:
     def __init__(self):
         self.queries = []
-        self.current_opening = None
+        self.game_state = GameState()
 
 
-    def system_extra(self, app):
-        '''
-        Construct a list of additional info to be applied to the system prompt.
-        '''
-        extra = []
+    def update_game_state(self, app):
+        msg = ''
+        current_state = GameState(app)
 
-        user_color = ['Black', 'White'][app.engine.opponent]
-        extra.append(f'User is playing as {user_color}. Override anything that contradicts this.')
+        if current_state != self.game_state:
+            if self.game_state.valid:
+                msg = (
+                    f'; the state of the board has changed, '
+                    f'the updated state is: {current_state}.'
+                )
+            self.game_state = current_state
 
-        return extra
+        return msg
 
 
     def messages(self, current_msg, *, app, model, functions, token_limit):
         '''
         Construct a list of messages to be passed to the OpenAI API call.
         '''
+        msg = current_msg.copy()
+        if msg['role'] == 'user':
+            msg['content'] += self.update_game_state(app)
+
         while True:
             msgs = self._construct_messages(
-                current_msg,
+                msg,
                 app=app,
                 model=model,
                 functions=functions
@@ -296,7 +327,7 @@ class Context:
                 Logger.debug(f'Assistant: token_count={token_count}')
                 break
 
-            self.queries.pop(0)  # remove oldest history entry
+            self.queries.pop(0)  # Remove the oldest history entry.
 
         return msgs
 
@@ -304,7 +335,7 @@ class Context:
     def _construct_messages(self, current_msg, app, model, functions):
         msgs = [{
             _role: 'system',
-            _content: _system_prompt + '.'.join(self.system_extra(app))
+            _content: _system_prompt,
         }]
 
         for item in self.queries:
@@ -333,18 +364,6 @@ class Context:
         msgs.append(current_msg)
 
         return msgs
-
-
-    def set_game_info(self, info):
-        '''
-        Keep track of played openings, for future ideas.
-        '''
-        if isinstance(info, dict):
-            name, eco = info[_name], info.get(_eco)
-        else:
-            name, eco = info.name, info.eco
-
-        self.current_opening = name
 
 
     @staticmethod
@@ -423,10 +442,6 @@ class Assistant:
         self._enabled = enable
         if enable and not self._app.speak_moves:
             self._app.speak_moves = True
-
-
-    def set_game_info(self, info):
-        self._ctxt.set_game_info(info)
 
 
     def _completion_request(
@@ -722,8 +737,8 @@ class Assistant:
         def annotate_search_result(search_result):
             return {
                 _name: search_result.name,
-                'match_criterion': search_result.match,
-                'search_result_score': search_result.score,
+                'matched_by': search_result.match,
+                'search_score': search_result.score,
             }
 
         results = []
@@ -734,7 +749,7 @@ class Assistant:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
 
             elif isinstance(search_result, list):
-                results = [annotate_search_result(match) for match in search_result]
+                results += [annotate_search_result(match) for match in search_result]
 
             else:
                 best_match = annotate_search_result(search_result)
@@ -745,6 +760,12 @@ class Assistant:
                     best_match['pgn'] = search_result.pgn
 
                 results.append(best_match)
+
+        # if not results:
+        #     return FunctionResult(AppLogic.RETRY, (
+        #         'Try breaking down names into last and first names, or '
+        #         'us different search terms, perhaps phonetically similar?'
+        #     ))
 
         return FunctionResult(AppLogic.FUNCTION, results)
 
@@ -772,14 +793,14 @@ class Assistant:
             current = self._app.get_current_play()
 
             if current.startswith(opening.pgn):
-                return FunctionResult(
-                    AppLogic.RETRY,
-                    (
-                        f'The opening that you suggested is already in play.'
-                        f'Suggest another variation related to {self._ctxt.current_opening},'
-                        f'or another opening with a move sequence not included in: {current}.'
-                    )
-                )
+                # return FunctionResult(
+                #     AppLogic.RETRY,
+                #     (
+                #         f'The opening that you suggested is already in play. '
+                #         f'Perhaps try something else related to {opening.name}?'
+                #     )
+                # )
+                return FunctionResult(AppLogic.INVALID)
             else:
                 self._schedule_action(lambda *_: self._app.play_opening(opening))
                 return FunctionResult(AppLogic.OK)

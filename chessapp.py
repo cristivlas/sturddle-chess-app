@@ -843,10 +843,8 @@ class ChessApp(App):
             else:
                 if opening := self.eco.lookup(self.board_widget.model):
                     self.format_opening(opening['name'])
-                    self.assistant.set_game_info(opening)
                 else:
                     self.opening.text = ''
-                    self.assistant.set_game_info({'name': None})
 
 
     def is_analyzing(self):
@@ -1604,7 +1602,7 @@ class ChessApp(App):
             text=text,
             font_size=font_size,
             use_bubble=False,
-            background_color=(1,1,1,0.5),
+            background_color=(1,1,1,0.65),
             width=width,
         )
         bbox = textpad.get_bounding_box(width)
@@ -2498,7 +2496,7 @@ class ChessApp(App):
                 # Analysis done on behalf of the Assistant. Prepare result.
                 result = {
                     'function': assist[0],
-                    'hint': 'PV contains the moves that would follow after the recommended (best) move.',
+                    #'hint': 'PV contains the moves that would follow after the recommended (best) move.',
                     'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
                     'recommend': san(search.context.board().copy(), move),
@@ -2509,7 +2507,7 @@ class ChessApp(App):
                 # Call back the assistant with the asynchronous result.
                 Logger.info('Assistant: asynchronous callback.')
 
-                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], callback_result=result), 0.1)
+                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], callback_result=result))
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
