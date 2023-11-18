@@ -63,7 +63,7 @@ _function = 'function'
 _function_call = 'function_call'
 _items = 'items'
 _object = 'object'
-_openings = 'openings'
+_openings = 'opening_names'
 _role = 'role'
 _parameters = 'parameters'
 _properties = 'properties'
@@ -104,22 +104,27 @@ _FUNCTIONS = [
     {
         _name: _lookup_openings,
         _description: (
-            f'This function searches chess openings by name in the {_ECO}. '
-            #f'It uses fuzzy matching algorithms. You must always pay attention '
-            #f'to the matching scores and matching criteria of the results.'
+            f'This function searches chess openings by name in the {_ECO}.'
         ),
         _parameters: {
             _type: _object,
             _properties : {
                 _openings: {
                     _type: _array,
-                    _description: 'The names to look up',
+                    _description: 'The names to look up.',
                     _items: {
                         _type: _string,
                     }
+                },
+                'return': {
+                    _type: _string,
+                    _description: (
+                        "Can be either 'all' or 'best'. Indicates if all "
+                        "matches should be returned, or just the best one."
+                    )
                 }
             },
-            _required: [_openings]
+            _required: [_openings, 'return']
         }
     },
     {
@@ -157,9 +162,7 @@ _FUNCTIONS = [
     },
     {
         _name: _play_chess_opening,
-        _description: (
-            'Set up the board by playing the move sequence of the specified opening.'
-        ),
+        _description: ('Play the specified opening.'),
         _parameters: {
             _type: _object,
             _properties : {
@@ -181,24 +184,21 @@ _FUNCTIONS = [
 _system_prompt = (
     f"You are a chess tutor in a chess app, guiding on openings, puzzles, "
     f"and game analysis. Use {_analyze_position} specifically for analyzing the "
-    f"current board position and recommending best moves. After a move recommendation, "
-    f"if asked how the game would progress, focus only on how the game would go from "
-    f"the recommended move forward, but number the moves relative to the complete "
-    f"game history. Consult {_get_game_transcript} to retrieve the game's full PGN "
-    f"transcript for a complete game history and overview. Use {_play_chess_opening} "
-    f"for demonstrating specific chess openings or for setting up the board with an "
-    f"opening specified by the user. If the opening already matches the game currently "
-    f"in play, make sure to let the user know that no further action is needed. "
-    f"Employ {_lookup_openings} for searching for detailed information on chess openings. "
-    f"The results returned by {_lookup_openings} typically include scores that reflect "
-    f"how closely the results match the query, together with he matching criteria "
-    f"(name, phonetic). Always include in your answers the scores and matching criteria "
-    f"for {_lookup_openings} results. When listing openings, gambits, or other options, "
-    f"you must always insert semicolons after each item for distinct text-to-speech pauses "
-    f"(e.g.: 1. Ruy Lopez; 2. Sicilian Defense; 3. Italian Game). Utilize "
-    f"{_present_answer} to clarify chess concepts and answer queries. Select puzzles "
-    f"with {_select_chess_puzzles} based on the user's theme. Base all strategies and "
-    f"suggestions on the latest game information and analysis. "
+    f"current position and for recommending best moves. After recommending a move, show the "
+    f"principal variation from the recommended move forward, not the entire game; however, "
+    f"number the principal variation moves counting from after the last move played, and NEVER from 1. "
+    f"The last move played is in the PGN. Consult {_get_game_transcript} for the PGN transcript. "
+    f"Use {_play_chess_opening} for specific chess openings or setting up the board. "
+    f"If the opening already matches the current game, inform the user. "
+    f"Use {_lookup_openings} for detailed chess opening information, including scores and "
+    f"matching criteria in your responses. When listing openings or options, present them "
+    f"clearly and distinctly with delimiters suitable for text-to-speech. When searches yields "
+    f"no results, always suggest a rephrased query, e.g., 'Smith Gambit' for 'John Smith Gambit'. "
+    f"Always apply corrections in your replies concerning famous chess player names, "
+    f"for e.g. replace 'Bob Lasker' with 'Emanuel Lasker', 'Jim Fisher' with 'Bobby Fischer' and so on."
+    f"Utilize {_present_answer} for explaining chess concepts and answering queries. "
+    f"Select puzzles with {_select_chess_puzzles} based on the user's theme. Base all "
+    f"strategies and suggestions on the latest game information. "
 )
 
 
@@ -207,7 +207,7 @@ class AppLogic(Enum):
     OK = 1
     FUNCTION = 2
     RETRY = 3
-    INVALID = 4
+    INVALID = 4  # Function called with invalid or missing parameters.
     CANCELLED = 5
 
 
@@ -627,7 +627,6 @@ class Assistant:
                 temperature=temperature,
                 timeout=timeout,
             )
-
             if func_result.response == AppLogic.CANCELLED:
                 return False
 
@@ -636,13 +635,22 @@ class Assistant:
                 function_call = 'auto'
 
             if func_result.response == AppLogic.INVALID:
-                funcs = remove_func(funcs, func_name)
+                if retry_count == 0:
+                    current_message = {
+                        _role: _function,
+                        _name: func_name,
+                        _content: 'invalid parameters'
+                    }
+                else:
+                    funcs = remove_func(funcs, func_name)
+
                 retry_count += 1
 
             elif func_result.response == AppLogic.RETRY:
                 retry_count += 1
 
                 if func_result.data:
+                    # Send back instructions for how to retry.
                     current_message = {
                         _role: _user,
                         _content: func_result.data
@@ -663,7 +671,11 @@ class Assistant:
                 return True
 
         Logger.error(f'Assistant: failed, retry={retry_count}/{self.retry_count}.')
-        self._respond('The request timed out.', user_request=user_input)
+
+        self._respond(
+            'Sorry, I cannot help you with your request at this time.',
+            user_request=user_input
+        )
 
 
     # -------------------------------------------------------------------
@@ -707,39 +719,52 @@ class Assistant:
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
+        all_matches = inputs.get('return', 'best') == 'all'
+
+        def annotate_search_result(search_result):
+            return {
+                _name: search_result.name,
+                'match_criterion': search_result.match,
+                'search_result_score': search_result.score,
+            }
+
         results = []
+
         for name in requested_openings:
-            eco_opening = self._search_opening({_name: name})
-            if not eco_opening:
+            search_result = self._search_opening({_name: name}, return_all_matches=all_matches)
+            if not search_result:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
 
+            elif isinstance(search_result, list):
+                results = [annotate_search_result(match) for match in search_result]
+
             else:
-                result = {
-                    _name: eco_opening.name,
-                    'match_criterion': eco_opening.match,
-                    'search_result_score': eco_opening.score,
-                }
+                best_match = annotate_search_result(search_result)
 
+                # include details if looking up a single opening
                 if len(requested_openings) == 1:
-                    # include details if looking up a single opening
-                    result['eco'] = eco_opening.eco
-                    result['pgn'] = eco_opening.pgn
+                    best_match['eco'] = search_result.eco
+                    best_match['pgn'] = search_result.pgn
 
-                results.append(result)
+                results.append(best_match)
 
         return FunctionResult(AppLogic.FUNCTION, results)
 
 
     def _handle_chess_opening(self, user_request, inputs):
         if _name not in inputs:
-            Logger.error(f'Assistant: {inputs}')
+            Logger.error(f'Assistant: invalid inputs: {inputs}')
             return FunctionResult(AppLogic.INVALID)
 
         opening = self._search_opening(inputs)
 
         if not opening:
-            Logger.error(f'Assistant: {inputs}')
-            return FunctionResult(AppLogic.INVALID)
+            Logger.error(f'Assistant: opening not found: {inputs}')
+            return FunctionResult(AppLogic.RETRY, (
+                f'The opening was not found. Use {_play_chess_opening} '
+                f'with another name that "{inputs[_name]}" is known as.'
+            ))
+
         else:
             self.append_history(
                 kind='opening_selection',
@@ -820,25 +845,29 @@ class Assistant:
     #
     # -------------------------------------------------------------------
 
-    def _search_opening(self, choice, confidence=90):
+    def _search_opening(self, choice, confidence=90, return_all_matches=False):
         '''
-        Lookup opening in the ECO "database".
+        Lookup opening(s) in the ECO "database", using minimum confidence score threshold.
         '''
         assert self._app.eco
+        db = self._app.eco
 
-        name = choice[_name]
-        eco = choice.get(_eco)
+        name, eco = choice[_name], choice.get(_eco)  # search criteria, from user inputs
 
-        result = self._cached_openings.get(name)
+        if return_all_matches:
+            return db.lookup_all_matches(name, eco, confidence=85)
 
-        if not result:
-            result = self._app.eco.name_lookup(name, eco, confidence=confidence)
+        else:
+            result = self._cached_openings.get(name)
 
             if not result:
-                result = self._app.eco.phonetical_lookup(name)
+                result = db.lookup_best_matching_name(name, eco, confidence=confidence)
 
-            if result:
-                self._cached_openings[result.name] = result
+                if not result:
+                    result = db.phonetical_lookup(name)
+
+                if result:
+                    self._cached_openings[result.name] = result
 
         return result
 

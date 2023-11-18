@@ -17,7 +17,7 @@ class Tests:
             "Caro-Kann Defense: Panov-Botvinnik Attack": Opening({'name': 'Caro-Kann Defense: Panov Attack', 'eco': 'B14'}),
         }
         for name, expected in good_test_cases.items():
-            opening = self.eco.name_lookup(name, expected.eco, confidence=85)
+            opening = self.eco.lookup_best_matching_name(name, expected.eco, confidence=85)
             assert opening.name == expected.name, (expected.name, opening.name)
             assert opening.eco == expected.eco, (expected.eco, opening.eco)
 
@@ -27,7 +27,7 @@ class Tests:
             'Cecilia and The Fans': 'b50',
         }
         for name, eco in bad_test_cases.items():
-            opening = self.eco.name_lookup(name, eco, confidence=80)
+            opening = self.eco.lookup_best_matching_name(name, eco, confidence=80)
             assert opening is None, (name, eco, opening)
 
         eco_ranges_cases = [
@@ -36,7 +36,7 @@ class Tests:
             {"name":"English Opening", "eco":"A10-A39"}
         ]
         for test in eco_ranges_cases:
-            opening = self.eco.name_lookup(test['name'], test['eco'], confidence=90)
+            opening = self.eco.lookup_best_matching_name(test['name'], test['eco'], confidence=90)
             assert opening
             assert opening.name == test['name'], (opening.name, test)
 
@@ -54,7 +54,7 @@ class Tests:
             "albin's gambit": Opening({'name': 'Italian Game: Classical Variation, Albin Gambit', 'eco': 'C50'}),
         }
         for name, expected in test_cases.items():
-            opening = self.eco.name_lookup(name, confidence=85)
+            opening = self.eco.lookup_best_matching_name(name, confidence=85)
             assert opening.name == expected.name, (expected.name, opening.name)
             assert opening.eco == expected.eco, (expected.eco, opening.eco)
 
@@ -79,11 +79,23 @@ class Tests:
             opening = self.eco.phonetical_lookup(name, confidence=80)
             assert opening is None, (name, opening)
 
+
+    def test_all_matches(self):
+        results = self.eco.lookup_all_matches('Fischer')
+        results = [r.eco for r in results]
+        assert results == ['B88', 'C34', 'E44'], results
+
+        results = self.eco.lookup_all_matches('Lasker')
+        results = [r.eco for r in results]
+        assert results == ['A00', 'A02', 'A02', 'A03', 'B01'], results
+
+
     def run(self):
         self.test_board_lookup()
         self.test_eco_lookup()
         self.test_name_lookup()
         self.test_phonetical_lookup()
+        self.test_all_matches()
 
 
 if __name__ == '__main__':

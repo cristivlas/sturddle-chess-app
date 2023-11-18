@@ -172,7 +172,7 @@ class NLP:
         self.grammar.validate()
 
 
-    def parse(self, fen, text, prev_moves=[]):
+    def parse(self, fen, text, prev_moves=[], parse_from_start=False):
         '''
         Parse an English language description of a chess move.
 
@@ -188,8 +188,15 @@ class NLP:
 
         Logger.debug(f'nlp: text={text}, self._moves={self._moves}')
 
-        # trigger parse actions
-        parse_result = self.grammar.search_string(text)
+        # trigger parsing actions
+        if parse_from_start:
+            try:
+                parse_result = self.grammar.parse_string(text)
+            except pp.ParseException:
+                parse_result = []
+        else:
+            parse_result = self.grammar.search_string(text)
+
         Logger.debug(f'nlp: parse_result={parse_result}')
 
         # validate results
@@ -207,7 +214,7 @@ class NLP:
         return moves
 
 
-    def run(self, fen, results, on_autocorrect=lambda text: text):
+    def run(self, fen, results, on_autocorrect=lambda text: text, parse_from_start=False):
         moves = []
         parsed = set()
 
@@ -228,7 +235,7 @@ class NLP:
                     # auto-correction may lead to duplicates
                     Logger.debug(f'nlp: duplicate \'{text}\'')
                 else:
-                    moves = self.parse(fen, text, moves)
+                    moves = self.parse(fen, text, moves, parse_from_start)
                     parsed.add(text)
                     if moves:
                         self.args = None

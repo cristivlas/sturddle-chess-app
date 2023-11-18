@@ -215,7 +215,15 @@ class Input:
 
         fen = self._app.engine.board.fen()
 
-        moves = self._nlp.run(fen, results, on_autocorrect=on_autocorrect)
+        # Use stricter parsing when the Assistant is available.
+        parse_from_start = self._app.can_use_assistant()
+
+        moves = self._nlp.run(
+            fen,
+            results,
+            on_autocorrect=on_autocorrect,
+            parse_from_start=parse_from_start
+        )
 
         # if len(moves) > 1 _select_move will ask for disambiguation
         # stop stt so the machine does not listen to its own speech

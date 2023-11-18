@@ -180,10 +180,28 @@ class ECO:
 
 
     @lru_cache(maxsize=256)
-    def name_lookup(self, name, eco=None, *, confidence=90):
+    def lookup_all_matches(self, name, eco=None, *, confidence=90):
+        if eco is not None:
+            # Filter by ECO code.
+            keys = set()
+            for eco in self.get_codes(eco):
+                keys.update({r['name'].lower() for r in self.by_eco.get(eco, [])})
+        else:
+            keys = self.by_name.keys()
+
+        return self.fuzzy_match(
+            self.by_name,
+            keys,
+            name,
+            min_confidence_score=confidence
+        )
+
+
+    @lru_cache(maxsize=256)
+    def lookup_best_matching_name(self, name, eco=None, *, confidence=90):
         '''
         Lookup chess opening by name and classification code using fuzzy name matching.
-
+        Return best match or None.
         '''
         if eco is not None:
             keys = set()
@@ -196,12 +214,12 @@ class ECO:
             self.by_name,
             keys,
             name,
-            min_confidence_level=confidence
+            min_confidence_score=confidence
         )
 
 
     @staticmethod
-    def fuzzy_lookup(dict, keys, name, *, min_confidence_level):
+    def fuzzy_lookup(dict, keys, name, *, min_confidence_score):
         '''
         Lookup the given name by fuzzy matching against a subset of dictionary keys.
 
@@ -211,7 +229,7 @@ class ECO:
             name: the name to lookup by;
             min_confidence_level: the minimum acceptable fuzzy matching score.
 
-        Return on Opening object if successful, otherwise return None
+        Return just one Opening object if successful, otherwise None.
 
         '''
         corrections = {
@@ -235,17 +253,28 @@ class ECO:
 
             result = rapidfuzz.process.extractOne(query, keys)
 
-            Logger.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_level}')
+            Logger.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_score}')
 
             if result:
                 match, score, _ = result
 
-                if score >= min_confidence_level:
+                if score >= min_confidence_score:
                     if score > best_score:
                         best_match, best_score = match, score
 
         if best_match:
             return Opening(dict[best_match], match='name', score=best_score)
+
+
+    @staticmethod
+    def fuzzy_match(dict, keys, name, *, min_confidence_score):
+        name = name.lower()
+        matches = rapidfuzz.process.extract(name, keys)
+        if not matches:
+            return []
+        return [
+            Opening(dict[k], match='name', score=s) for k,s,_ in matches if s >= min_confidence_score
+        ]
 
 
     def openings(self):
