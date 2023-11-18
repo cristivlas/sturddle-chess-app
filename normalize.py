@@ -62,6 +62,9 @@ def translate_chess_move(move, num_words=False):
     # Extract only the destination square (last two characters)
     destination = move[-2:]
 
+    # Convert to uppercase so the A is pronounced correctly
+    destination = destination.upper()
+
     if num_words:
         destination = destination.replace(destination[1], ' ' + num2words(destination[1]))
 

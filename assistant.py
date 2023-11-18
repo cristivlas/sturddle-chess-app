@@ -191,14 +191,12 @@ _system_prompt = (
     f"Use {_play_chess_opening} for specific chess openings or setting up the board. "
     f"If the opening already matches the current game, inform the user. "
     f"Use {_lookup_openings} for detailed chess opening information, including scores and "
-    f"matching criteria in your responses. When listing openings or options, present them "
-    f"clearly and distinctly with delimiters suitable for text-to-speech. When searches yields "
-    f"no results, always suggest a rephrased query, e.g., 'Smith Gambit' for 'John Smith Gambit'. "
+    f"matching criteria in your responses. When searches yield "
+    f"no results, always suggest a rephrased query, e.g. 'Smith Gambit' for 'John Smith Gambit'. "
     f"Always apply corrections in your replies concerning famous chess player names, "
-    f"for e.g. replace 'Bob Lasker' with 'Emanuel Lasker', 'Jim Fisher' with 'Bobby Fischer' and so on."
+    f"e.g. replace 'Bob Lasker' with 'Emanuel Lasker', 'Jim Fisher' with 'Bobby Fischer', etc. "
     f"Utilize {_present_answer} for explaining chess concepts and answering queries. "
-    f"Select puzzles with {_select_chess_puzzles} based on the user's theme. Base all "
-    f"strategies and suggestions on the latest game information. "
+    f"Select puzzles with {_select_chess_puzzles} based on the user's theme. "
 )
 
 
@@ -883,20 +881,29 @@ class Assistant:
         '''
         Respond to a user question with speech and text bubble.
         '''
-        text = text.replace('\n', ' ')
+
+        # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
+        tts_text = substitute_chess_moves(text, ';', True)
+
+        # Reformat numbered lists if the response does not seem to contain moves.
+        if tts_text == text:
+            pattern = r'(\d+\.[^\n;]+?)(?:\s|\n|\.)+(?=\s*\d+\.|\s*$)'
+            tts_text = re.sub(pattern, r'\1; ', text)
+
         if user_request:
             self.append_history(kind='generic', request=user_request, result=text)
 
+        text = text.replace('\n', ' ')  # Remove newlines, to better fit the bubble.
+
         self._schedule_action(lambda *_: self._app.text_bubble(text))
-        self._speak_response(text, topic)
+
+        self._speak_response(tts_text, topic)
 
 
     def _speak_response(self, text, topic):
+
         # Make sure St. George is pronounced Saint George, not Street George
         tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
-
-        # Convert list of moves (in short algebraic notation - SAN) to pronounceable text
-        tts_text = substitute_chess_moves(text, ';', True)
 
         self._say(tts_text)
 
