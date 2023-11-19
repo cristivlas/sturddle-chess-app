@@ -1465,7 +1465,7 @@ class ChessApp(App):
             elif self.puzzle:
                 prompt = 'Cancel the current puzzle'
             else:
-                prompt = 'Abandon the current game'
+                prompt = 'Discard the current game'
             self.confirm(f'{prompt} and ' + text, action)
         else:
             action()
@@ -1821,49 +1821,59 @@ class ChessApp(App):
             return self.play_pgn(opening.pgn, name=opening.name, callback=callback)
 
 
-    def play_pgn(self, pgn, *, name=None, callback=None):
+    def play_pgn(self, pgn, *, name=None, callback=None, animate=True):
         '''
-        Parse PGN and play moves.
+        Parse the PGN and play moves.
         '''
-        def load_and_play(game, current, callback, *_):
+        def load_and_play(game, callback, current=0, *_):
             ''' Helper function passed to Clock.schedule_once '''
-            self._load_pgn(game)
 
-            def on_animation_complete():
+            def on_completion():
                 self.set_study_mode(False)
                 if callback:
                     callback()
 
-            self._animate(callback=on_animation_complete, from_move=current)
+            self._load_pgn(game)
+            if animate:
+                self._animate(callback=on_completion, from_move=current)
+            else:
+                on_completion()
 
         if game := chess.pgn.read_game(StringIO(pgn)):
             current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
-                if name and len(pgn) > len(current_pgn):
-                    self.speak(f'{name} continuation:')
+                if len(pgn) > len(current_pgn):
+                    animate = True  # Override and always animate continuations.
+                    if name:
+                        self.speak(f'{name} continuation:')
 
                 # Record the current move number, so that the opening animation
                 # starts from here instead of going back to the start of the game.
                 current = self.game_len()
 
                 # The opening matches the current position, do not ask for confirmation.
-                Clock.schedule_once(partial(load_and_play, game, current, callback))
+                Clock.schedule_once(partial(load_and_play, game, callback, current))
 
             elif current_pgn and current_pgn.startswith(pgn):
                 if name:
                     self.speak(f'{name} is already in progress.')
-
+                if callback:
+                    callback()
             else:
                 Logger.debug(f'pgn: old="{current_pgn}"')
                 Logger.debug(f'pgn: new="{pgn}"')
 
                 # The sequence does not match the current game: ask
                 # for confirmation to abandon the game in progress.
-                self.new_action(
-                    f'play {name if name else "the moves"}',
-                    lambda *_: Clock.schedule_once(partial(load_and_play, game, 0, callback))
-                )
+                if animate:
+                    if not name: name = 'the moves'
+                    msg = f'play {name}'
+                else:
+                    msg = 'apply the change'
+
+                self.new_action(msg, partial(load_and_play, game, callback))
+
             return True
 
         else:
