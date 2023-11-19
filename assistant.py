@@ -167,7 +167,8 @@ _system_prompt = (
     f"PGN transcript. Use {_play_chess_opening} for setting up the board with a "
     f"specific chess opening. Use {_lookup_openings} to search for chess opening "
     f"information. Select puzzles with {_select_chess_puzzles} based on the theme "
-    f"specified by the user. Autocorrect famous chess player names in your replies."
+    f"specified by the user. Suggest naming corrections in your replies when you "
+    f"suspect user mistakes. Apply this to people, places, chess openings, etc."
 )
 
 
@@ -725,6 +726,7 @@ class Assistant:
             Logger.error(f'Assistant: opening not found: {inputs}')
 
             # Send back some hints about how to try again.
+            # TODO: use this same idea in _handle_lookup_openings?
             return FunctionResult(AppLogic.RETRY, (
                 f'The opening was not found. Use {_play_chess_opening} '
                 f'with another name that "{inputs[_name]}" is known as.'
@@ -736,17 +738,11 @@ class Assistant:
                 return self._call_ai_with_results(
                     user_request,
                     _play_chess_opening,
-                    f'{opening.name} is already in progress.'
+                    f'{opening.name} is already in progress. Select another variation.'
                 )
 
             def on_play():
-                # Call back into the AI to confirm the opening is set up.
-                # callback_result = {
-                #     _function: _play_chess_opening,
-                #     _return: f'The {opening.name} is set up.'
-                # }
-                # self.call(user_request, callback_result=callback_result)
-                self._call_ai_with_results(user_request, _play_chess_opening, f'The {opening.name} is set up.')
+                self._call_ai_with_results(user_request, _play_chess_opening, f'{opening.name} is set up.')
 
             self._schedule_action(lambda *_: self._app.play_opening(opening, callback=on_play))
             return FunctionResult(AppLogic.OK)
@@ -848,7 +844,7 @@ class Assistant:
 
         '''
         # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
-        tts_text = substitute_chess_moves(response, ';', True)
+        tts_text = substitute_chess_moves(response, ';')
 
         # Reformat numbered lists if the response does not seem to contain moves.
         if tts_text == response:

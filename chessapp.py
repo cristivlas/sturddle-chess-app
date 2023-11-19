@@ -1880,7 +1880,7 @@ class ChessApp(App):
 
 
     def speak_move_description(self, move):
-        self.speak(self.describe_move(move, spell_digits=True))
+        self.speak(self.describe_move(move, spell_digits=False))
 
 
     @property
