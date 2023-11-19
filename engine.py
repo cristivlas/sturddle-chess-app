@@ -571,7 +571,7 @@ class Engine:
         return moves_count
 
 
-    def transcript(self, eco=None, headers={}, variations=True, comments=True):
+    def transcript(self, eco=None, headers={}, variations=True, comments=True, engine=True):
         '''
         Generate transcript in PGN format.
         See https://en.wikipedia.org/wiki/Portable_Game_Notation
@@ -590,8 +590,10 @@ class Engine:
 
             if not self.worker.is_paused():
                 game.headers['Date'] = datetime.now().date().strftime('%Y.%m.%d')
-                # which side is the engine playing?
-                game.headers[['White', 'Black'][self.opponent]] = 'Sturddle ' + version()
+
+                if engine:
+                    # which side is the engine playing?
+                    game.headers[['White', 'Black'][self.opponent]] = 'Sturddle ' + version()
 
         node, board = game, chess.Board(fen)
         for move in self.board.move_stack:

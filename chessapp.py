@@ -579,12 +579,13 @@ class ChessApp(App):
             self.undo_move()
 
         def redo(*_):
+            self.in_game_animation = True
+
             if tts.is_speaking():
                 Clock.schedule_once(redo, 0.5)
 
             else:
                 if self.can_redo():
-                    self.in_game_animation = True
                     self.redo_move(in_animation=True)
                     Clock.schedule_once(redo)
 
@@ -805,7 +806,7 @@ class ChessApp(App):
 
     def chat_assist(self, user_input):
         if self.can_use_assistant():
-            return self.assistant.run(user_input)
+            return self.assistant.call(user_input)
 
 
     def describe_move(self, move, spell_digits=False):
@@ -1748,10 +1749,12 @@ class ChessApp(App):
     def settings(self, *_):
         '''
         Run the main application settings dialog.
-
         '''
         # Memorize the current voice setting (before running the dialog).
         speak_moves = [self.speak_moves]
+
+        # Make a temporary copy of the key that will be committed on close.
+        self.assistant.temp_key = self.get_openai_key(obfuscate=False) or ''
 
         def speak_voice_setting(*_):
 
@@ -1772,8 +1775,7 @@ class ChessApp(App):
             self.set_openai_key(self.assistant.temp_key)
             speak_voice_setting()
 
-        self.assistant.temp_key = self.get_openai_key(obfuscate=False)
-
+        # Show the first page of Settings
         self._modal_box('Settings', AppSettings(), on_close=commit_settings)
 
 
@@ -1788,6 +1790,7 @@ class ChessApp(App):
         '''
         Show the settings for the ChatGPT powered Assistant.
         '''
+        assert self.assistant.temp_key is not None
 
         def update_controls(*_):
             ''' Update controls upon closing the dialog '''
@@ -1813,19 +1816,25 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
-    def play_opening(self, opening):
+    def play_opening(self, opening, *, callback=None):
         if opening:
-            return self.play_pgn(opening.pgn, opening.name)
+            return self.play_pgn(opening.pgn, name=opening.name, callback=callback)
 
 
-    def play_pgn(self, pgn, name=None):
+    def play_pgn(self, pgn, *, name=None, callback=None):
         '''
         Parse PGN and play moves.
         '''
-        def load_and_play(game, current = 0, *_):
+        def load_and_play(game, current, callback, *_):
             ''' Helper function passed to Clock.schedule_once '''
             self._load_pgn(game)
-            self._animate(callback=lambda *_: self.set_study_mode(False), from_move=current)
+
+            def on_animation_complete():
+                self.set_study_mode(False)
+                if callback:
+                    callback()
+
+            self._animate(callback=on_animation_complete, from_move=current)
 
         if game := chess.pgn.read_game(StringIO(pgn)):
             current_pgn = self.get_current_play()
@@ -1839,7 +1848,7 @@ class ChessApp(App):
                 current = self.game_len()
 
                 # The opening matches the current position, do not ask for confirmation.
-                Clock.schedule_once(partial(load_and_play, game, current))
+                Clock.schedule_once(partial(load_and_play, game, current, callback))
 
             elif current_pgn and current_pgn.startswith(pgn):
                 if name:
@@ -1853,7 +1862,7 @@ class ChessApp(App):
                 # for confirmation to abandon the game in progress.
                 self.new_action(
                     f'play {name if name else "the moves"}',
-                    lambda *_: Clock.schedule_once(partial(load_and_play, game))
+                    lambda *_: Clock.schedule_once(partial(load_and_play, game, 0, callback))
                 )
             return True
 
@@ -2507,7 +2516,7 @@ class ChessApp(App):
                 # Call back the assistant with the asynchronous result.
                 Logger.info('Assistant: asynchronous callback.')
 
-                Clock.schedule_once(lambda *_: self.assistant.run(assist[1], callback_result=result))
+                Clock.schedule_once(lambda *_: self.assistant.call(assist[1], callback_result=result))
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"

@@ -49,13 +49,11 @@ _analyze_position = 'analyze_position'
 _get_game_transcript = 'get_pgn'
 _lookup_openings = 'lookup_openings'
 _play_chess_opening = 'play_chess_opening'
-_present_answer = 'present_answer'
 _select_chess_puzzles = 'select_chess_puzzles'
 
-''' Schema constants. '''
+''' Schema keywords, constants. '''
 _arguments = 'arguments'
 _array = 'array'
-_answer = 'answer'
 _content = 'content'
 _description = 'description'
 _eco = 'eco'
@@ -69,10 +67,11 @@ _parameters = 'parameters'
 _properties = 'properties'
 _required = 'required'
 _name = 'name'
+_response = 'response'
+_return = 'return'
 _string = 'string'
 _system = 'system'
 _theme = 'theme'
-_topic = 'topic'
 _transcript = 'transcript'
 _type = 'type'
 _user = 'user'
@@ -103,9 +102,7 @@ _FUNCTIONS = [
     },
     {
         _name: _lookup_openings,
-        _description: (
-            f'This function searches chess openings by name in the {_ECO}.'
-        ),
+        _description: f'This function searches chess openings by name in the {_ECO}.',
         _parameters: {
             _type: _object,
             _properties : {
@@ -116,7 +113,7 @@ _FUNCTIONS = [
                         _type: _string,
                     }
                 },
-                'return': {
+                _return: {
                     _type: _string,
                     _description: (
                         "Can be either 'all' or 'best'. Indicates if all "
@@ -124,25 +121,7 @@ _FUNCTIONS = [
                     )
                 }
             },
-            _required: [_openings, 'return']
-        }
-    },
-    {
-        _name: _present_answer,
-        _description: 'Present an answer to a question about a chess idea, concept or opening.',
-        _parameters: {
-            _type: _object,
-            _properties : {
-                _answer: {
-                    _type: _string,
-                    _description: 'The answer to a question regarding chess.'
-                },
-                _topic : {
-                    _type: _string,
-                    _description: 'The topic of the answered question.'
-                }
-            },
-            _required: [_answer, _topic]
+            _required: [_openings, _return]
         }
     },
     {
@@ -184,30 +163,20 @@ _FUNCTIONS = [
 _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, "
     f"and game analysis. Use {_analyze_position} for analyzing the board, and "
-    f"for recommending moves to the user. "
-
-    f"Consult {_get_game_transcript} for the PGN transcript. "
-
-    f"Use {_play_chess_opening} for setting up the board with a specific chess opening. "
-    f"Do not use this function to infer move recommendations (see also: {_analyze_position}). "
-
-    f"Use {_lookup_openings} to search for chess opening information. "
-
-    f"When choosing parameter values for {_lookup_openings} use corrected chess player names, "
-    f"e.g. replace 'Bob Lasker' with 'Emanuel Lasker', 'Jim Fisher' with 'Bobby Fischer', etc. "
-
-    f"Utilize {_present_answer} for explaining chess concepts and answering queries. "
-    f"Select puzzles with {_select_chess_puzzles} based on the user's theme. "
+    f"for recommending moves to the user. Consult {_get_game_transcript} for the "
+    f"PGN transcript. Use {_play_chess_opening} for setting up the board with a "
+    f"specific chess opening. Use {_lookup_openings} to search for chess opening "
+    f"information. Select puzzles with {_select_chess_puzzles} based on the theme "
+    f"specified by the user. Autocorrect famous chess player names in your replies."
 )
 
 
 class AppLogic(Enum):
     NONE = 0
     OK = 1
-    FUNCTION = 2
-    RETRY = 3
-    INVALID = 4  # Function called with invalid or missing parameters.
-    CANCELLED = 5
+    RETRY = 2
+    INVALID = 3  # Function called with invalid or missing parameters.
+    CANCELLED = 4
 
 
 FunctionResult = namedtuple('FunctionResult', 'response data', defaults=(AppLogic.NONE, None))
@@ -238,25 +207,8 @@ class FunctionCall:
         FunctionCall.dispatch[name] = func
 
 
-class Query:
-    class Kind(Enum):
-        NONE = 0
-        GENERIC = 1
-        FUNCTION_CALL = 2
-        OPENING_SELECTION = 3
-        PUZZLE_THEME = 4
-
-    _kinds = {
-        'generic': Kind.GENERIC,
-        _function_call: Kind.FUNCTION_CALL,
-        'opening_selection': Kind.OPENING_SELECTION,
-        'puzzle_theme': Kind.PUZZLE_THEME,
-    }
-
-    def __init__(self, *, kind, request, result):
-        self.kind = Query._kinds[kind]
-        self.request = request
-        self.result = result
+def _get_pgn(app):
+    return app.transcribe(engine=False)[1]  # Do not show engine name and version.
 
 
 class GameState:
@@ -264,19 +216,14 @@ class GameState:
         self.valid = False
         if app:
             self.epd = app.engine.board.epd()
-            # self.pgn = app.transcribe()[1]
+            self.pgn = _get_pgn(app)
             self.user_color = ['Black', 'White'][app.engine.opponent]
             self.valid = True
 
     def __str__(self):
         if not self.valid:
             return 'invalid state'
-
-        return str({
-            'epd': self.epd,
-            # 'pgn': self.pgn,
-            'user_color': self.user_color
-        })
+        return str({'FEN': self.epd, 'pgn': self.pgn, 'user_color': self.user_color})
 
     def __eq__(self, other):
         return str(self) == str(other)
@@ -284,41 +231,43 @@ class GameState:
 
 class Context:
     def __init__(self):
-        self.queries = []
+        self.history = []
         self.game_state = GameState()
 
+    def add_message(self, message):
+        self.history.append(message)
 
-    def update_game_state(self, app):
-        msg = ''
-        current_state = GameState(app)
+    def add_response(self, response):
+        self.add_message({_role: 'assistant', _content: response})
 
-        if current_state != self.game_state:
-            if self.game_state.valid:
-                msg = (
-                    f'; the state of the board has changed, '
-                    f'the updated state is: {current_state}.'
-                )
-            self.game_state = current_state
-
-        return msg
-
+    def add_function_call(self, function):
+        message = {
+            _role: 'assistant',
+            _content: None,
+            _function_call: {
+                _name: function.name,
+                _arguments: json.dumps(function.arguments)
+            }
+        }
+        self.add_message(message)
 
     def messages(self, current_msg, *, app, model, functions, token_limit):
         '''
         Construct a list of messages to be passed to the OpenAI API call.
+
+        Prepend the system prompt and the conversation history, while keeping
+        the overall size of the payload under the token_limit.
         '''
         msg = current_msg.copy()
         if msg['role'] == 'user':
+            # Append a note about the state of the game having changed.
             msg['content'] += self.update_game_state(app)
 
         while True:
-            msgs = self._construct_messages(
-                msg,
-                app=app,
-                model=model,
-                functions=functions
-            )
-            if not self.queries:
+            # Prefix messages with the system prompt.
+            msgs = [{_role: 'system', _content: _system_prompt}] + self.history + [msg]
+
+            if not self.history:
                 break
 
             token_count = get_token_count(model, msgs, functions)
@@ -327,58 +276,23 @@ class Context:
                 Logger.debug(f'Assistant: token_count={token_count}')
                 break
 
-            self.queries.pop(0)  # Remove the oldest history entry.
+            self.history.pop(0)  # Remove the oldest message.
 
         return msgs
-
-
-    def _construct_messages(self, current_msg, app, model, functions):
-        msgs = [{
-            _role: 'system',
-            _content: _system_prompt,
-        }]
-
-        for item in self.queries:
-            msgs.append({_role: _user, _content: item.request})
-            assist = {
-                _role: 'assistant',
-                _content: None
-            }
-            if item.kind == Query.Kind.GENERIC:
-                assist[_content] = item.result
-
-            elif item.kind == Query.Kind.OPENING_SELECTION:
-                assist[_content] = str(item.result)
-
-            elif item.kind == Query.Kind.PUZZLE_THEME:
-                assist[_content] = item.result
-
-            elif item.kind == Query.Kind.FUNCTION_CALL:
-                call = item.result
-                assist[_function_call] = {
-                    _name: call.name,
-                    _arguments: json.dumps(call.arguments),
-                }
-            msgs.append(assist)
-
-        msgs.append(current_msg)
-
-        return msgs
-
 
     @staticmethod
     def describe_theme(theme):
         ''' Return English description of a puzzle theme.'''
         return puzzle_themes.get(theme, theme).rstrip(',.:')
 
+    def update_game_state(self, app):
+        msg = ''
+        current_state = GameState(app)
+        if current_state != self.game_state:
+            msg = f'; the board state has changed; the current state is: {current_state}.'
+            self.game_state = current_state
 
-    def pop_function_call(self):
-        for i, q in reversed(list(enumerate(self.queries))):
-            if q.kind == Query.Kind.FUNCTION_CALL:
-                q = self.queries.pop(i)
-                Logger.debug(f'Assistant: pop {i}/{len(self.queries)} {q.result.name}')
-                assert q.kind == Query.Kind.FUNCTION_CALL
-                break
+        return msg
 
 
 def remove_func(funcs, func_name):
@@ -406,14 +320,9 @@ class Assistant:
         self.model = 'gpt-3.5-turbo-1106'
         self.retry_count = 3
         self.requests_timeout = 3.0
-        self.initial_temperature = 0.01
-        self.temperature_increment = 0.01
+        self.temperature = 0.01
         self.token_limit = 3072
         self._worker = WorkerThread()
-
-
-    def append_history(self, *, kind, request, result):
-        self._ctxt.queries.append(Query(kind=kind, request=request, result=result))
 
 
     def cancel(self):
@@ -444,19 +353,10 @@ class Assistant:
             self._app.speak_moves = True
 
 
-    def _completion_request(
-        self,
-        user_request,
-        messages,
-        *,
-        functions,
-        function_call,
-        temperature,
-        timeout,
-        callback_result=None
-    ):
+    def _completion_request(self, user_request, messages, *, functions, timeout):
         '''
-        Return a tuple containing the name of the handler (or None), and a FunctionResult.
+        Post request to the OpenAI completions endpoint.
+        Return tuple containing the name of the handler and a FunctionResult.
         '''
         response = None
         headers = {
@@ -467,10 +367,11 @@ class Assistant:
         json_data = {
             'model': self.model,
             'messages': messages,
-            'functions': functions,
-            _function_call: function_call,
-            'temperature': temperature,
+            'temperature': self.temperature,
         }
+        if functions:
+            json_data['functions'] = functions
+
         try:
             Logger.info(f'Assistant: posting request to {self.endpoint}')
 
@@ -485,11 +386,10 @@ class Assistant:
                 return None, FunctionResult(AppLogic.CANCELLED)
 
             if response:
-                return self._handle_api_response(
-                    user_request,
-                    parse_json(response.content),
-                    callback_result
-                )
+                self._ctxt.add_message(messages[-1])  # outgoing message posted successfully
+
+                return self._handle_api_response(user_request, parse_json(response.content))
+
             else:
                 Logger.error(f'Assistant: {parse_json(response.content)}')
 
@@ -503,9 +403,9 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_api_response(self, user_request, response, async_result=None):
+    def _handle_api_response(self, user_request, response):
         '''
-        Handle response from the OpenAI API call.
+        Handle response from the OpenAI API call, dispatch function calls as needed.
         '''
         try:
             Logger.debug(f'Assistant: response={response}')
@@ -516,21 +416,17 @@ class Assistant:
             if reason != _function_call:
                 Logger.info(f'Assistant: {reason}')
 
-                result = self._handle_non_function(reason, user_request, message, async_result)
-                return None, result
+                return None, self._handle_non_function(reason, user_request, message)
 
             elif function_call := self._create_function_call(message):
+
+                # Save the function_call to the conversation history before executing it.
+                self._ctxt.add_function_call(function_call)
+
                 result = function_call.execute(user_request)
 
                 if not result:
                     result = FunctionResult()
-
-                if result.response == AppLogic.FUNCTION:
-                    self.append_history(
-                        kind=_function_call,
-                        request=user_request,
-                        result=function_call,
-                    )
 
                 return function_call.name, result
 
@@ -540,10 +436,10 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_non_function(self, reason, user_request, message, result):
+    def _handle_non_function(self, reason, user_request, message):
         content = message[_content]
 
-        # Handle plain text or JSON
+        # Handle both plain text and JSON-formatted responses.
         for retry in range(3):
             if not content:
                 break
@@ -558,7 +454,12 @@ class Assistant:
             except json.decoder.JSONDecodeError as e:
                 content = content[:e.pos]
 
-        self._respond(message[_content], user_request=user_request, result=result)
+        response = message[_content]
+
+        self._ctxt.add_response(response)  # Save response into conversation history.
+
+        self._respond_to_user(response)
+
         return FunctionResult()
 
 
@@ -568,7 +469,17 @@ class Assistant:
             return FunctionCall(call[_name], call[_arguments])
 
 
-    def run(self, user_input, callback_result=None):
+    def call(self, user_input, callback_result=None):
+        '''
+        Entry point for calling the AI. Initiates an asynchronous task and returns immediately.
+
+        Args:
+            user_input (str): User command, request, etc.
+            callback_result (dict, optional): used by callbacks to post results back to the AI.
+
+        Returns:
+            bool: False if cancelled or call with empty inputs, otherwise True
+        '''
         assert not self._busy  # Caller must check the busy state.
 
         if self._cancelled:
@@ -578,10 +489,14 @@ class Assistant:
             return False
 
         def run_in_background():
-            self._run(user_input, callback_result)
+            status = self._call_ai(user_input, callback_result)
+
             self._busy = False
             self._cancelled = False
             self._app.update()
+
+            if status is None:
+                self._respond_to_user('Sorry, I cannot help you with your request at this time.')
 
         self._busy = True
         self._app.start_spinner()
@@ -590,63 +505,65 @@ class Assistant:
         return True
 
 
-    def _run(self, user_input, callback_result=None):
-        assert user_input
+    def _call_ai(self, user_request, callback_result=None):
+        '''
+        Calls the OpenAI model in the background, handles the response, and
+        dispatches further processing.
 
-        funcs = _FUNCTIONS
-        temperature = self.initial_temperature
+        This method interacts with the OpenAI model using the user's input. It
+        processes the response, handling network timeouts, invalid parameter
+        errors, and custom retry logic specific to different functions. If the
+        response suggests a function call, it dispatches the processing to that
+        function. The method returns the name of the function that handled the
+        response, or None if no specific function was involved.
+
+        Args:
+            user_request (str): A free-form string containing the user's command.
+            callback_result (dict, None): The result of an asynchronous function.
+
+        Returns:
+            True on success, False if cancelled, None if failed.
+
+        '''
         timeout = self.requests_timeout
 
-        current_message = {
-            _role: _user,
-            _content: user_input,
-        }
-
-        retry_count = 0
-        function_call = 'auto'
-
-        result_message = None
-
+        # Construct the message to send out.
         if callback_result:
-            function_call = 'none'  # Disable function calling.
-
-            func_name = callback_result.pop(_function)
-            result_message = {
-                _role: _function,
-                _name: func_name,
-                _content: json.dumps(callback_result),
+            current_message = {
+               _role: _function,
+               _name: callback_result.pop(_function),
+               _content: json.dumps(callback_result)
             }
 
-        while retry_count < self.retry_count:
+            # Do not use functions when returning the result of a function call.
+            funcs = None
+
+        else:
+            current_message = {
+                _role: _user,
+                _content: user_request,
+            }
+            funcs = _FUNCTIONS
+
+        for retry_count in range(self.retry_count):
+            # Append the message to the historical conversation context.
             messages = self._ctxt.messages(
                 current_message,
                 app=self._app,
                 model=self.model,
-                functions=funcs,
-                token_limit=self.token_limit,
+                functions=funcs,  # for get_token_count
+                token_limit=self.token_limit
             )
-            if result_message:
-                messages.append(result_message)
+            # Dump pretty-printed messages to log.
+            Logger.debug(f'Assistant: messages=\n{json.dumps(messages, indent=2)}')
 
-            Logger.debug(f'Assistant:\n{json.dumps(messages, indent=2)}')
+            # Post the request and dispatch the response.
+            func_name, func_result = self._completion_request(user_request, messages, functions=funcs, timeout=timeout)
 
-            # Call the OpenAI API.
-            func_name, func_result = self._completion_request(
-                user_input,
-                messages,
-                functions=funcs,
-                function_call=function_call,
-                callback_result=callback_result,
-                temperature=temperature,
-                timeout=timeout,
-            )
             if func_result.response == AppLogic.CANCELLED:
                 return False
 
-            if func_result.response != AppLogic.FUNCTION:
-                self._ctxt.pop_function_call()
-                function_call = 'auto'
-
+            # Handle the case of functions being called with invalid args.
             if func_result.response == AppLogic.INVALID:
                 if retry_count == 0:
                     current_message = {
@@ -657,38 +574,41 @@ class Assistant:
                 else:
                     funcs = remove_func(funcs, func_name)
 
-                retry_count += 1
-
             elif func_result.response == AppLogic.RETRY:
-                retry_count += 1
-
                 if func_result.data:
-                    # Send back instructions for how to retry.
+                    # Handle function-specific retry logic.
                     current_message = {
                         _role: _user,
                         _content: func_result.data
                     }
                 else:
-                    timeout *= 2
-                    temperature += self.temperature_increment
-
-            elif func_result.response == AppLogic.FUNCTION:
-                current_message = {
-                    _role: _function,
-                    _name: func_name,
-                    _content: json.dumps(func_result.data)
-                }
-                function_call = 'none'
+                    timeout *= 2  # Handle network timeouts.
 
             else:
-                return True
+                return True  # Success
 
-        Logger.error(f'Assistant: failed, retry={retry_count}/{self.retry_count}.')
 
-        self._respond(
-            'Sorry, I cannot help you with your request at this time.',
-            user_request=user_input
-        )
+    def _call_ai_with_results(self, user_request, func_name, results):
+        '''
+        Call the AI to return the results of a function call synchronously.
+
+        Args:
+            user_request (str): User input that trigger the function call returning results.
+            func_name (str): The name of the function returning the results.
+            results (any): The results.
+
+        Returns:
+            FunctionResult
+        '''
+        status = self._call_ai(user_request, callback_result={_function: func_name, _return: results})
+
+        if status:
+            return FunctionResult(AppLogic.OK)
+
+        if status is None:
+            return FunctionResult(AppLogic.CANCELLED)
+
+        return FunctionResult()
 
 
     # -------------------------------------------------------------------
@@ -698,41 +618,61 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _handle_analysis(self, user_request, inputs):
-
+        '''
+        Handle function call from the AI that requests analysis.
+        Args:
+            user_request (str): user input that triggered the function call.
+            inputs (dict): parameters as per _FUNCTIONS schema.
+        Returns:
+            FunctionResult:
+        '''
+        # Handle the edge case where the game is over.
         if self._app.engine.is_game_over():
-            return FunctionResult(AppLogic.FUNCTION, str({
-                'function': _analyze_position,
-                'pgn': self._app.transcribe()[1],
-                'result': self._app.engine.result()
-            }))
+            return self._call_ai_with_results(
+                user_request,
+                _analyze_position,
+                {
+                    'pgn': _get_pgn(self._app),
+                    'result': self._app.engine.result()
+                }
+            )
 
-        # Start async analysis, will call back when finished.
+        # Do not provide analysis in puzzle mode. Let the user figure it out.
+        if self._app.puzzle:
+            return self._call_ai_with_results(
+                user_request,
+                _analyze_position,
+                'User should solve puzzles unassisted.'
+            )
+
+        # Start analysing, will call back when finished.
         self._app.analyze(assist=(_analyze_position, user_request))
         return FunctionResult(AppLogic.OK)
 
 
     def _handle_get_transcript(self, user_request, inputs):
-        _, pgn = self._app.transcribe()
-        result = {
-            'pgn': pgn,
-        }
-        return FunctionResult(AppLogic.FUNCTION, result)
-
-
-    def _handle_answer(self, user_request, inputs):
-        if answer := inputs.get(_answer):
-            self._respond(answer, inputs.get(_topic), user_request=user_request)
-            return FunctionResult(AppLogic.OK)
-
-        return FunctionResult(AppLogic.INVALID)
+        pgn = _get_pgn(self._app)
+        return self._call_ai_with_results(user_request, _get_game_transcript, pgn)
 
 
     def _handle_lookup_openings(self, user_request, inputs):
+        '''
+        Handle the call from the AI to lookup a list of chess openings in the ECO.
+
+        Args:
+            user_request (str): The user input associated with this function.
+            inputs (dict): function inputs as per the _FUNCTIONS schema.
+
+        Returns:
+            FunctionResult
+        '''
+
         requested_openings = inputs.get(_openings)
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
-        all_matches = inputs.get('return', 'best') == 'all'
+        # Return all matches, or just the best one?
+        all = inputs.get('return', 'best') == 'all'
 
         def annotate_search_result(search_result):
             return {
@@ -744,7 +684,7 @@ class Assistant:
         results = []
 
         for name in requested_openings:
-            search_result = self._search_opening({_name: name}, return_all_matches=all_matches)
+            search_result = self._search_opening({_name: name}, return_all_matches=all)
             if not search_result:
                 Logger.warning(f'Assistant: Not found: {str(inputs)}')
 
@@ -754,23 +694,27 @@ class Assistant:
             else:
                 best_match = annotate_search_result(search_result)
 
-                # include details if looking up a single opening
+                # Include more details if a single opening was requested.
                 if len(requested_openings) == 1:
                     best_match['eco'] = search_result.eco
                     best_match['pgn'] = search_result.pgn
 
                 results.append(best_match)
 
-        # if not results:
-        #     return FunctionResult(AppLogic.RETRY, (
-        #         'Try breaking down names into last and first names, or '
-        #         'us different search terms, perhaps phonetically similar?'
-        #     ))
-
-        return FunctionResult(AppLogic.FUNCTION, results)
+        # Send the results back to the AI.
+        return self._call_ai_with_results(user_request, _lookup_openings, results)
 
 
     def _handle_chess_opening(self, user_request, inputs):
+        '''
+        Handle the call from the AI to play a specific chess opening.
+        Args:
+            user_request (str): The user request that triggered this function call.
+            inputs (dict): parameters as per _FUNCTION schema.
+
+        Returns:
+            FunctionResult
+        '''
         if _name not in inputs:
             Logger.error(f'Assistant: invalid inputs: {inputs}')
             return FunctionResult(AppLogic.INVALID)
@@ -779,36 +723,38 @@ class Assistant:
 
         if not opening:
             Logger.error(f'Assistant: opening not found: {inputs}')
+
+            # Send back some hints about how to try again.
             return FunctionResult(AppLogic.RETRY, (
                 f'The opening was not found. Use {_play_chess_opening} '
                 f'with another name that "{inputs[_name]}" is known as.'
             ))
-
         else:
-            self.append_history(
-                kind='opening_selection',
-                request=user_request,
-                result=inputs
-            )
             current = self._app.get_current_play()
 
             if current.startswith(opening.pgn):
-                # return FunctionResult(
-                #     AppLogic.RETRY,
-                #     (
-                #         f'The opening that you suggested is already in play. '
-                #         f'Perhaps try something else related to {opening.name}?'
-                #     )
-                # )
-                return FunctionResult(AppLogic.INVALID)
-            else:
-                self._schedule_action(lambda *_: self._app.play_opening(opening))
-                return FunctionResult(AppLogic.OK)
+                return self._call_ai_with_results(
+                    user_request,
+                    _play_chess_opening,
+                    f'{opening.name} is already in progress.'
+                )
+
+            def on_play():
+                # Call back into the AI to confirm the opening is set up.
+                # callback_result = {
+                #     _function: _play_chess_opening,
+                #     _return: f'The {opening.name} is set up.'
+                # }
+                # self.call(user_request, callback_result=callback_result)
+                self._call_ai_with_results(user_request, _play_chess_opening, f'The {opening.name} is set up.')
+
+            self._schedule_action(lambda *_: self._app.play_opening(opening, callback=on_play))
+            return FunctionResult(AppLogic.OK)
 
 
     def _handle_puzzle_theme(self, user_request, inputs):
         '''
-        Handle the suggestion of a puzzle theme.
+        Handle the function call that requests the selection of a puzzle.
         '''
         theme = inputs.get(_theme)
         if not theme:
@@ -816,34 +762,37 @@ class Assistant:
 
         puzzles = PuzzleCollection().filter(theme)
         if not puzzles:
-            return FunctionResult(AppLogic.INVALID)
+            return FunctionResult(AppLogic.INVALID)  # invalid theme
 
-        def play_puzzle():
+        # Choose puzzle at random from the subset that matches the theme.
+        selection = random.choice(puzzles)
+
+        def play_puzzle(puzzle):
             '''
-            Choose puzzle at random from the subset that matches the theme, and play it.
+            Callback function that gets called after the user confirms the puzzle.
             '''
-            selection = random.choice(puzzles)
-            self._app.selected_puzzle = selection[3]
-            self._app.load_puzzle(selection)
+            self._app.selected_puzzle = puzzle[3]
+            self._app.load_puzzle(puzzle)
 
-            # Add to the history only if the puzzle is actually loaded.
-            self.append_history(
-                kind='puzzle_theme',
-                request=user_request,
-                result=theme
-            )
+            # Confirm that the user has accepted the puzzle.
+            callback_result = {
+                _function: _select_chess_puzzles,
+                _return: f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
+            }
+            self.call(user_request, callback_result=callback_result)
 
+        # Schedule running the puzzle (may ask the user for confirmation).
         self._schedule_action(
-            lambda *_: self._app.new_action(
+            partial(
+                self._app.new_action,
                 'practice: ' + Context.describe_theme(theme),
-                play_puzzle
+                partial(play_puzzle, selection)
             )
         )
         return FunctionResult(AppLogic.OK)
 
 
     def _register_handlers(self):
-        self._handlers[_answer] = self._handle_answer
         self._handlers[_openings] = self._handle_lookup_openings
         self._handlers[_name] = self._handle_chess_opening
         self._handlers[_theme] = self._handle_puzzle_theme
@@ -852,7 +801,6 @@ class Assistant:
     def _register_funcs(self):
         FunctionCall.register(_analyze_position, self._handle_analysis)
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
-        FunctionCall.register(_present_answer, self._handle_answer)
         FunctionCall.register(_play_chess_opening, self._handle_chess_opening)
         FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
         FunctionCall.register(_get_game_transcript, self._handle_get_transcript)
@@ -891,48 +839,32 @@ class Assistant:
         return result
 
 
-    @mainthread
-    def _say(self, text):
-        if text and self._app.speak_moves:
-            Logger.debug(f'Assistant: {text}')
-            self._app.speak(text)
-
-
-    def _respond(self, text, topic=None, *, user_request, result=None):
+    def _respond_to_user(self, response):
         '''
-        Respond to a user question with speech and text bubble.
-        '''
+        Present the response to a request back to the user via tts and on-screen text bubble.
 
+        Args:
+            text (str): The message to be presented to the user.
+
+        '''
         # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
-        tts_text = substitute_chess_moves(text, ';', True)
+        tts_text = substitute_chess_moves(response, ';', True)
 
         # Reformat numbered lists if the response does not seem to contain moves.
-        if tts_text == text:
+        if tts_text == response:
             pattern = r'(\d+\.[^\n;]+?)(?:\s|\n|\.)+(?=\s*\d+\.|\s*$)'
-            tts_text = re.sub(pattern, r'\1; ', text)
+            tts_text = re.sub(pattern, r'\1; ', response)
 
-        if user_request:
-            self.append_history(kind='generic', request=user_request, result=text)
-
-        text = text.replace('\n', ' ')  # Remove newlines, to better fit the bubble.
+        text = response.replace('\n', ' ')  # Remove newlines, to better fit the bubble.
 
         self._schedule_action(lambda *_: self._app.text_bubble(text))
 
-        self._speak_response(tts_text, topic)
-
-
-    def _speak_response(self, text, topic):
-
-        # Make sure St. George is pronounced Saint George, not Street George
-        tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
-
-        self._say(tts_text)
+        self._speak_response(tts_text)
 
 
     def _schedule_action(self, action, *_):
         '''
-        Schedule action to run after all modal popups are dismissed.
-
+        Schedule an action to be executed as soon as all modal popups are dismissed.
         '''
         if self._app.voice_input.is_running():
             self._app.voice_input.stop()
@@ -941,3 +873,12 @@ class Assistant:
             Clock.schedule_once(partial(self._schedule_action, action), 0.1)
         else:
             Clock.schedule_once(lambda *_: action(), 0.1)
+
+
+    def _speak_response(self, text):
+        # Make sure St. George is pronounced Saint George, not Street George
+        tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
+
+        if text:
+            Logger.debug(f'Assistant: {text}')
+            Clock.schedule_once(partial(self._app.speak, tts_text))

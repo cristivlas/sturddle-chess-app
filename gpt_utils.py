@@ -85,7 +85,7 @@ def get_token_count(model, messages, functions):
     Quick-and-dirty workaround for tiktoken.so being broken on Android (bad ELF).
     '''
     msg = json.dumps(messages)
-    fun = json.dumps(functions)
+    fun = json.dumps(functions) if functions else ''
     tok = (len(msg) + len(fun)) / 4.5  # approximate characters per token.
     return int(tok)
 

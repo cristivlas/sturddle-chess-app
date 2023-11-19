@@ -270,7 +270,7 @@
         orientation: 'horizontal'
         padding: 0, dp(10)
         size_hint_y: None
-        height: dp(50)
+        height: dp(54)
         GridLayout:
             cols: 3
             OptLabel:
@@ -301,7 +301,7 @@
             padding: [0, dp(10), 0, dp(10)]
             TextInput:
                 disabled: not enabled.active
-                height: dp(30)
+                height: dp(34)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
                 multiline: False
@@ -313,7 +313,7 @@
             padding: [0, dp(10), 0, dp(10)]
             TextInput:
                 disabled: not enabled.active
-                height: dp(30)
+                height: dp(34)
                 pos_hint: { 'center_x': 0.5, 'center_y': 0.5 }
                 size_hint_y: None
                 multiline: False
@@ -335,20 +335,10 @@
             disabled: not enabled.active
             id: init_temp
             min: 0
-            max: 1 - temp_incr.value
+            max: 1
             step: 0.001
-            value: app.assistant.initial_temperature
-            on_touch_up: app.assistant.initial_temperature = self.value
-        OptLabel:
-            text: 'Temp Increment: {:.3f}'.format(temp_incr.value)
-        OptSlider:
-            disabled: not enabled.active
-            id: temp_incr
-            min: 0
-            max: 0.1
-            step: 0.0025
-            value: app.assistant.temperature_increment
-            on_touch_up: app.assistant.temperature_increment = self.value
+            value: app.assistant.temperature
+            on_touch_up: app.assistant.temperature = self.value
         OptLabel:
             text: 'Initial Timeout: {:.2f}'.format(int(req_timeout.value))
         OptSlider:
