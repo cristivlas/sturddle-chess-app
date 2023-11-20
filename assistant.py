@@ -181,7 +181,15 @@ _FUNCTIONS = [
                 },
                 _restore: {
                     _type: 'boolean',
-                    _description: 'True IFF this operation is restoring a previous state, False otherwise',
+                    _description: (
+                        # 'True IFF this operation is restoring a previous state, False otherwise. '
+                        # 'When this flag is True the app skips over the move by move, animated play.'
+                        # 'Normally the user likes to see the play move by move, except for when '
+                        # 'restoring the board to a previous state.'
+                        'Set to True for restoring a previous state, False otherwise. When True, '
+                        'it skips move-by-move animation, suitable for state restoration rather '
+                        'than normal play where animated moves are preferred.'
+                    ),
                 },
                 _user: {
                     _type: _string,
@@ -219,9 +227,9 @@ _system_prompt = (
     f"specified by the user. Make moves for both sides using {_make_moves}. "
     f"The following functions are asynchronous, and must not be assumed to have "
     f"completed until explicit confimation: {_analyze_position}, {_make_moves}, "
-    f"{_play_chess_opening}, and {_select_chess_puzzles}. Remember to always make "
-    f"sure that you are up to date with the state of the game. Heed to which side "
-    f"the user is playing."
+    f"{_play_chess_opening}, and {_select_chess_puzzles}. Always make sure that "
+    f"you are up to date with the state of the game. Never make assumptions about "
+    f"the side to move, as it may change due to the asynchronous engine responses."
 )
 
 
@@ -648,6 +656,8 @@ class Assistant:
             else:
                 return True  # Success
 
+            Logger.error(f'{_assistant}: request failed:\n{json.dumps(messages, indent=2)}')
+
 
     def _call_ai_with_results(self, user_request, func_name, results):
         '''
@@ -762,6 +772,11 @@ class Assistant:
 
                 results.append(best_match)
 
+        if not results:
+            return FunctionResult(AppLogic.RETRY, (
+                'No matches. Try alternative spellings, or rely on your own knowledge.'
+            ))
+
         # Send the results back to the AI.
         return self._call_ai_with_results(user_request, _lookup_openings, results)
 
@@ -803,12 +818,15 @@ class Assistant:
                 )
 
             def on_done():
-                callback = partial(
-                    self._call_ai_with_results,
-                    user_request,
-                    _play_chess_opening,
-                    f'{opening.name}: is set up.'
-                )
+                def callback():
+                    result = {
+                        _function: _play_chess_opening,
+                        _return: f'{opening.name}: is set up.'
+                    }
+
+                    # Call back into the AI to confirm the opening is set up.
+                    self.call(user_request, callback_result=result)
+
                 if user_color is None or user_color == _get_user_color(self._app):
                     callback()
                 else:
@@ -859,6 +877,15 @@ class Assistant:
 
 
     def _handle_make_moves(self, user_request, inputs):
+        '''
+        Apply position and moves from PGN.
+        Args:
+            user_request (str): user request that ended up triggering this function call.
+            inputs (dict): dictionary of parameters as decribed in _FUNCTIONS schema.
+
+        Returns:
+            FunctionResult
+        '''
         pgn, user_color = inputs.get(_pgn), inputs.get(_user)
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
@@ -875,7 +902,11 @@ class Assistant:
             pgn = game.accept(exporter)
 
         def on_done():
-            callback = partial(self._call_ai_with_results, user_request, _make_moves, 'Done')
+            # callback = partial(self._call_ai_with_results, user_request, _make_moves, 'Done')
+            # Call the AI on the main thread to keep the UI responsive.
+            def callback():
+                result = {_function: _make_moves, _return: 'Done'}
+                self.call(user_request, callback_result=result)
 
             if user_color is None or user_color == _get_user_color(self._app):
                 callback()
