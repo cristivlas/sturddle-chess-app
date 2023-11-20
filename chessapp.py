@@ -1825,7 +1825,7 @@ class ChessApp(App):
         '''
         Parse the PGN and play moves.
         '''
-        def load_and_play(game, callback, current=0, *_):
+        def load_and_play(game, animate, callback, current=0, *_):
             ''' Helper function passed to Clock.schedule_once '''
 
             def on_completion():
@@ -1853,7 +1853,7 @@ class ChessApp(App):
                 current = self.game_len()
 
                 # The opening matches the current position, do not ask for confirmation.
-                Clock.schedule_once(partial(load_and_play, game, callback, current))
+                Clock.schedule_once(partial(load_and_play, game, animate, callback, current))
 
             elif current_pgn and current_pgn.startswith(pgn):
                 if name:
@@ -1872,7 +1872,7 @@ class ChessApp(App):
                 else:
                     msg = 'apply the change'
 
-                self.new_action(msg, partial(load_and_play, game, callback))
+                self.new_action(msg, partial(load_and_play, game, animate, callback))
 
             return True
 
