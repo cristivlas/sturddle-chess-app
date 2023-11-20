@@ -2501,7 +2501,9 @@ class ChessApp(App):
             pv = [san(board, uci) for uci in pv]
             return ' '.join(pv[start:])
 
-        if analysis and not self.engine.is_game_over():
+        # Check if engine is running before reporting results. If the
+        # engine is paused, the user may have cancelled the analysis.
+        if analysis and not self.engine.is_game_over() and not self.engine.worker.is_paused():
             pv = self.engine.pv
             distance_to_mate = None
             winning_side = color if score > 0 else not color
@@ -2518,7 +2520,6 @@ class ChessApp(App):
                 # Analysis done on behalf of the Assistant. Prepare result.
                 result = {
                     'function': assist[0],
-                    #'hint': 'PV contains the moves that would follow after the recommended (best) move.',
                     'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
                     'recommend': san(search.context.board().copy(), move),
