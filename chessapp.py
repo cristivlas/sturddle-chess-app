@@ -1184,6 +1184,9 @@ class ChessApp(App):
                             self.status_label.text = '[b]Try again.[/b]'
                             self.status_label.background = get_color_from_hex('#E44D2E')
                             Clock.schedule_once(lambda *_: self.engine.undo(), 2)
+                            self.speak(random.choice([
+                                'Try again', 'Take your time', 'Give it another go', 'Not quite', 'No rush'
+                            ]) + '...')
 
                         self.engine.apply(move)
                         Clock.schedule_once(wrong)

@@ -220,7 +220,8 @@ _system_prompt = (
     f"The following functions are asynchronous, and must not be assumed to have "
     f"completed until explicit confimation: {_analyze_position}, {_make_moves}, "
     f"{_play_chess_opening}, and {_select_chess_puzzles}. Remember to always make "
-    f"sure that you are up to date with the state of the game."
+    f"sure that you are up to date with the state of the game. Heed to which side "
+    f"the user is playing."
 )
 
 
