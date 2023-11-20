@@ -1819,12 +1819,12 @@ class ChessApp(App):
             self.engine.use_opening_book(self.engine.book != None)
 
 
-    def play_opening(self, opening, *, callback=None):
+    def play_opening(self, opening, *, color=None, callback=None):
         if opening:
-            return self.play_pgn(opening.pgn, name=opening.name, callback=callback)
+            return self.play_pgn(opening.pgn, name=opening.name, callback=callback, color=color)
 
 
-    def play_pgn(self, pgn, *, name=None, callback=None, animate=True):
+    def play_pgn(self, pgn, *, name=None, color=None, callback=None, animate=True):
         '''
         Parse the PGN and play moves.
         '''
@@ -1837,6 +1837,10 @@ class ChessApp(App):
                     callback()
 
             self._load_pgn(game)
+
+            if color is not None and color != self.engine.opponent:
+                self.flip_board()
+
             if animate:
                 self._animate(callback=on_completion, from_move=current)
             else:

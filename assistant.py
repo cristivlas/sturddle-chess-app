@@ -270,6 +270,15 @@ def _get_user_color(app):
     return ['black', 'white'][app.engine.opponent]
 
 
+def _get_color_param(param):
+    if param is not None:
+        param = param.lower()
+        if param == 'black':
+            return False
+        if param == 'white':
+            return True
+
+
 class GameState:
     def __init__(self, app=None):
         self.valid = False
@@ -820,12 +829,15 @@ class Assistant:
                     # Call back into the AI to confirm the opening is set up.
                     self.call(user_request, callback_result=result)
 
-                if user_color is None or user_color == _get_user_color(self._app):
-                    callback()
-                else:
-                    self._flip_board(on_done_callback=callback)
+                # if user_color is None or user_color == _get_user_color(self._app):
+                #     callback()
+                # else:
+                #     self._flip_board(on_done_callback=callback)
+                callback()
 
-            self._schedule_action(lambda *_: self._app.play_opening(opening, callback=on_done))
+            color = _get_color_param(user_color)
+            self._schedule_action(lambda *_: self._app.play_opening(opening, callback=on_done, color=color))
+
             return FunctionResult(AppLogic.OK)
 
 
@@ -901,12 +913,14 @@ class Assistant:
                 result = {_function: _make_moves, _return: 'Done'}
                 self.call(user_request, callback_result=result)
 
-            if user_color is None or user_color == _get_user_color(self._app):
-                callback()
-            else:
-                self._flip_board(on_done_callback=callback)
+            # if user_color is None or user_color == _get_user_color(self._app):
+            #     callback()
+            # else:
+            #     self._flip_board(on_done_callback=callback)
+            callback()
+        color = _get_color_param(user_color)
+        self._schedule_action(lambda *_: self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening))
 
-        self._schedule_action(lambda *_: self._app.play_pgn(pgn, animate=animate, name=opening, callback=on_done))
         return FunctionResult(AppLogic.OK)
 
 
