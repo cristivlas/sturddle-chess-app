@@ -182,13 +182,8 @@ _FUNCTIONS = [
                 _restore: {
                     _type: 'boolean',
                     _description: (
-                        # 'True IFF this operation is restoring a previous state, False otherwise. '
-                        # 'When this flag is True the app skips over the move by move, animated play.'
-                        # 'Normally the user likes to see the play move by move, except for when '
-                        # 'restoring the board to a previous state.'
-                        'Set to True for restoring a previous state, False otherwise. When True, '
-                        'it skips move-by-move animation, suitable for state restoration rather '
-                        'than normal play where animated moves are preferred.'
+                        'True if restoring a previous state, False otherwise. False '
+                        '(the default) instructs the app to show the moves one by one.'
                     ),
                 },
                 _user: {
@@ -227,9 +222,7 @@ _system_prompt = (
     f"specified by the user. Make moves for both sides using {_make_moves}. "
     f"The following functions are asynchronous, and must not be assumed to have "
     f"completed until explicit confimation: {_analyze_position}, {_make_moves}, "
-    f"{_play_chess_opening}, and {_select_chess_puzzles}. Always make sure that "
-    f"you are up to date with the state of the game. Never make assumptions about "
-    f"the side to move, as it may change due to the asynchronous engine responses."
+    f"{_play_chess_opening}, and {_select_chess_puzzles}."
 )
 
 
@@ -565,7 +558,7 @@ class Assistant:
             self._app.update()
 
             if status is None:
-                self._respond_to_user('Sorry, I cannot help you with your request at this time.')
+                self._respond_to_user('Sorry, I cannot complete your request at this time.')
 
         self._busy = True
         self._app.start_spinner()
@@ -656,7 +649,7 @@ class Assistant:
             else:
                 return True  # Success
 
-            Logger.error(f'{_assistant}: request failed:\n{json.dumps(messages, indent=2)}')
+        Logger.error(f'{_assistant}: request failed:\n{json.dumps(messages, indent=2)}')
 
 
     def _call_ai_with_results(self, user_request, func_name, results):
@@ -818,12 +811,12 @@ class Assistant:
                 )
 
             def on_done():
+                @self.engine_sync
                 def callback():
                     result = {
                         _function: _play_chess_opening,
                         _return: f'{opening.name}: is set up.'
                     }
-
                     # Call back into the AI to confirm the opening is set up.
                     self.call(user_request, callback_result=result)
 
@@ -902,8 +895,8 @@ class Assistant:
             pgn = game.accept(exporter)
 
         def on_done():
-            # callback = partial(self._call_ai_with_results, user_request, _make_moves, 'Done')
             # Call the AI on the main thread to keep the UI responsive.
+            @self.engine_sync
             def callback():
                 result = {_function: _make_moves, _return: 'Done'}
                 self.call(user_request, callback_result=result)
@@ -1044,3 +1037,19 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
+
+
+    def engine_sync(self, func):
+        '''
+        The idea is that after setting up an opening or sequence of moves, the engine may
+        respond by searching for a move. If the search does not complete before a callback
+        sends a game status update to the AI, there will be confusion over the side-to-move.
+        '''
+        def wrapper(*_):
+            if self._app.engine.busy:
+                Logger.info('engine_sync: rescheduling')
+                Clock.schedule_once(wrapper)
+            else:
+                func()
+
+        return wrapper

@@ -182,7 +182,7 @@ class Engine:
 
 
     def apply(self, move):
-        if move and not self.busy:
+        if move and not self.search:
             self._apply(move)
             return move
 
