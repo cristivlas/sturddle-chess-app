@@ -178,11 +178,15 @@ _FUNCTIONS = [
         _parameters: {
             _type: _object,
             _properties: {
+                _fen: {
+                    _type: _string,
+                    _description: 'The FEN of the position on top of which to apply the moves.'
+                },
                 _pgn: {
                     _type: _string,
                     _description: (
                         'A string containing a PGN snippet. Must contain numbered moves. '
-                        'The desired moves must be preceded by the complete game history.'
+                        'The desired moves should be preceded by the complete game history.'
                     )
                 },
                 _restore: {
@@ -197,34 +201,34 @@ _FUNCTIONS = [
                     _description: 'The side the user wants to play.'
                 }
             },
-            _required: [_pgn],
+            _required: [_fen, _pgn],
         }
     },
-    {
-        _name: _set_user_side,
-        _description: (
-            'Set the side the user is playing. If already '
-            'playing the desired side, this function has no effect.'
-        ),
-        _parameters: {
-            _type: _object,
-            _properties: {
-                _user: {
-                    _type: _string,
-                    _description: "'black' or 'white'",
-                }
-            },
-            _required: [_user]
-        }
-    }
+    # {
+    #     _name: _set_user_side,
+    #     _description: (
+    #         'Set the side the user is playing. If already '
+    #         'playing the desired side, this function has no effect.'
+    #     ),
+    #     _parameters: {
+    #         _type: _object,
+    #         _properties: {
+    #             _user: {
+    #                 _type: _string,
+    #                 _description: "'black' or 'white'",
+    #             }
+    #         },
+    #         _required: [_user]
+    #     }
+    # }
 ]
 
 _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
-    f"the latter to play out PVs returned by {_analyze_position}. {_set_user_side} must be used "
-    f"only at the user's explicit wish to change sides. Always use {_analyze_position} when asked "
-    f"to suggest moves. Always use the user side (color) as reported by function calls."
+    f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
+    f"when asked to suggest moves. If asked for help with puzzles, respond with a koan or quote "
+    f"from famous chess masters."
 )
 
 class AppLogic(Enum):
@@ -325,17 +329,32 @@ class Context:
 
 
     def annotate_user_message(self, app, message):
+        '''
+        Modify the content of user messages when the user is solving puzzles
+        of when the side played by the user has changed from the last exchange.
+        This helps the backend AI better understand the context.
+
+        Args:
+            app (object): A weak proxy to the application.
+            message (dict): The message to be sent to the AI.
+
+        Returns:
+            dict: The input message unchanged, or the modified message.
+        '''
         user_color = _get_user_color(app)
 
-        if self.user != user_color:
-            self.user = user_color
+        if message[_role] == _user:
+            content = message[_content]
 
-            if message[_role] == _user:
-                content = message[_content]
-                message = {
-                    _role: _user,
-                    _content: f'I am now playing as {user_color}. {content}'
-                }
+            if app.puzzle:
+                content = f'I am solving puzzle. {content}'
+
+            elif self.user != user_color:
+                content = f'I am now playing as {user_color}. {content}'
+
+            message = {_role: _user, _content: content}
+
+        self.user = user_color  # Keep track of the side played by the user.
         return message
 
 
@@ -393,7 +412,7 @@ class Assistant:
         self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
-        self.retry_count = 3
+        self.retry_count = 5
         self.requests_timeout = 3.0
         self.temperature = 0.01
         self.token_limit = 3072
@@ -688,19 +707,23 @@ class Assistant:
         return FunctionResult()
 
 
-    def complete_on_main_thread(self, user_request, function, result=None):
+    def complete_on_main_thread(self, user_request, function, *, result=None, resume=False):
         ''' Call the backend to notify that a function call has completed.
 
         Args:
             user_request (str): User input that triggered the function call.
             function (str): The name of the function that has completed.
             result (any): The result of the function call.
+            resume (bool): True if the engine needs to be resumed.
         '''
 
         def callback(*_):
             if self._app.engine.busy:
                 Clock.schedule_once(callback)
             else:
+                if resume:
+                    self._app.set_study_mode(False)  # Start the engine.
+
                 self.call(user_request, callback_result=self.format_result(function, result))
 
         Clock.schedule_once(callback)
@@ -851,17 +874,18 @@ class Assistant:
                     _play_opening,
                     f'{opening.name} is already in progress. Select another variation.'
                 )
-            on_done = partial(self.complete_on_main_thread, user_request, _play_opening)
-
+            on_done = partial(
+                self.complete_on_main_thread, user_request, _play_opening, resume=True
+            )
             self._schedule_action(
-                lambda *_:self._app.play_opening(opening, callback=on_done, color=color)
+                lambda *_: self._app.play_opening(opening, callback=on_done, color=color)
             )
             return FunctionResult(AppLogic.OK)
 
 
     def _handle_puzzle_theme(self, user_request, inputs):
         '''
-        Handle the function call that requests the selection of a puzzle.
+        Handle the request to select a puzzle by given theme.
         '''
         theme = inputs.get(_theme)
         if not theme:
@@ -879,11 +903,8 @@ class Assistant:
             self._app.selected_puzzle = puzzle[3]
             self._app.load_puzzle(puzzle)
 
-            self.complete_on_main_thread(
-                user_request,
-                _select_chess_puzzles,
-                f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
-            )
+            msg = f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
+            self.complete_on_main_thread(user_request, _select_chess_puzzles, result=msg)
 
         # Schedule running the puzzle (may ask the user for confirmation).
         self._schedule_action(
@@ -905,12 +926,19 @@ class Assistant:
         Returns:
             FunctionResult
         '''
-        pgn, color = inputs.get(_pgn), _get_color(inputs.get(_user))
+        pgn = inputs.get(_pgn)
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
 
-        opening = None
+        fen = inputs.get(_fen)
+        Logger.debug(fen)
+        Logger.debug(self._app.engine.board.epd())
+
+        # Get the optional params.
         animate = not inputs.get(_restore)
+        color = _get_color(inputs.get(_user))
+
+        opening = None
 
         game = chess.pgn.read_game(StringIO(pgn))
         if game:
@@ -920,14 +948,16 @@ class Assistant:
             exporter = chess.pgn.StringExporter(headers=False, variations=False, comments=False)
             pgn = game.accept(exporter)
 
+        # Do not resume upon completing the request, to avoid confusion over the side to move.
         on_done = partial(self.complete_on_main_thread, user_request, _make_moves)
 
         self._schedule_action(lambda *_:
-            self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening))
-
+            self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
+        )
         return FunctionResult(AppLogic.OK)
 
 
+    # TODO: Not sure how useful this is, remove?
     def _handle_set_user_side(self, user_request, inputs):
         color = inputs.get(_user)
         if not color:

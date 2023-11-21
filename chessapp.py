@@ -573,7 +573,7 @@ class ChessApp(App):
 
 
     def _animate(self, from_move=0, callback=lambda *_:None):
-        self.set_study_mode(True)
+        self.set_study_mode(True)  # Pause the engine.
 
         while self.can_undo() and self.game_len() > from_move:
             self.undo_move()
@@ -1838,16 +1838,22 @@ class ChessApp(App):
         Returns:
             bool or None: True if loaded successfully.
         '''
+
         def load_and_play(game, animate, callback, current=0, *_):
-            ''' Helper function passed to Clock.schedule_once '''
+            '''
+            Helper function passed to Clock.schedule_once once pgn is validated.
+            '''
 
             def on_completion():
-                self.set_study_mode(False)
                 if callback:
-                    callback()
+                    callback()  # Resuming the engine is up to the callback.
+                else:
+                    self.set_study_mode(False)  # Resume the engine.
 
+            # Load game or position from the game object.
             self._load_pgn(game)
 
+            # Set the desired perspective before (optionally) animating the sequence.
             if color is not None and color != self.engine.opponent:
                 self.flip_board()
 
@@ -1878,16 +1884,12 @@ class ChessApp(App):
                 if callback:
                     callback()
             else:
-                Logger.debug(f'pgn: old="{current_pgn}"')
-                Logger.debug(f'pgn: new="{pgn}"')
-
                 # The sequence does not match the current game: ask
-                # for confirmation to abandon the game in progress.
+                # for confirmation before discarding the current game.
                 if animate:
-                    if not name: name = 'the moves'
-                    msg = f'play {name}'
+                    msg = f"play {name or 'the moves'}"
                 else:
-                    msg = 'make the moves'
+                    msg = 'reconfigure the board'
 
                 self.new_action(msg, partial(load_and_play, game, animate, callback))
 
@@ -2008,7 +2010,9 @@ class ChessApp(App):
 
 
     def _paste(self):
-        if self.validate_clipboard():
+        # Do not allow pasting a new game / position while then engine is busy.
+        # Validate that the string in the clipboard is a valid PGN.
+        if not self.engine.busy and self.validate_clipboard():
             return lambda *_: self.paste()
 
 
@@ -2537,7 +2541,7 @@ class ChessApp(App):
                     'score': score,
                     'lead': COLOR_NAMES[winning_side],
                 }
-                self.assistant.complete_on_main_thread(*assist, result)
+                self.assistant.complete_on_main_thread(*assist, result=result, resume=False)
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
