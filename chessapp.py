@@ -2017,20 +2017,20 @@ class ChessApp(App):
 
 
     def get_current_play(self):
-        pgn = self.transcribe(headers=None, variations=False, comments=False)[1]
+        pgn = self.transcribe(columns=None, headers=None, variations=False, comments=False)[1]
         pgn = pgn.rstrip(' *')
         return pgn
 
 
     def hints(self):
-        self._hints(opening_book_variations=False)
+        self._voice_hint(opening_book_variations=False)
 
 
     def variations(self):
-        self._hints(opening_book_variations=True)
+        self._voice_hint(opening_book_variations=True)
 
 
-    def _hints(self, opening_book_variations):
+    def _voice_hint(self, opening_book_variations):
         '''
         Implement 'Hints' and 'Variations' vocal commands.
         '''
@@ -2224,7 +2224,7 @@ class ChessApp(App):
         On non-Android platforms pop up a Notebook with the game transcript,
         and the use can copy-and-paste manually.
         '''
-        title, text = self.transcribe()
+        title, text = self.transcribe(columns=None)
         if platform == 'android':
             try:
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')

@@ -571,7 +571,7 @@ class Engine:
         return moves_count
 
 
-    def transcript(self, eco=None, headers={}, variations=True, comments=True, engine=True):
+    def transcript(self, eco=None, headers={}, engine=True, **kwargs):
         '''
         Generate transcript in PGN format.
         See https://en.wikipedia.org/wiki/Portable_Game_Notation
@@ -620,11 +620,7 @@ class Engine:
             for tag, val in headers.items():
                 game.headers[tag] = val
 
-        exporter = chess.pgn.StringExporter(
-            headers=headers is not None,
-            variations=variations,
-            comments=comments
-        )
+        exporter = chess.pgn.StringExporter(headers=headers is not None, **kwargs)
         return title, game.accept(exporter)
 
 

@@ -209,8 +209,7 @@ _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. If the user asks for help with puzzles, do not recommend moves "
-    f"nor solutions, but respond instead with koans or quotes from famous chess masters."
+    f"when asked to suggest moves."
 )
 
 class AppLogic(Enum):
@@ -265,7 +264,7 @@ class GameState:
         self.valid = False
         if app:
             self.epd = app.engine.board.epd()
-            self.pgn = app.transcribe(engine=False)[1]
+            self.pgn = app.transcribe(columns=None, engine=False)[1]
             self.user_color = _get_user_color(app)
             self.valid = True
 
@@ -329,7 +328,10 @@ class Context:
             content = message[_content]
 
             if app.puzzle:
-                content = f'I am solving puzzle. {content}'
+                content = (
+                    'I am working a puzzle. Do not help me. If I ask for '
+                    'help, tell me a koan instead, or a grandmaster quote. '
+                ) + content
 
             elif self.user != user_color:
                 content = f'I am now playing as {user_color}. {content}'
@@ -520,11 +522,11 @@ class Assistant:
                 break
             try:
                 response = json.loads(content)
-
-                for k,h in self._handlers.items():
-                    if k in response:
-                        Logger.info(f'{_assistant}: handler={k}')
-                        return h(user_request, response)
+                if isinstance(response, dict):
+                    for k,h in self._handlers.items():
+                        if k in response:
+                            Logger.info(f'{_assistant}: handler={k}')
+                            return h(user_request, response)
                 break
 
             except json.decoder.JSONDecodeError as e:
@@ -913,8 +915,9 @@ class Assistant:
             return FunctionResult(AppLogic.INVALID)
 
         fen = inputs.get(_fen)
-        Logger.debug(fen)
-        Logger.debug(self._app.engine.board.epd())
+        if not self._validate_moves(fen, pgn):
+            Logger.info(f'{_assistant}: RETRY {pgn}')
+            return FunctionResult(AppLogic.RETRY, 'Moves must be preceded by the full game history.')
 
         # Get the optional params.
         animate = not inputs.get(_restore)
@@ -927,7 +930,7 @@ class Assistant:
             opening = game.headers.get('Opening')  # Retain the name of the opening.
 
             # Strip out headers and other info.
-            exporter = chess.pgn.StringExporter(headers=False, variations=False, comments=False)
+            exporter = chess.pgn.StringExporter(columns=None, headers=False, variations=False, comments=False)
             pgn = game.accept(exporter)
 
         # Do not resume upon completing the request, to avoid confusion over the side to move.
@@ -963,17 +966,6 @@ class Assistant:
     # Miscellaneous helpers.
     #
     # -------------------------------------------------------------------
-
-    def _flip_board(self, on_done_callback=None, *_):
-        if self._busy:
-            Clock.schedule_once(partial(self._flip_board, on_done_callback), 0.1)
-
-        else:
-            self._app.flip_board()
-
-            if on_done_callback:
-                on_done_callback()
-
 
     def _respond_to_user(self, response):
         '''
@@ -1060,3 +1052,15 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
+
+
+    def _validate_moves(self, fen, pgn):
+        ''' Helper for _handle_make_moves. '''
+        board_fen = self._app.engine.board.epd()
+        # Logger.debug(f'{_assistant}: fen={fen}, board={board_fen}')
+
+        if fen == board_fen:
+            current = self._app.get_current_play()
+            return pgn.startswith(current)
+
+        return True
