@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 
+import chess
 import chess.pgn
 import json
 import logging
@@ -34,8 +35,8 @@ from gpt_utils import get_token_count
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
-from puzzleview import themes_dict as puzzle_themes
 from puzzleview import PuzzleCollection
+from puzzleview import themes_dict as puzzle_themes
 from speech import tts
 from worker import WorkerThread
 
@@ -48,10 +49,11 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 ''' Function names. '''
 _analyze_position = 'analyze_position'
-_get_game_transcript = 'get_pgn'
+_get_game_state = 'get_game_state'
 _lookup_openings = 'lookup_openings'
-_play_chess_opening = 'play_chess_opening'
+_play_opening = 'play_opening'
 _select_chess_puzzles = 'select_chess_puzzles'
+_set_user_side = 'set_user_side'
 
 ''' Schema keywords, constants. '''
 _arguments = 'arguments'
@@ -64,7 +66,7 @@ _fen = 'FEN'
 _function = 'function'
 _function_call = 'function_call'
 _items = 'items'
-_make_moves = 'set_board_from_pgn'
+_make_moves = 'make_moves'
 _object = 'object'
 _openings = 'opening_names'
 _role = 'role'
@@ -75,12 +77,12 @@ _required = 'required'
 _name = 'name'
 _response = 'response'
 _restore = 'restore'
+_result = 'result'
 _return = 'return'
-_set_user_side = 'set_user_side'
+_state = 'state'
 _string = 'string'
 _system = 'system'
 _theme = 'theme'
-_transcript = 'transcript'
 _type = 'type'
 _user = 'user'
 
@@ -90,24 +92,23 @@ https://platform.openai.com/docs/guides/function-calling
 _FUNCTIONS = [
     {
         _name: _analyze_position,
-        _description: 'This function analyzes the current game position.',
-        _parameters: {
-            _type: _object,
-            _properties: {}
-        }
-    },
-    {
-        _name: _get_game_transcript,
         _description: (
-            'This function returns the PGN transcript of the current game,'
-            'which includes information about the opening being played and '
-            'the list of moves played so far.'
+            'This function analyzes the current game position. It returns the best move '
+            'for the side-to-move and the principal variation (pv).'
         ),
         _parameters: {
             _type: _object,
             _properties: {}
         }
     },
+    # {
+    #     _name: _get_game_state,
+    #     _description: 'Get game state including FEN, PGN and the side the user is playing.',
+    #     _parameters: {
+    #         _type: _object,
+    #         _properties: {}
+    #     }
+    # },
     {
         _name: _lookup_openings,
         _description: f'This function searches chess openings by name in the {_ECO}.',
@@ -116,7 +117,7 @@ _FUNCTIONS = [
             _properties : {
                 _openings: {
                     _type: _array,
-                    _description: 'The names to look up.',
+                    _description: 'An array of names to look up.',
                     _items: {
                         _type: _string,
                     }
@@ -136,7 +137,7 @@ _FUNCTIONS = [
         _name: _select_chess_puzzles,
         _description: (
             'Select puzzles by theme. Must be called with a valid puzzle theme.'
-        ) + 'The complete list of valid themes is: ' + ', '.join(_valid_puzzle_themes),
+        ) + 'The valid themes are: ' + ', '.join(_valid_puzzle_themes),
         _parameters: {
             _type: _object,
             _properties : {
@@ -148,7 +149,7 @@ _FUNCTIONS = [
         }
     },
     {
-        _name: _play_chess_opening,
+        _name: _play_opening,
         _description: 'Play the specified opening.',
         _parameters: {
             _type: _object,
@@ -163,7 +164,7 @@ _FUNCTIONS = [
                 },
                 _user: {
                     _type: _string,
-                    _description: 'Which side to be played by the user. Optional.'
+                    _description: 'The side the user wants to play.'
                 }
             },
             _required: [_name, _eco]
@@ -171,13 +172,18 @@ _FUNCTIONS = [
     },
     {
         _name: _make_moves,
-        _description: 'Set the position on the board by using the information in the PGN',
+        _description: (
+            'This function makes moves on the board. The moves are specified as PGN.'
+        ),
         _parameters: {
             _type: _object,
             _properties: {
                 _pgn: {
                     _type: _string,
-                    _description: 'A string containing a PGN snippet',
+                    _description: (
+                        'A string containing a PGN snippet. Must contain numbered moves. '
+                        'The desired moves must be preceded by the complete game history.'
+                    )
                 },
                 _restore: {
                     _type: 'boolean',
@@ -188,7 +194,7 @@ _FUNCTIONS = [
                 },
                 _user: {
                     _type: _string,
-                    _description: 'The side the user is playing'
+                    _description: 'The side the user wants to play.'
                 }
             },
             _required: [_pgn],
@@ -196,35 +202,30 @@ _FUNCTIONS = [
     },
     {
         _name: _set_user_side,
-        _description: 'Ensure the user is playing the indicated side',
+        _description: (
+            'Set the side the user is playing. If already '
+            'playing the desired side, this function has no effect.'
+        ),
         _parameters: {
             _type: _object,
             _properties: {
                 _user: {
                     _type: _string,
-                    _description: '"black" or "white"',
+                    _description: "'black' or 'white'",
                 }
             },
             _required: [_user]
         }
     }
-
 ]
-# print(json.dumps(_FUNCTIONS, indent=4))
 
 _system_prompt = (
-    f"You are a chess tutor within a chess app, guiding on openings, puzzles, "
-    f"and game analysis. Use {_analyze_position} for analyzing the board, and "
-    f"for recommending moves to the user. Consult {_get_game_transcript} for the "
-    f"PGN transcript. Use {_play_chess_opening} for setting up the board with a "
-    f"specific chess opening. Use {_lookup_openings} to search for chess opening "
-    f"information. Select puzzles with {_select_chess_puzzles} based on the theme "
-    f"specified by the user. Make moves for both sides using {_make_moves}. "
-    f"The following functions are asynchronous, and must not be assumed to have "
-    f"completed until explicit confimation: {_analyze_position}, {_make_moves}, "
-    f"{_play_chess_opening}, and {_select_chess_puzzles}."
+    f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
+    f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
+    f"the latter to play out PVs returned by {_analyze_position}. {_set_user_side} must be used "
+    f"only at the user's explicit wish to change sides. Always use {_analyze_position} when asked "
+    f"to suggest moves. Always use the user side (color) as reported by function calls."
 )
-
 
 class AppLogic(Enum):
     NONE = 0
@@ -262,21 +263,15 @@ class FunctionCall:
         FunctionCall.dispatch[name] = func
 
 
-def _get_pgn(app):
-    return app.transcribe(engine=False)[1]  # Do not show engine name and version.
-
-
 def _get_user_color(app):
-    return ['black', 'white'][app.engine.opponent]
+    return chess.COLOR_NAMES[app.engine.opponent]
 
 
-def _get_color_param(param):
-    if param is not None:
-        param = param.lower()
-        if param == 'black':
-            return False
-        if param == 'white':
-            return True
+_colors = {'black': False, 'white': True}
+
+def _get_color(name):
+    if name is not None:
+        return _colors.get(name.lower())
 
 
 class GameState:
@@ -284,33 +279,42 @@ class GameState:
         self.valid = False
         if app:
             self.epd = app.engine.board.epd()
-            self.pgn = _get_pgn(app)
+            self.pgn = app.transcribe(engine=False)[1]
             self.user_color = _get_user_color(app)
             self.valid = True
 
+    def to_dict(self):
+        return {
+            _fen: self.epd,
+            _pgn: self.pgn,
+            _user: self.user_color,
+        }
+
     def __str__(self):
-        if not self.valid:
-            return 'invalid state'
-        return str({_fen: self.epd, _pgn: self.pgn, 'user_color': self.user_color})
+        return str(self.to_dict()) if self.valid else 'invalid'
 
     def __eq__(self, other):
         return str(self) == str(other)
 
 
 class Context:
+    ''' Keeps track of the conversation history '''
+
     def __init__(self):
         self.history = []
-        self.game_state = GameState()
+        self.user = None  # The side the user is playing
 
     def add_message(self, message):
         self.history.append(message)
 
+
     def add_response(self, response):
-        self.add_message({_role: 'assistant', _content: response})
+        self.add_message({_role: _assistant, _content: response})
+
 
     def add_function_call(self, function):
         message = {
-            _role: 'assistant',
+            _role: _assistant,
             _content: None,
             _function_call: {
                 _name: function.name,
@@ -319,21 +323,34 @@ class Context:
         }
         self.add_message(message)
 
+
+    def annotate_user_message(self, app, message):
+        user_color = _get_user_color(app)
+
+        if self.user != user_color:
+            self.user = user_color
+
+            if message[_role] == _user:
+                content = message[_content]
+                message = {
+                    _role: _user,
+                    _content: f'I am now playing as {user_color}. {content}'
+                }
+        return message
+
+
     def messages(self, current_msg, *, app, model, functions, token_limit):
         '''
-        Construct a list of messages to be passed to the OpenAI API call.
+        Construct a list of messages for the OpenAI API.
 
         Prepend the system prompt and the conversation history, while keeping
         the overall size of the payload under the token_limit.
         '''
-        msg = current_msg.copy()
-        if msg['role'] == 'user':
-            # Append a note about the state of the game having changed.
-            msg['content'] += self.update_game_state(app)
+        current_msg = self.annotate_user_message(app, current_msg)
 
         while True:
             # Prefix messages with the system prompt.
-            msgs = [{_role: 'system', _content: _system_prompt}] + self.history + [msg]
+            msgs = [{_role: 'system', _content: _system_prompt}] + self.history + [current_msg]
 
             if not self.history:
                 break
@@ -348,29 +365,17 @@ class Context:
 
         return msgs
 
+
     @staticmethod
     def describe_theme(theme):
         ''' Return English description of a puzzle theme.'''
         return puzzle_themes.get(theme, theme).rstrip(',.:')
 
-    def update_game_state(self, app):
-        msg = ''
-        current_state = GameState(app)
-        if current_state != self.game_state:
-            if self.game_state.valid:
-                msg = f'\nThe board has changed, last state was: {self.game_state}.'
 
-            self.game_state = current_state
-
-        return msg
-
-
-def remove_func(funcs, func_name):
-    '''
-    Remove function named func_name from list of function dictionaries.
-    '''
-    funcs = {f[_name]:f for f in funcs if f[_name] != func_name}  # convert to dictionary
-    assert func_name not in funcs  # verify that it is removed
+def remove_func(funcs, function):
+    ''' Remove function from the schema. '''
+    funcs = {f[_name]:f for f in funcs if f[_name] != function}  # convert to dictionary
+    assert function not in funcs  # verify that it is removed
 
     return list(funcs.values())  # convert back to list
 
@@ -395,16 +400,16 @@ class Assistant:
         self._worker = WorkerThread()
 
 
+    @property
+    def busy(self):
+        return self._busy
+
+
     def cancel(self):
         if self._busy:
             self._app.stop_spinner()
             self._busy = False
             self._cancelled = True
-
-
-    @property
-    def busy(self):
-        return self._busy
 
 
     @property
@@ -433,7 +438,6 @@ class Assistant:
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + self._app.get_openai_key(obfuscate=False),
         }
-
         json_data = {
             'model': self.model,
             'messages': messages,
@@ -475,7 +479,7 @@ class Assistant:
 
     def _handle_api_response(self, user_request, response):
         '''
-        Handle response from the OpenAI API call, dispatch function calls as needed.
+        Handle response from the OpenAI API, dispatch function calls as needed.
         '''
         try:
             Logger.debug(f'{_assistant}: response={response}')
@@ -542,7 +546,7 @@ class Assistant:
 
     def call(self, user_input, callback_result=None):
         '''
-        Entry point for calling the AI. Initiates an asynchronous task and returns immediately.
+        Entry point. Initiate asynchronous task and return. Put up a spinner.
 
         Args:
             user_input (str): User command, request, etc.
@@ -560,7 +564,7 @@ class Assistant:
             return False
 
         def run_in_background():
-            status = self._call_ai(user_input, callback_result)
+            status = self._call_on_same_thread(user_input, callback_result)
 
             self._busy = False
             self._cancelled = False
@@ -576,10 +580,9 @@ class Assistant:
         return True
 
 
-    def _call_ai(self, user_request, callback_result=None):
+    def _call_on_same_thread(self, user_request, callback_result=None):
         '''
-        Calls the OpenAI model in the background, handles the response, and
-        dispatches further processing.
+        Calls the OpenAI model in the background and handles the response.
 
         This method interacts with the OpenAI model using the user's input. It
         processes the response, handling network timeouts, invalid parameter
@@ -594,7 +597,6 @@ class Assistant:
 
         Returns:
             True on success, False if cancelled, None if failed.
-
         '''
         timeout = self.requests_timeout
 
@@ -603,7 +605,7 @@ class Assistant:
             current_message = {
                _role: _function,
                _name: callback_result.pop(_function),
-               _content: json.dumps(callback_result)
+               _content: str(callback_result)
             }
 
             # Do not use functions when returning the result of a function call.
@@ -629,7 +631,8 @@ class Assistant:
             Logger.debug(f'{_assistant}: messages=\n{json.dumps(messages, indent=2)}')
 
             # Post the request and dispatch the response.
-            func_name, func_result = self._completion_request(user_request, messages, functions=funcs, timeout=timeout)
+            func_name, func_result = self._completion_request(
+                user_request, messages, functions=funcs, timeout=timeout)
 
             if func_result.response == AppLogic.CANCELLED:
                 return False
@@ -653,7 +656,7 @@ class Assistant:
                         _content: func_result.data
                     }
                 else:
-                    timeout *= 2  # Handle network timeouts.
+                    timeout *= 1.5  # Handle network timeouts.
 
             else:
                 return True  # Success
@@ -661,20 +664,21 @@ class Assistant:
         Logger.error(f'{_assistant}: request failed:\n{json.dumps(messages, indent=2)}')
 
 
-    def _call_ai_with_results(self, user_request, func_name, results):
-        '''
-        Call the AI to return the results of a function call synchronously.
+    def _complete_on_same_thread(self, user_request, function, result=None):
+        ''' Call the AI synchronously to return the results of a function call.
 
         Args:
             user_request (str): User input that trigger the function call returning results.
-            func_name (str): The name of the function returning the results.
-            results (any): The results.
+            function (str): The name of the function returning the results.
+            result (any): The results.
 
         Returns:
             FunctionResult
         '''
-        status = self._call_ai(user_request, callback_result={_function: func_name, _return: results})
-
+        status = self._call_on_same_thread(
+            user_request,
+            callback_result=self.format_result(function, result)
+        )
         if status:
             return FunctionResult(AppLogic.OK)
 
@@ -684,6 +688,46 @@ class Assistant:
         return FunctionResult()
 
 
+    def complete_on_main_thread(self, user_request, function, result=None):
+        ''' Call the backend to notify that a function call has completed.
+
+        Args:
+            user_request (str): User input that triggered the function call.
+            function (str): The name of the function that has completed.
+            result (any): The result of the function call.
+        '''
+
+        def callback(*_):
+            if self._app.engine.busy:
+                Clock.schedule_once(callback)
+            else:
+                self.call(user_request, callback_result=self.format_result(function, result))
+
+        Clock.schedule_once(callback)
+
+
+    def format_result(self, function, result=None):
+        ''' Format the results of a function call.
+
+        Args:
+            function (str): The name of the function that has completed.
+            result (any): The result of the function call.
+        Returns:
+            dict: A dictionary containing the result and the game state.
+        '''
+
+        # Always include the name of the function and the current state.
+        formatted_result = {
+            _function: function,
+            _state: str(GameState(self._app))
+        }
+
+        if result is not None:
+            formatted_result[_result] = str(result)
+
+        return formatted_result
+
+
     # -------------------------------------------------------------------
     #
     # FunctionCall handlers.
@@ -691,46 +735,39 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _handle_analysis(self, user_request, inputs):
-        '''
-        Handle function call from the AI that requests analysis.
+        ''' Handle function call from the AI requesting game analysis.
+
         Args:
             user_request (str): user input that triggered the function call.
             inputs (dict): parameters as per _FUNCTIONS schema.
         Returns:
             FunctionResult:
         '''
-        # Handle the edge case where the game is over.
+
+        # Handle the "game over" edge case.
         if self._app.engine.is_game_over():
-            return self._call_ai_with_results(
-                user_request,
-                _analyze_position,
-                {
-                    _pgn: _get_pgn(self._app),
-                    'result': self._app.engine.result()
-                }
-            )
+            return self._complete_on_same_thread(user_request, _analyze_position)
 
         # Do not provide analysis in puzzle mode. Let the user figure it out.
         if self._app.puzzle:
-            return self._call_ai_with_results(
+            return self._complete_on_same_thread(
                 user_request,
                 _analyze_position,
                 'User should solve puzzles unassisted.'
             )
 
-        # Start analysing, will call back when finished.
-        self._app.analyze(assist=(_analyze_position, user_request))
+        # Start analysing asynchronously; will call back when finished.
+        self._app.analyze(assist=(user_request, _analyze_position))
+
         return FunctionResult(AppLogic.OK)
 
 
-    def _handle_get_transcript(self, user_request, inputs):
-        pgn = _get_pgn(self._app)
-        return self._call_ai_with_results(user_request, _get_game_transcript, pgn)
+    def _handle_get_state(self, user_request, inputs):
+        return self._complete_on_same_thread(user_request, _get_game_state)
 
 
     def _handle_lookup_openings(self, user_request, inputs):
-        '''
-        Handle the call from the AI to lookup a list of chess openings in the ECO.
+        ''' Lookup a list of chess openings in the ECO.
 
         Args:
             user_request (str): The user input associated with this function.
@@ -739,7 +776,6 @@ class Assistant:
         Returns:
             FunctionResult
         '''
-
         requested_openings = inputs.get(_openings)
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
@@ -776,16 +812,15 @@ class Assistant:
 
         if not results:
             return FunctionResult(AppLogic.RETRY, (
-                'No matches. Try alternative spellings, or rely on your own knowledge.'
+                'No matches. Try alternative spellings, or use your own knowledge.'
             ))
 
-        # Send the results back to the AI.
-        return self._call_ai_with_results(user_request, _lookup_openings, results)
+        return self._complete_on_same_thread(user_request, _lookup_openings, results)
 
 
     def _handle_play_opening(self, user_request, inputs):
-        '''
-        Handle the call from the AI to play a specific chess opening.
+        ''' Handle the call to play a specific chess opening.
+
         Args:
             user_request (str): The user request that triggered this function call.
             inputs (dict): parameters as per _FUNCTION schema.
@@ -798,46 +833,29 @@ class Assistant:
             return FunctionResult(AppLogic.INVALID)
 
         opening = self._search_opening(inputs)
-        user_color = inputs.get(_user)  # Which side to be played by the user?
+        color = _get_color(inputs.get(_user))  # Preferred perspective.
 
         if not opening:
             Logger.error(f'{_assistant}: opening not found: {inputs}')
 
-            # Send back some hints about how to try again.
-            # TODO: use this same idea in _handle_lookup_openings?
             return FunctionResult(AppLogic.RETRY, (
-                f'The opening was not found. Use {_play_chess_opening} '
+                f'The opening was not found. Use {_play_opening} '
                 f'with another name that "{inputs[_name]}" is known as.'
             ))
         else:
             current = self._app.get_current_play()
 
             if current.startswith(opening.pgn):
-                return self._call_ai_with_results(
+                return self._complete_on_same_thread(
                     user_request,
-                    _play_chess_opening,
+                    _play_opening,
                     f'{opening.name} is already in progress. Select another variation.'
                 )
+            on_done = partial(self.complete_on_main_thread, user_request, _play_opening)
 
-            def on_done():
-                @self.engine_sync
-                def callback():
-                    result = {
-                        _function: _play_chess_opening,
-                        _return: f'{opening.name}: is set up.'
-                    }
-                    # Call back into the AI to confirm the opening is set up.
-                    self.call(user_request, callback_result=result)
-
-                # if user_color is None or user_color == _get_user_color(self._app):
-                #     callback()
-                # else:
-                #     self._flip_board(on_done_callback=callback)
-                callback()
-
-            color = _get_color_param(user_color)
-            self._schedule_action(lambda *_: self._app.play_opening(opening, callback=on_done, color=color))
-
+            self._schedule_action(
+                lambda *_:self._app.play_opening(opening, callback=on_done, color=color)
+            )
             return FunctionResult(AppLogic.OK)
 
 
@@ -857,18 +875,15 @@ class Assistant:
         selection = random.choice(puzzles)
 
         def play_puzzle(puzzle):
-            '''
-            Callback function that gets called after the user confirms the puzzle.
-            '''
+            ''' Called after the user confirms the puzzle. '''
             self._app.selected_puzzle = puzzle[3]
             self._app.load_puzzle(puzzle)
 
-            # Confirm that the user has accepted the puzzle.
-            callback_result = {
-                _function: _select_chess_puzzles,
-                _return: f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
-            }
-            self.call(user_request, callback_result=callback_result)
+            self.complete_on_main_thread(
+                user_request,
+                _select_chess_puzzles,
+                f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
+            )
 
         # Schedule running the puzzle (may ask the user for confirmation).
         self._schedule_action(
@@ -882,8 +897,7 @@ class Assistant:
 
 
     def _handle_make_moves(self, user_request, inputs):
-        '''
-        Apply position and moves from PGN.
+        ''' Apply position and moves from PGN.
         Args:
             user_request (str): user request that ended up triggering this function call.
             inputs (dict): dictionary of parameters as decribed in _FUNCTIONS schema.
@@ -891,7 +905,7 @@ class Assistant:
         Returns:
             FunctionResult
         '''
-        pgn, user_color = inputs.get(_pgn), inputs.get(_user)
+        pgn, color = inputs.get(_pgn), _get_color(inputs.get(_user))
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
 
@@ -906,20 +920,10 @@ class Assistant:
             exporter = chess.pgn.StringExporter(headers=False, variations=False, comments=False)
             pgn = game.accept(exporter)
 
-        def on_done():
-            # Call the AI on the main thread to keep the UI responsive.
-            @self.engine_sync
-            def callback():
-                result = {_function: _make_moves, _return: 'Done'}
-                self.call(user_request, callback_result=result)
+        on_done = partial(self.complete_on_main_thread, user_request, _make_moves)
 
-            # if user_color is None or user_color == _get_user_color(self._app):
-            #     callback()
-            # else:
-            #     self._flip_board(on_done_callback=callback)
-            callback()
-        color = _get_color_param(user_color)
-        self._schedule_action(lambda *_: self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening))
+        self._schedule_action(lambda *_:
+            self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening))
 
         return FunctionResult(AppLogic.OK)
 
@@ -930,12 +934,17 @@ class Assistant:
             return FunctionResult(AppLogic.INVALID)
 
         if color.lower() != _get_user_color(self._app):
-            self._flip_board()
+            # on_done = partial(self.complete_on_main_thread, user_request, _set_user_side)
+            on_done = lambda *_: None
+            self._flip_board(on_done_callback=on_done)
 
         return FunctionResult(AppLogic.OK)
 
 
     def _register_handlers(self):
+        '''
+        Backup handlers for parsing the rare and accidental malformed responses.
+        '''
         self._handlers[_openings] = self._handle_lookup_openings
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
@@ -945,11 +954,11 @@ class Assistant:
 
     def _register_funcs(self):
         FunctionCall.register(_analyze_position, self._handle_analysis)
+        FunctionCall.register(_get_game_state, self._handle_get_state)
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
-        FunctionCall.register(_play_chess_opening, self._handle_play_opening)
+        FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
-        FunctionCall.register(_get_game_transcript, self._handle_get_transcript)
         FunctionCall.register(_set_user_side, self._handle_set_user_side)
 
 
@@ -964,13 +973,40 @@ class Assistant:
             Clock.schedule_once(partial(self._flip_board, on_done_callback), 0.1)
 
         else:
-            # Make sure the engine has made its move before flipping the board.
-            self._app.engine.resume(auto_move=True)
-
             self._app.flip_board()
 
             if on_done_callback:
                 on_done_callback()
+
+
+    def _respond_to_user(self, response):
+        '''
+        Present the response to a request back to the user via tts and on-screen text bubble.
+
+        Args:
+            text (str): The message to be presented to the user.
+
+        '''
+        # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
+        tts_text = substitute_chess_moves(response, ';')
+
+        # Reformat numbered lists if the response does not seem to contain moves.
+        if tts_text == response:
+            pattern = r'(\d+\.[^\n;]+?)(?:\s|\n|\.)+(?=\s*\d+\.|\s*$)'
+            tts_text = re.sub(pattern, r'\1; ', response)
+
+        else:
+            # Remove paranthesis enclosing move sequences to prevent reading aloud "smiley face".
+            tts_text = re.sub(r'\((.*?)\)', r'\1', tts_text)
+
+        # Remove newlines from the on-screen text, to better fit inside the bubble.
+        text = response.replace('\n', ' ')
+
+        # Schedule the bubble to pop up as soon as other modal boxes go away.
+        self._schedule_action(lambda *_: self._app.text_bubble(text))
+
+        # Speak the tts_text curated text.
+        self._speak_response(tts_text)
 
 
     def _search_opening(self, choice, confidence=90, return_all_matches=False):
@@ -1000,29 +1036,6 @@ class Assistant:
         return result
 
 
-    def _respond_to_user(self, response):
-        '''
-        Present the response to a request back to the user via tts and on-screen text bubble.
-
-        Args:
-            text (str): The message to be presented to the user.
-
-        '''
-        # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
-        tts_text = substitute_chess_moves(response, ';')
-
-        # Reformat numbered lists if the response does not seem to contain moves.
-        if tts_text == response:
-            pattern = r'(\d+\.[^\n;]+?)(?:\s|\n|\.)+(?=\s*\d+\.|\s*$)'
-            tts_text = re.sub(pattern, r'\1; ', response)
-
-        text = response.replace('\n', ' ')  # Remove newlines, to better fit the bubble.
-
-        self._schedule_action(lambda *_: self._app.text_bubble(text))
-
-        self._speak_response(tts_text)
-
-
     def _schedule_action(self, action, *_):
         '''
         Schedule an action to be executed as soon as all modal popups are dismissed.
@@ -1039,7 +1052,7 @@ class Assistant:
     def _speak_response(self, text):
 
         def speak(*_):
-            ''' Wait until finished speaking, then speak. '''
+            ''' Wait until finished speaking, then speak the tts_text string. '''
             if tts.is_speaking():
                 Clock.schedule_once(speak, 0.25)
             else:
@@ -1051,19 +1064,3 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
-
-
-    def engine_sync(self, func):
-        '''
-        The idea is that after setting up an opening or sequence of moves, the engine may
-        respond by searching for a move. If the search does not complete before a callback
-        sends a game status update to the AI, there will be confusion over the side-to-move.
-        '''
-        def wrapper(*_):
-            if self._app.engine.busy:
-                Logger.info('engine_sync: rescheduling')
-                Clock.schedule_once(wrapper)
-            else:
-                func()
-
-        return wrapper

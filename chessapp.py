@@ -1826,7 +1826,17 @@ class ChessApp(App):
 
     def play_pgn(self, pgn, *, name=None, color=None, callback=None, animate=True):
         '''
-        Parse the PGN and play moves.
+        Parse the given PGN and apply moves to the board.
+
+        Args:
+            pgn (str): A game transcript in Portable Game Notation format.
+            name (str, optional): The name of the opening or short description. Defaults to None.
+            color (bool, optional): The preferred point of view, Black or White. Defaults to None.
+            callback (callable, optional): Completion notification (with no args). Defaults to None.
+            animate (bool, optional): Show moves one-by-one after loading the PGN. Defaults to True.
+
+        Returns:
+            bool or None: True if loaded successfully.
         '''
         def load_and_play(game, animate, callback, current=0, *_):
             ''' Helper function passed to Clock.schedule_once '''
@@ -1877,7 +1887,7 @@ class ChessApp(App):
                     if not name: name = 'the moves'
                     msg = f'play {name}'
                 else:
-                    msg = 'apply the change'
+                    msg = 'make the moves'
 
                 self.new_action(msg, partial(load_and_play, game, animate, callback))
 
@@ -2521,20 +2531,13 @@ class ChessApp(App):
                 score = f'{score/100:.1f}'
 
             if assist:
-                # Analysis done on behalf of the Assistant. Prepare result.
                 result = {
-                    'function': assist[0],
-                    'pgn': self.transcribe()[1],
                     'pv': format_pv(pv, start=1),
-                    'recommend': san(search.context.board().copy(), move),
+                    'best': san(search.context.board().copy(), move),
                     'score': score,
-                    'side_to_move': COLOR_NAMES[color],
-                    'winning': COLOR_NAMES[winning_side],
+                    'lead': COLOR_NAMES[winning_side],
                 }
-                # Call back the assistant with the asynchronous result.
-                Logger.info('Assistant: asynchronous callback.')
-
-                Clock.schedule_once(lambda *_: self.assistant.call(assist[1], callback_result=result))
+                self.assistant.complete_on_main_thread(*assist, result)
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
