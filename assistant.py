@@ -53,7 +53,6 @@ _get_game_state = 'get_game_state'
 _lookup_openings = 'lookup_openings'
 _play_opening = 'play_opening'
 _select_chess_puzzles = 'select_chess_puzzles'
-_set_user_side = 'set_user_side'
 
 ''' Schema keywords, constants. '''
 _arguments = 'arguments'
@@ -186,7 +185,7 @@ _FUNCTIONS = [
                     _type: _string,
                     _description: (
                         'A string containing a PGN snippet. Must contain numbered moves. '
-                        'The desired moves should be preceded by the complete game history.'
+                        'The desired moves must be preceded by the complete game history.'
                     )
                 },
                 _restore: {
@@ -204,31 +203,14 @@ _FUNCTIONS = [
             _required: [_fen, _pgn],
         }
     },
-    # {
-    #     _name: _set_user_side,
-    #     _description: (
-    #         'Set the side the user is playing. If already '
-    #         'playing the desired side, this function has no effect.'
-    #     ),
-    #     _parameters: {
-    #         _type: _object,
-    #         _properties: {
-    #             _user: {
-    #                 _type: _string,
-    #                 _description: "'black' or 'white'",
-    #             }
-    #         },
-    #         _required: [_user]
-    #     }
-    # }
 ]
 
 _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. If asked for help with puzzles, respond with a koan or quote "
-    f"from famous chess masters."
+    f"when asked to suggest moves. If the user asks for help with puzzles, do not recommend moves "
+    f"nor solutions, but respond instead with koans or quotes from famous chess masters."
 )
 
 class AppLogic(Enum):
@@ -957,20 +939,6 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
-    # TODO: Not sure how useful this is, remove?
-    def _handle_set_user_side(self, user_request, inputs):
-        color = inputs.get(_user)
-        if not color:
-            return FunctionResult(AppLogic.INVALID)
-
-        if color.lower() != _get_user_color(self._app):
-            # on_done = partial(self.complete_on_main_thread, user_request, _set_user_side)
-            on_done = lambda *_: None
-            self._flip_board(on_done_callback=on_done)
-
-        return FunctionResult(AppLogic.OK)
-
-
     def _register_handlers(self):
         '''
         Backup handlers for parsing the rare and accidental malformed responses.
@@ -979,7 +947,6 @@ class Assistant:
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
         self._handlers[_theme] = self._handle_puzzle_theme
-        self._handlers[_user] = self._handle_set_user_side
 
 
     def _register_funcs(self):
@@ -989,7 +956,6 @@ class Assistant:
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
-        FunctionCall.register(_set_user_side, self._handle_set_user_side)
 
 
     # -------------------------------------------------------------------
