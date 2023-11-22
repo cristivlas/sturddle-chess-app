@@ -18,6 +18,7 @@ class Tests:
         }
         for name, expected in good_test_cases.items():
             opening = self.eco.lookup_best_matching_name(name, expected.eco, confidence=85)
+            assert opening
             assert opening.name == expected.name, (expected.name, opening.name)
             assert opening.eco == expected.eco, (expected.eco, opening.eco)
 
@@ -45,13 +46,15 @@ class Tests:
         test_cases = {
             "Bongcloud Opening": Opening({'name':'Bongcloud Attack', 'eco': 'C20'}),
             "Orangutan Opening": Opening({'name':'English Orangutan', 'eco': 'A15'}),
-            "kasparov's attack": Opening({'name':'Caro-Kann Defense: Karpov Variation, Modern Variation, Kasparov Attack', 'eco': 'B17'}),
-            "Kasparov opening": Opening({'name': 'French Defense: Rubinstein Variation, Kasparov Attack', 'eco': 'C10'}),
+            "kasparov's attack": Opening({'name':'French Defense: Rubinstein Variation, Kasparov Attack', 'eco': 'C10'}),
+            "Kasparov opening": Opening({'name': "Queen's Indian Defense: Kasparov Variation", 'eco': 'E13'}),
             "Sicilian Defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Silician Defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Monkey's Bum": Opening({'name': "Modern Defense: Bishop Attack, Monkey's Bum", 'eco': 'B06'}),
             "Goring Gambit Declined": Opening({'name': 'Scotch Game: Scotch Gambit, Göring Gambit Declined', 'eco': 'C44'}),
             "albin's gambit": Opening({'name': 'Italian Game: Classical Variation, Albin Gambit', 'eco': 'C50'}),
+            "najdorf variation, schven": Opening({'name': 'Sicilian Defense: Najdorf Variation, Scheveningen Variation', 'eco': 'B84'}),
+            "najdorf variation": Opening({'name': 'Sicilian Defense: Najdorf Variation', 'eco': 'B98'}),
         }
         for name, expected in test_cases.items():
             opening = self.eco.lookup_best_matching_name(name, confidence=85)
@@ -88,6 +91,10 @@ class Tests:
         results = self.eco.lookup_all_matches('Lasker')
         results = [r.eco for r in results]
         assert results == ['A00', 'A02', 'A02', 'A03', 'B01'], results
+
+        results = self.eco.lookup_all_matches('najdorf variation')
+        results = [r.eco for r in results]
+        assert results == ['B84', 'B98', 'B90', 'B90', 'B90'], results
 
 
     def run(self):

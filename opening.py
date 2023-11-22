@@ -243,6 +243,9 @@ class ECO:
 
         name = name.lower()
 
+        # Sort keys by length, so that the shortest matching name is returned.
+        keys = sorted(list(keys), key=lambda k: len(k))
+
         for k, v in corrections.items():
             if k:
                 query = name.replace(k, v).strip()

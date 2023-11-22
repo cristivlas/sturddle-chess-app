@@ -83,6 +83,7 @@ _string = 'string'
 _system = 'system'
 _theme = 'theme'
 _type = 'type'
+_turn = 'turn'
 _user = 'user'
 
 ''' Functions.
@@ -209,7 +210,7 @@ _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves."
+    f"when asked to suggest moves. Describe board positions by stating opening and recent moves."
 )
 
 class AppLogic(Enum):
@@ -265,6 +266,7 @@ class GameState:
         if app:
             self.epd = app.engine.board.epd()
             self.pgn = app.transcribe(columns=None, engine=False)[1]
+            self.turn = app.engine.board.turn
             self.user_color = _get_user_color(app)
             self.valid = True
 
@@ -272,6 +274,7 @@ class GameState:
         return {
             _fen: self.epd,
             _pgn: self.pgn,
+            _turn: self.turn,
             _user: self.user_color,
         }
 
@@ -728,7 +731,6 @@ class Assistant:
             _function: function,
             _state: str(GameState(self._app))
         }
-
         if result is not None:
             formatted_result[_result] = str(result)
 
@@ -850,17 +852,14 @@ class Assistant:
                 f'with another name that "{inputs[_name]}" is known as.'
             ))
         else:
-            current = self._app.get_current_play()
-
-            if current.startswith(opening.pgn):
-                return self._complete_on_same_thread(
-                    user_request,
-                    _play_opening,
-                    f'{opening.name} is already in progress. Select another variation.'
-                )
-            on_done = partial(
-                self.complete_on_main_thread, user_request, _play_opening, resume=True
-            )
+            # current = self._app.get_current_play()
+            # if current.startswith(opening.pgn):
+            #     return self._complete_on_same_thread(
+            #         user_request,
+            #         _play_opening,
+            #         f'{opening.name} is already in progress. Select another variation.'
+            #     )
+            on_done = partial(self.complete_on_main_thread, user_request, _play_opening)
             self._schedule_action(
                 lambda *_: self._app.play_opening(opening, callback=on_done, color=color)
             )
@@ -914,10 +913,7 @@ class Assistant:
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
 
-        fen = inputs.get(_fen)
-        if not self._validate_moves(fen, pgn):
-            Logger.info(f'{_assistant}: RETRY {pgn}')
-            return FunctionResult(AppLogic.RETRY, 'Moves must be preceded by the full game history.')
+        # fen = inputs.get(_fen)  # TODO: use for validation
 
         # Get the optional params.
         animate = not inputs.get(_restore)
@@ -929,9 +925,16 @@ class Assistant:
         if game:
             opening = game.headers.get('Opening')  # Retain the name of the opening.
 
-            # Strip out headers and other info.
+            # Strip out headers and other info, keep just the move sequence.
             exporter = chess.pgn.StringExporter(columns=None, headers=False, variations=False, comments=False)
-            pgn = game.accept(exporter)
+            pgn = game.accept(exporter).rstrip(' *')
+
+        else:
+            pgn = None
+
+        if not pgn:
+            return FunctionResult(AppLogic.RETRY,
+                                  'The move sequence is invalid. Try prepending the game history.')
 
         # Do not resume upon completing the request, to avoid confusion over the side to move.
         on_done = partial(self.complete_on_main_thread, user_request, _make_moves)
@@ -997,14 +1000,26 @@ class Assistant:
         self._speak_response(tts_text)
 
 
-    def _search_opening(self, choice, confidence=90, return_all_matches=False):
-        '''
-        Lookup opening(s) in the ECO "database", using minimum confidence score threshold.
+    def _search_opening(self, query, confidence=90, return_all_matches=False):
+        '''  Lookup opening(s) in the ECO database using fuzzy name matching.
+
+        If the name lookup for the best match finds no result, automatically
+        fail over to phonetical match, return that result if found.
+
+        Args:
+            query (dict): Must contain 'name' key. May optionally contain 'eco' key.
+                If 'eco' key is present, the search is filtered by eco code.
+            confidence (int, optional): The minimum score for the fuzzy match. Defaults to 90.
+            return_all_matches (bool, optional): Return all matches or just the best one?
+                Defaults to False (search for best match).
+
+        Returns:
+            opening.Opening or list: best match or list of matches.
         '''
         assert self._app.eco
         db = self._app.eco
 
-        name, eco = choice[_name], choice.get(_eco)  # search criteria, from user inputs
+        name, eco = query[_name], query.get(_eco)
 
         if return_all_matches:
             return db.lookup_all_matches(name, eco, confidence=85)
@@ -1052,15 +1067,3 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
-
-
-    def _validate_moves(self, fen, pgn):
-        ''' Helper for _handle_make_moves. '''
-        board_fen = self._app.engine.board.epd()
-        # Logger.debug(f'{_assistant}: fen={fen}, board={board_fen}')
-
-        if fen == board_fen:
-            current = self._app.get_current_play()
-            return pgn.startswith(current)
-
-        return True

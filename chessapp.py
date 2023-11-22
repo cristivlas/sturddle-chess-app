@@ -73,9 +73,11 @@ from engine import Engine
 from metaphone import doublemetaphone
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
+from normalize import substitute_chess_moves
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
+
 
 try:
     from android.runnable import run_on_ui_thread
@@ -804,9 +806,12 @@ class ChessApp(App):
         )
 
 
-    def chat_assist(self, user_input):
+    def chat_assist(self, user_input=None):
         if self.can_use_assistant():
-            return self.assistant.call(user_input)
+            if not user_input:
+                user_input = self.voice_input.get_user_input()
+            if user_input:
+                return self.assistant.call(user_input)
 
 
     def describe_move(self, move, spell_digits=False):
@@ -1200,11 +1205,19 @@ class ChessApp(App):
 
 
     def replay(self):
-        current = self.game_len()
+        if not self.can_redo():
+            # Nothing to play forward, fail over to assistant
+            return self.chat_assist()
+
+        current = self.game_len()  # Memorize the current position
         mode = self.study_mode
         self.set_study_mode(True)
+
+        # Fast forward all the way, _animate will rewinding to this current position
         while self.can_redo():
             self.redo_move()
+
+        # Animate works by rewinding to the current position and replaying the moves.
         self._animate(from_move=current, callback=lambda *_: self.set_study_mode(mode))
 
     #
@@ -1458,7 +1471,7 @@ class ChessApp(App):
         return len(self.engine.board.move_stack)
 
 
-    def new_action(self, text, action):
+    def new_action(self, text, action, spoken_message=None):
         if self.game_in_progress() or self.edit:
             if self.edit:
                 if self.edit_has_changes():
@@ -1469,7 +1482,12 @@ class ChessApp(App):
                 prompt = 'Cancel the current puzzle'
             else:
                 prompt = 'Discard the current game'
-            self.confirm(f'{prompt} and ' + text, action)
+
+            message = f'{prompt} and {text}'
+            if spoken_message:
+                spoken_message = f'{prompt} and {spoken_message}'
+            self.confirm(message, action, spoken_message=spoken_message)
+
         else:
             action()
 
@@ -1646,7 +1664,7 @@ class ChessApp(App):
         Clock.schedule_once(hide, 3)
 
 
-    def confirm(self, text, yes_action, no_action = None):
+    def confirm(self, text, yes_action, no_action=None, *, spoken_message=None):
         '''
         Show a message box asking the user to confirm an action.
         TODO: add setting for turning confirmations off.
@@ -1662,8 +1680,8 @@ class ChessApp(App):
         self.message_box(title='Confirm', text=text, on_close=callback)
 
         if self.speak_moves:
-            self.speak(text)
-            self.speech_input(modal=False)
+            self.speak(spoken_message or text)
+            self.speech_input(modal=False)  # Listen to the user without showing the dialog
 
 
     def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda *_:None):
@@ -1836,14 +1854,15 @@ class ChessApp(App):
             animate (bool, optional): Show moves one-by-one after loading the PGN. Defaults to True.
 
         Returns:
-            bool or None: True if loaded successfully.
+            bool: True if loaded successfully, False otherwise
         '''
 
         def load_and_play(game, animate, callback, current=0, *_):
             '''
-            Helper function passed to Clock.schedule_once once pgn is validated.
+            Helper function passed to Clock.schedule_once once the pgn is validated.
+            Loads the PGN, animates the move sequence starting with "current",
+            and calls completion callback (if provided).
             '''
-
             def on_completion():
                 if callback:
                     callback()  # Resuming the engine is up to the callback.
@@ -1878,25 +1897,32 @@ class ChessApp(App):
                 # The opening matches the current position, do not ask for confirmation.
                 Clock.schedule_once(partial(load_and_play, game, animate, callback, current))
 
-            elif current_pgn and current_pgn.startswith(pgn):
-                if name:
-                    self.speak(f'{name} is already in progress.')
-                if callback:
-                    callback()
+            # elif current_pgn and current_pgn.startswith(pgn):
+            #     if name:
+            #         self.speak(f'{name} is already in progress.')
+            #     # No moves to be played, just flip the board around if needed.
+            #     if color is not None and color != self.engine.opponent:
+            #         self.flip_board()
+            #     if callback:
+            #         callback()
             else:
-                # The sequence does not match the current game: ask
-                # for confirmation before discarding the current game.
-                if animate:
-                    msg = f"play {name or 'the moves'}"
-                else:
-                    msg = 'reconfigure the board'
+                # Move sequence does not match the current game.
+                # Construct confirmation messages for new_action.
+                prefix = 'play' if animate else 'reconfigure the board with'
+                message = f'{prefix} {name or pgn}'
+                audio = f'{prefix} {name or "the moves: " + substitute_chess_moves(pgn[:16])}'
+                if not name and len(pgn) > 16: audio += ' ... etc.'
 
-                self.new_action(msg, partial(load_and_play, game, animate, callback))
-
+                # Ask confirmation before discarding the current game.
+                self.new_action(
+                    message,
+                    partial(load_and_play, game, animate, callback),
+                    spoken_message=audio
+                )
             return True
 
-        else:
-            Logger.info(f'play_opening: could not read pgn: {pgn}')
+        Logger.info(f'play_opening: could not read pgn: {pgn}')
+        return False
 
 
     def play_phonetical_match(self, name):
@@ -1905,7 +1931,7 @@ class ChessApp(App):
             if opening:
                 return self.play_opening(opening)
 
-        return self.chat_assist(self.voice_input.get_user_input())
+        return self.chat_assist()
 
 
     def speak_move_description(self, move):
@@ -2012,7 +2038,7 @@ class ChessApp(App):
     def _paste(self):
         # Do not allow pasting a new game / position while then engine is busy.
         # Validate that the string in the clipboard is a valid PGN.
-        if not self.engine.busy and self.validate_clipboard():
+        if not self.in_game_animation and not self.engine.busy and self.validate_clipboard():
             return lambda *_: self.paste()
 
 
@@ -2046,7 +2072,7 @@ class ChessApp(App):
 
             elif opening_book_variations:
                 if self.can_use_assistant():
-                    self.chat_assist(self.voice_input.get_user_input())
+                    self.chat_assist()
 
                 elif not self.engine.book:
                     msg = 'The opening book is turned off.'
