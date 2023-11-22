@@ -212,7 +212,7 @@ _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. Describe board positions by stating opening and most recent moves."
+    f"when asked to suggest moves. Describe positions by stating the opening and the most recent moves. "
 )
 
 class AppLogic(Enum):
@@ -293,6 +293,7 @@ class Context:
     def __init__(self):
         self.history = []
         self.user = None  # The side the user is playing
+        self.epd = None
 
     def add_message(self, message):
         self.history.append(message)
@@ -328,21 +329,19 @@ class Context:
             dict: The input message unchanged, or the modified message.
         '''
         user_color = _get_user_color(app)
+        epd = app.engine.board.epd()
 
         if message[_role] == _user:
             content = message[_content]
 
-            if app.puzzle:
-                content = (
-                    'I am working a puzzle. Do not help me. If I ask for '
-                    'help, tell me a koan instead, or a grandmaster quote. '
-                ) + content
-
-            elif self.user != user_color:
+            if self.user != user_color:
                 content = f'I am now playing as {user_color}. {content}'
+            elif self.epd != epd:
+                content = f'The board has changed. {content}'
 
             message = {_role: _user, _content: content}
 
+        self.epd = epd  # Keept track of the board state.
         self.user = user_color  # Keep track of the side played by the user.
         return message
 
@@ -356,9 +355,18 @@ class Context:
         '''
         current_msg = self.annotate_user_message(app, current_msg)
 
+        system_prompt = _system_prompt
+        if app.puzzle:
+            system_prompt += (
+                'Confirm the puzzle is loaded. If the user asks for help with solving '
+                'the problem, reply instead with a koan or with a grandmaster quote.'
+            )
+        elif current_msg[_role] == _function:
+            system_prompt = ''  # Save some tokens
+
         while True:
             # Prefix messages with the system prompt.
-            msgs = [{_role: 'system', _content: _system_prompt}] + self.history + [current_msg]
+            msgs = [{_role: 'system', _content: system_prompt}] + self.history + [current_msg]
 
             if not self.history:
                 break
@@ -945,11 +953,8 @@ class Assistant:
             retry = f'Try adding the move to this sequence: {self._app.get_current_play()}'
             return FunctionResult(AppLogic.RETRY, retry)
 
-        elif pgn == self._app.get_current_play():
-            return FunctionResult(AppLogic.RETRY, 'The pgn cannot be equal to the current game')
-
         # Completion callback.
-        on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
+        on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=False)
 
         def make_moves():
             status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)

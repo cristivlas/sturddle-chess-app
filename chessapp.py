@@ -1885,10 +1885,9 @@ class ChessApp(App):
             current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
-                if pgn == current_pgn:
+                if pgn == current_pgn and color == self.engine.opponent:
                     return False  # There is no move to be made.
 
-                assert len(pgn) > len(current_pgn)
                 animate = True  # Override and always animate continuations.
                 if name:
                     self.speak(f'{name} continuation:')
