@@ -61,6 +61,7 @@ _array = 'array'
 _content = 'content'
 _description = 'description'
 _eco = 'eco'
+_error = 'error'
 _fen = 'FEN'
 _function = 'function'
 _function_call = 'function_call'
@@ -178,10 +179,10 @@ _FUNCTIONS = [
         _parameters: {
             _type: _object,
             _properties: {
-                _fen: {
-                    _type: _string,
-                    _description: 'The FEN of the position on top of which to apply the moves.'
-                },
+                # _fen: {
+                #     _type: _string,
+                #     _description: 'The FEN of the position on top of which to apply the moves.'
+                # },
                 _pgn: {
                     _type: _string,
                     _description: (
@@ -201,7 +202,8 @@ _FUNCTIONS = [
                     _description: 'The side the user wants to play.'
                 }
             },
-            _required: [_fen, _pgn],
+            # _required: [_fen, _pgn],
+            _required: [_pgn],
         }
     },
 ]
@@ -402,7 +404,7 @@ class Assistant:
         self.retry_count = 5
         self.requests_timeout = 3.0
         self.temperature = 0.01
-        self.token_limit = 3072
+        self.token_limit = 3584
         self._worker = WorkerThread()
 
 
@@ -649,7 +651,7 @@ class Assistant:
                     current_message = {
                         _role: _function,
                         _name: func_name,
-                        _content: 'invalid parameters'
+                        _content: f'{_error}: invalid parameters',
                     }
                 else:
                     funcs = remove_func(funcs, func_name)
@@ -657,9 +659,11 @@ class Assistant:
             elif func_result.response == AppLogic.RETRY:
                 if func_result.data:
                     # Handle function-specific retry logic.
+                    assert func_name
                     current_message = {
-                        _role: _user,
-                        _content: func_result.data
+                        _role: _function,
+                        _name: func_name,
+                        _content: f'{_error}: {func_result.data}'
                     }
                 else:
                     timeout *= 1.5  # Handle network timeouts.
@@ -846,23 +850,27 @@ class Assistant:
 
         if not opening:
             Logger.error(f'{_assistant}: opening not found: {inputs}')
-
-            return FunctionResult(AppLogic.RETRY, (
+            retry = (
                 f'The opening was not found. Use {_play_opening} '
                 f'with another name that "{inputs[_name]}" is known as.'
-            ))
-        else:
-            # current = self._app.get_current_play()
-            # if current.startswith(opening.pgn):
-            #     return self._complete_on_same_thread(
-            #         user_request,
-            #         _play_opening,
-            #         f'{opening.name} is already in progress. Select another variation.'
-            #     )
-            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, resume=True)
-            self._schedule_action(
-                lambda *_: self._app.play_opening(opening, callback=on_done, color=color)
             )
+            return FunctionResult(AppLogic.RETRY, retry)
+
+        else:
+            current = self._app.get_current_play()
+
+            if current.startswith(opening.pgn):
+                retry = f'{opening.name} is already in play. Select another variation.'
+                return FunctionResult(AppLogic.RETRY, retry)
+
+            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, resume=True)
+
+            def play_opening():
+                # TODO: check and handle return status?
+                self._app.play_opening(opening, callback=on_done, color=color)
+
+            self._schedule_action(play_opening)
+
             return FunctionResult(AppLogic.OK)
 
 
@@ -913,7 +921,7 @@ class Assistant:
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
 
-        # fen = inputs.get(_fen)  # TODO: use for validation
+        # fen = inputs.get(_fen)  # TODO: use for validation, or remove?
 
         # Get the optional params.
         animate = not inputs.get(_restore)
@@ -921,27 +929,34 @@ class Assistant:
 
         opening = None
 
-        game = chess.pgn.read_game(StringIO(pgn))
+        game = chess.pgn.read_game(StringIO(pgn))  # Parse the PGN for validation.
         if game:
             opening = game.headers.get('Opening')  # Retain the name of the opening.
 
-            # Strip out headers and other info, keep just the move sequence.
+            # Strip out everything but the moves.
             exporter = chess.pgn.StringExporter(columns=None, headers=False, variations=False, comments=False)
+
             pgn = game.accept(exporter).rstrip(' *')
 
         else:
-            pgn = None
+            pgn = None  # invalidate
 
         if not pgn:
-            return FunctionResult(AppLogic.RETRY,
-                                  'The move sequence is invalid. Try prepending the game history.')
+            retry = f'Try adding the move to this sequence: {self._app.get_current_play()}'
+            return FunctionResult(AppLogic.RETRY, retry)
 
-        # Do not resume upon completing the request, to avoid confusion over the side to move.
+        elif pgn == self._app.get_current_play():
+            return FunctionResult(AppLogic.RETRY, 'The pgn cannot be equal to the current game')
+
+        # Completion callback.
         on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
 
-        self._schedule_action(lambda *_:
-            self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
-        )
+        def make_moves():
+            status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
+            if not status:
+                self.complete_on_main_thread(user_request, _make_moves, result=_error)
+
+        self._schedule_action(make_moves)
         return FunctionResult(AppLogic.OK)
 
 

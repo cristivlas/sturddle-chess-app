@@ -1885,26 +1885,19 @@ class ChessApp(App):
             current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
-                if len(pgn) > len(current_pgn):
-                    animate = True  # Override and always animate continuations.
-                    if name:
-                        self.speak(f'{name} continuation:')
+                if pgn == current_pgn:
+                    return False  # There is no move to be made.
 
-                # Record the current move number, so that the opening animation
-                # starts from here instead of going back to the start of the game.
-                current = self.game_len()
+                assert len(pgn) > len(current_pgn)
+                animate = True  # Override and always animate continuations.
+                if name:
+                    self.speak(f'{name} continuation:')
+
+                current = self.game_len()  # Animated play starts at the current move.
 
                 # The opening matches the current position, do not ask for confirmation.
                 Clock.schedule_once(partial(load_and_play, game, animate, callback, current))
 
-            # elif current_pgn and current_pgn.startswith(pgn):
-            #     if name:
-            #         self.speak(f'{name} is already in progress.')
-            #     # No moves to be played, just flip the board around if needed.
-            #     if color is not None and color != self.engine.opponent:
-            #         self.flip_board()
-            #     if callback:
-            #         callback()
             else:
                 # Move sequence does not match the current game.
                 # Construct confirmation messages for new_action.
