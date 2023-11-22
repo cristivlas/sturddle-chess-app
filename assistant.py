@@ -208,12 +208,16 @@ _FUNCTIONS = [
     },
 ]
 
+_basic_prompt = (
+    "Always describe positions by stating the opening and the most recent "
+    "moves; you must never respond with code blocks or unpronounceable text."
+)
 _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. Describe positions by stating the opening and the most recent moves. "
-)
+    f"when asked to suggest moves. "
+) + _basic_prompt
 
 class AppLogic(Enum):
     NONE = 0
@@ -355,14 +359,16 @@ class Context:
         '''
         current_msg = self.annotate_user_message(app, current_msg)
 
-        system_prompt = _system_prompt
-        if app.puzzle:
-            system_prompt += (
-                'Confirm the puzzle is loaded. If the user asks for help with solving '
-                'the problem, reply instead with a koan or with a grandmaster quote.'
-            )
-        elif current_msg[_role] == _function:
-            system_prompt = ''  # Save some tokens
+        if current_msg[_role] == _function:
+            system_prompt = _basic_prompt  # Save some tokens
+
+        else:
+            system_prompt = _system_prompt
+            if app.puzzle:
+                system_prompt += (
+                    'Confirm the puzzle is loaded. If the user asks for help with solving '
+                    'the problem, reply instead with a koan or with a grandmaster quote.'
+                )
 
         while True:
             # Prefix messages with the system prompt.

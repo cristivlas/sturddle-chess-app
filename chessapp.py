@@ -1901,7 +1901,7 @@ class ChessApp(App):
                 # Move sequence does not match the current game.
                 # Construct confirmation messages for new_action.
                 prefix = 'play' if animate else 'reconfigure the board with'
-                message = f'{prefix} {name or pgn}'
+                message = f'{prefix} {name or (pgn[:160] + (" ..." if len(pgn) > 160 else ""))}'
                 audio = f'{prefix} {name or "the moves: " + substitute_chess_moves(pgn[:16])}'
                 if not name and len(pgn) > 16: audio += ' ... etc.'
 
