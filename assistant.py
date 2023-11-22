@@ -210,7 +210,7 @@ _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. Describe board positions by stating opening and recent moves."
+    f"when asked to suggest moves. Describe board positions by stating opening and most recent moves."
 )
 
 class AppLogic(Enum):
@@ -274,7 +274,7 @@ class GameState:
         return {
             _fen: self.epd,
             _pgn: self.pgn,
-            _turn: self.turn,
+            _turn: chess.COLOR_NAMES[self.turn],
             _user: self.user_color,
         }
 
@@ -859,7 +859,7 @@ class Assistant:
             #         _play_opening,
             #         f'{opening.name} is already in progress. Select another variation.'
             #     )
-            on_done = partial(self.complete_on_main_thread, user_request, _play_opening)
+            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, resume=True)
             self._schedule_action(
                 lambda *_: self._app.play_opening(opening, callback=on_done, color=color)
             )
@@ -937,7 +937,7 @@ class Assistant:
                                   'The move sequence is invalid. Try prepending the game history.')
 
         # Do not resume upon completing the request, to avoid confusion over the side to move.
-        on_done = partial(self.complete_on_main_thread, user_request, _make_moves)
+        on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
 
         self._schedule_action(lambda *_:
             self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
