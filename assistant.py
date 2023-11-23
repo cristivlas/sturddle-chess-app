@@ -271,7 +271,7 @@ class GameState:
     def __init__(self, app=None):
         self.valid = False
         if app:
-            self.epd = app.engine.board.epd()
+            #self.epd = app.engine.board.epd()
             self.pgn = app.transcribe(columns=None, engine=False)[1]
             self.turn = app.engine.board.turn
             self.user_color = _get_user_color(app)
@@ -279,7 +279,9 @@ class GameState:
 
     def to_dict(self):
         return {
-            _fen: self.epd,
+            # Do not send the FEN, it looks like ChatGPT cannot parse it
+            # and it may result in unpronounceable strings in the replies
+            #_fen: self.epd,
             _pgn: self.pgn,
             _turn: chess.COLOR_NAMES[self.turn],
             _user: self.user_color,
