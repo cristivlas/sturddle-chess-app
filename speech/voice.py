@@ -346,28 +346,7 @@ class Input:
 
 
     def _make_move(self, move):
-        '''
-        Try applying the move. If successful, return True, to stop listening
-        (and dismiss the dialog). Otherwise return False (and keep listening).
-        '''
-        if self._app.on_user_move(self, move.uci()):
-            return True
-
-        elif self._app.engine.is_game_over():
-
-            # TODO: cute, but should be refactored into the on_user_move method.
-            # The on_user_move application method needs to be cleaned up anyway.
-
-            if self._app.engine.board.is_checkmate():
-                self.stop()
-                self._app.speak(random.choice(
-                    ['Congratulations', 'Nicely done!', 'Well played']
-                ))
-                return True
-        else:
-            self._app.speak('The move is incorrect.')
-
-        return False
+        return self._app.on_user_move(self, move.uci()) or self._app.engine.is_game_over()
 
 
     def _multiple_matches(self, moves):

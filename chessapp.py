@@ -1151,7 +1151,15 @@ class ChessApp(App):
             return self.edit_apply(move)
 
         if not self.study_mode:
-            return self.engine.input(move)
+            result = self.engine.input(move)
+            if self.speak_moves and self.engine.board.is_checkmate():
+                delay_speak = partial(self.speak, random.choice([
+                    'Congratulations',
+                    'Nicely done!',
+                    'Well played',
+                ]))
+                Clock.schedule_once(delay_speak)
+            return result
 
         # Reached this? Engine is off: we are either in "puzzle" or "view" mode.
         if move := self.engine.validate_from_uci(move):  # validate UCI string
@@ -1200,10 +1208,15 @@ class ChessApp(App):
             self.status_label.background = get_color_from_hex('#E44D2E')
             Clock.schedule_once(lambda *_: self.engine.undo(), 2)
             self.speak(random.choice([
-                'Try again', 'Take your time', 'Give it another go', 'Not quite', 'No rush'
-            ]) + '...')
+                'Try again!',
+                'Take your time.',
+                'Give it another go.',
+                'Does not look right...',
+                'No rush...'
+            ]))
 
         self.engine.apply(move)  # apply the move temporarily
+        self.voice_input.stop()
         Clock.schedule_once(wrong)  # schedule undo
 
 
