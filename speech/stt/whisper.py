@@ -36,8 +36,6 @@ class WhisperSTT(STT):
                 self.stop()
 
         def callback(_, audio):
-            assert self._is_listening()
-
             api_key = None if self.prefer_offline else os.environ.get('OPENAI_API_KEY')
 
             if api_key and not self.ask_mode:
@@ -45,45 +43,7 @@ class WhisperSTT(STT):
                 # Use the Whisper API to generate a transcript.
 
                 result = self._sr.recognize_whisper_api(audio, api_key=api_key)
-                '''
-                if result.lower().startswith('play'):
-                    # Run the result through ChatGPT to improve it.
-                    # See: https://platform.openai.com/docs/guides/speech-to-text/improving-reliability
 
-                    system_prompt = (
-                        "You sanitize user-spoken commands directed to a chess playing program. "
-                        "The program recognizes 'play [OPENING_NAME]' commands. If you recognize this "
-                        "intent in the input, clean it up to match the recognized syntax; replace [OPENING_NA0ME] "
-                        "with just the matching variation part from the Encyclopedia of Chess Openings "
-                        "(and do retain the 'play' word so that the downstream program recognizes the command). "
-                        "If OPENING_NAME isn't recognized, or the command does not follow the pattern, "
-                        "echo the command back unchanged, so it can be forwarded to the chess program."
-                    )
-
-                    try:
-                        model = 'gpt-4-1106-preview'
-                        response = openai.ChatCompletion.create(
-                            model=model,
-                            temperature=0,
-                            messages=[
-                                {
-                                    'role': 'system',
-                                    'content': system_prompt
-                                },
-                                {
-                                    'role': 'user',
-                                    'content': result,
-                                }
-                            ]
-                        )
-                        Logger.debug(f'{model}: {response}')
-                        response = response['choices'][0]['message']['content']
-                        Logger.debug(f'{model}: {response}')
-                        if response:
-                            result = response
-                    except:
-                        Logger.exception('OpenAI exception')
-                '''
             else:
                 # Offline mode, using locally downloaded model.
 

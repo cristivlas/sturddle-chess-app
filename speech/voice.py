@@ -38,7 +38,9 @@ from .stt import stt
 
 import msgbox
 
-class LanguageInput(GridLayout):
+_DISABLED_ACTION_ITEM = 'atlas://data/images/defaulttheme/action_item'
+
+class LanguageInput(GridLayout):  # See chessapp.kv
     @property
     def stt_supported(self):
         return stt.is_supported()
@@ -47,6 +49,7 @@ class LanguageInput(GridLayout):
 class Input:
     '''
     Natural language input box with speech-to-text support.
+    If stt not supported, the user can type in the commands.
     '''
     def __init__(self, app):
         self._app = weakref.proxy(app)
@@ -70,7 +73,7 @@ class Input:
 
     def _is_ask_mode(self):
         '''
-        Is a confirmation dialog (Yes/No) on?
+        Running a confirmation dialog (Yes/No) on?
         '''
         popup = self._popup
         return all((
@@ -117,7 +120,7 @@ class Input:
         # Add the microphone button.
         self._listen = ActionButton(
             text='\uF131',
-            background_disabled_normal='atlas://data/images/defaulttheme/action_item',
+            background_disabled_normal=_DISABLED_ACTION_ITEM,
             disabled=not stt.is_supported(),
             font_name=self._app.font_awesome,
             on_press=self._toggle_listening
@@ -134,7 +137,7 @@ class Input:
             # Add the send button.
             self._send = ActionButton(
                 text='\uF064',
-                background_disabled_normal='atlas://data/images/defaulttheme/action_item',
+                background_disabled_normal=_DISABLED_ACTION_ITEM,
                 disabled=True,
                 font_name=self._app.font_awesome,
                 halign='right',
@@ -297,16 +300,31 @@ class Input:
 
 
     def _select_move(self, moves):
-        '''
-        Select moves from user or handle miscellaneous voice commands.
+        ''' Process moves, handle other (voice) inputs.
+
+        If the list of moves is empty, it means the NLP module has not
+        recognized a phrase indicating a move: continue with _run_command,
+        which looks for simple commands in the input; if no command is
+        recognized, and the chat assistant is available, pass the input to it.
+
+        If there is exactly one move in the moves list, make the move.
+
+        If there are more moves in the list, continue with _multiple_matches
+        asking the user to disambiguate.
+
+        Args:
+            moves (list): A list of moves that require disambiguation, or empty.
+
+        Returns:
+            bool: Returns True if handled (request was resolved).
         '''
 
         # Handle "ask mode" (answer Yes/No questions) first;
         # in this mode self.stop() does not dismiss the current
         # modal popup (the button action triggered in response
         # to either yes/no answer is expected to dismiss the popup).
-
         command = self._nlp.command
+
         if self._ask_mode and command in ['yes', 'no']:
             assert type(self._popup) == msgbox.ModalBox
             for btn in self._popup.content._buttons.children:
@@ -322,19 +340,24 @@ class Input:
         if not moves:
             return self._run_command(self._nlp.command, self._nlp.args)
         elif len(moves) > 1:
-            self._multiple_matches(moves)
+            return self._multiple_matches(moves)
         else:
             return self._make_move(moves.pop(0))
 
 
     def _make_move(self, move):
         '''
-        Apply move, return True if successful instructing the voice input to stop.
+        Try applying the move. If successful, return True, to stop listening
+        (and dismiss the dialog). Otherwise return False (and keep listening).
         '''
         if self._app.on_user_move(self, move.uci()):
             return True
 
         elif self._app.engine.is_game_over():
+
+            # TODO: cute, but should be refactored into the on_user_move method.
+            # The on_user_move application method needs to be cleaned up anyway.
+
             if self._app.engine.board.is_checkmate():
                 self.stop()
                 self._app.speak(random.choice(
@@ -349,7 +372,7 @@ class Input:
 
     def _multiple_matches(self, moves):
         '''
-        The move specification is ambiguous, request clarification
+        Called by _select_moves when the move is ambiguous. Request clarification.
         '''
         assert moves
 
