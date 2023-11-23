@@ -26,6 +26,7 @@ from functools import partial
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader
 from kivy.logger import Logger
+from kivy.metrics import dp
 from kivy.properties import *
 from kivy.uix.actionbar import ActionButton
 from kivy.uix.gridlayout import GridLayout
@@ -55,7 +56,8 @@ class Input:
         self._nlp = NLP()
         self._error = ''
         self._text = ''
-        self._results = []
+        self._results = []  # Voice recognition results.
+        self._send = None
 
         try:
             # play audible feedback when command is understood
@@ -81,42 +83,38 @@ class Input:
 
 
     def is_running(self):
-        '''
-        is the input dialog running?
-        '''
         return bool(self._input)
 
 
-    def start(self, modal=True):
+    def start(self, show_dialog=True):
         '''
         Construct the dialog box and start speech-to-text if supported.
+        If show_dialog is False, "attach" to the current modal message
+        box, so that Yes / No confirmation boxes can be voice-answered.
         '''
         assert not self.is_running()
 
         self._input = LanguageInput()
 
-        def on_input(text_input):
-            if text := text_input.text.strip():
-                self._process([text])
-        self._input.ids.text.bind(on_text_validate=on_input)
-
+        # Stop listening when the user starts typing inside the text input.
         def on_focus(_, focus):
             if focus and stt.is_listening():
                 stt.stop()
         self._input.ids.text.bind(focus=on_focus)
 
-        if modal:
+        if show_dialog:
             self._app.message_box('', '', self._input, auto_wrap=False)
             popup = self._app.modal.popup
 
-            # position and size the dialog that offers an alternative text input method
-            popup.pos_hint={'y': .87}
-            popup.size_hint=(1, .13)
+            # Set the position and size of the popup dialog.
+            popup.pos_hint={'top': 1.0}
+            popup.size_hint=(1, None)
+            popup.height = dp(110)
 
         self._popup = self._app.modal.popup
         self._ask_mode = self._is_ask_mode()
 
-        # microphone button
+        # Add the microphone button.
         self._listen = ActionButton(
             text='\uF131',
             background_disabled_normal='atlas://data/images/defaulttheme/action_item',
@@ -126,6 +124,23 @@ class Input:
         )
         self._popup.ids.title_box.add_widget(self._listen, index=2)
         self._popup.bind(on_dismiss=self._dismiss)
+
+        # In full dialog mode, add a "send" button.
+        if show_dialog:
+            def on_send(*_):
+                if text := self.get_text_input():
+                    self._process([text])
+
+            # Add the send button.
+            self._send = ActionButton(
+                text='\uF064',
+                background_disabled_normal='atlas://data/images/defaulttheme/action_item',
+                disabled=True,
+                font_name=self._app.font_awesome,
+                halign='right',
+                on_press=on_send
+            )
+            popup.ids.title_box.add_widget(self._send, index=1)
 
         if stt.is_supported():
             def on_error(msg):
@@ -146,6 +161,9 @@ class Input:
 
 
     def _check_state(self, _):
+        if not self._input:
+            return  # callback fired after dialog dismissed?
+
         if stt.is_listening():
             self._listen.text = '\uF130'
             self._input.ids.text.text = self._text
@@ -162,6 +180,9 @@ class Input:
             # Delay parsing to allow for the UI to update.
             Clock.schedule_once(callback, 0.5)
 
+        if self._send:
+            self._send.disabled = not self.get_text_input()
+
 
     def _dismiss(self, *_):
         '''
@@ -174,6 +195,7 @@ class Input:
             self._popup = None
             self._input = None
             self._results = []
+            self._send = None
             Logger.debug('voice: stopped')
 
 
@@ -372,6 +394,11 @@ class Input:
 
     def _toggle_listening(self, *_):
         stt.stop() if stt.is_listening() else self._start_stt()
+
+
+    def get_text_input(self):
+        if self._input:
+            return self._input.ids.text.text.strip()
 
 
     def get_user_input(self):

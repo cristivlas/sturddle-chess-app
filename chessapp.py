@@ -492,7 +492,6 @@ class ChessApp(App):
         self.engine.promotion_callback = self.get_promotion_type
         self.engine.search_complete_callback = self.on_search_complete
         self.engine.search_callback = self.search_callback
-        self.engine.check_busy_state = lambda *_: self.assistant.busy
         #####################################################################
         # wrap engine search
         self._search_move = self.engine.search_move

@@ -209,9 +209,10 @@ _FUNCTIONS = [
 ]
 
 _basic_prompt = (
-    "Always describe positions by stating the opening and the most recent "
-    "moves; you must never respond with code blocks or unpronounceable text."
+    "Always describe positions by stating the opening and the most recent moves. "
+    "Never mention what squares are occupied by what pieces. "
 )
+
 _system_prompt = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
@@ -553,6 +554,9 @@ class Assistant:
 
         response = message[_content]
 
+        if '```' in response:
+            return FunctionResult(AppLogic.RETRY, 'Try again without using code blocks.')
+
         self._ctxt.add_response(response)  # Save response into conversation history.
 
         self._respond_to_user(response)
@@ -672,13 +676,15 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 if func_result.data:
-                    # Handle function-specific retry logic.
-                    assert func_name
-                    current_message = {
-                        _role: _function,
-                        _name: func_name,
-                        _content: f'{_error}: {func_result.data}'
-                    }
+                    if func_name:
+                        # Handle function-specific retry logic.
+                        current_message = {
+                            _role: _function,
+                            _name: func_name,
+                            _content: f'{_error}: {func_result.data}'
+                        }
+                    else:
+                        current_message = {_role: _user, _content: func_result.data}
                 else:
                     timeout *= 1.5  # Handle network timeouts.
 
