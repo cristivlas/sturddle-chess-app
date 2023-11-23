@@ -100,7 +100,6 @@ def hlink(link):
     return f'[color=2fa7d4][ref={link}[/color]' if link else ''
 
 
-#############################################################################
 CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
@@ -114,7 +113,6 @@ Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
 """
-#############################################################################
 
 GAME    = 'game'
 IMAGE   = 'images/sturddlefish.png'
@@ -1155,52 +1153,58 @@ class ChessApp(App):
         if not self.study_mode:
             return self.engine.input(move)
 
-        # AI off: we are either in puzzle or viewing mode
-        else:
+        # Reached this? Engine is off: we are either in "puzzle" or "view" mode.
+        if move := self.engine.validate_from_uci(move):  # validate UCI string
             if self.puzzle:
-                move = self.engine.validate_from_uci(move)
-                if move:
-                    board = chess.Board(fen=self.engine.board.epd())
-                    san = board.san_and_push(move)
-                    if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
+                move = self._on_puzzle_move(move)  # check the solution
 
-                        def success(title, *_):
-                            self.speak(random.choice(['Correct', 'Well done', 'Nice']))
+        if move:
+            move = self.engine.apply(move)
+            self.update_moves_record(pop_last_move=True)
+            return move
 
-                            if not self.message_box(title, 'Congrats, correct move!'):
-                                return # another modal box pending
 
-                            self.modal.popup.content._buttons.size_hint = 1,.35
-                            self.modal.popup.content._buttons.add_widget(Button(
-                                text='Another Puzzle', font_size=sp(18), on_release=self.next_puzzle))
-                            if not board.is_game_over():
-                                popup = self.modal.popup
-                                self.modal.popup.content._buttons.add_widget(Button(
-                                    text='Play from Here', font_size=sp(18), on_release=
-                                    lambda *_:self.set_study_mode(popup.dismiss())))
+    def _on_puzzle_move(self, move):
+        ''' Verify moves that attempt to solve a puzzle.
 
-                        move = self.engine.apply(move)
-                        Clock.schedule_once(partial(success, 'Puzzle: ' + self.puzzle[0].replace('"', '')))
-                        # self.cancel_puzzle()
+        Args:
+            move (chess.Move): the move to validate.
 
-                    else:
-                        def wrong(*_):
-                            self.status_label.text = '[b]Try again.[/b]'
-                            self.status_label.background = get_color_from_hex('#E44D2E')
-                            Clock.schedule_once(lambda *_: self.engine.undo(), 2)
-                            self.speak(random.choice([
-                                'Try again', 'Take your time', 'Give it another go', 'Not quite', 'No rush'
-                            ]) + '...')
+        Returns:
+            chess.Move if solution is correct, otherwise None.
+        '''
+        board = chess.Board(fen=self.engine.board.epd())
+        san = board.san_and_push(move)
 
-                        self.engine.apply(move)
-                        Clock.schedule_once(wrong)
-                        move = None
-            else:
-                move = self.engine.apply(self.engine.validate_from_uci(move))
+        if any((san in self.puzzle[2], move.uci() in self.puzzle[2])):
+            def correct(title, *_):
+                self.speak(random.choice(['Correct', 'Well done', 'Nice']))
 
-            if move:
-                self.update_moves_record(pop_last_move=True)
-                return move
+                if not self.message_box(title, 'Congrats, correct move!'):
+                    return  # another modal box is pending
+
+                self.modal.popup.content._buttons.size_hint = 1,.35
+                self.modal.popup.content._buttons.add_widget(Button(
+                    text='Another Puzzle', font_size=sp(18), on_release=self.next_puzzle))
+                if not board.is_game_over():
+                    popup = self.modal.popup
+                    self.modal.popup.content._buttons.add_widget(Button(
+                        text='Play from Here', font_size=sp(18), on_release=
+                        lambda *_:self.set_study_mode(popup.dismiss())))
+
+            Clock.schedule_once(partial(correct, 'Puzzle: ' + self.puzzle[0].replace('"', '')))
+            return move
+
+        def wrong(*_):
+            self.status_label.text = '[b]Try again.[/b]'
+            self.status_label.background = get_color_from_hex('#E44D2E')
+            Clock.schedule_once(lambda *_: self.engine.undo(), 2)
+            self.speak(random.choice([
+                'Try again', 'Take your time', 'Give it another go', 'Not quite', 'No rush'
+            ]) + '...')
+
+        self.engine.apply(move)  # apply the move temporarily
+        Clock.schedule_once(wrong)  # schedule undo
 
 
     def replay(self):
@@ -2279,7 +2283,6 @@ class ChessApp(App):
         '''
         Populate the redo list with moves from the self.moves_record tree.
         '''
-
         current = self.moves_record.current
 
         if current and current.move:
