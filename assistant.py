@@ -353,6 +353,12 @@ class Context:
         return message
 
 
+    @staticmethod
+    def describe_theme(theme):
+        ''' Return English description of a puzzle theme.'''
+        return puzzle_themes.get(theme, theme).rstrip(',.:')
+
+
     def messages(self, current_msg, *, app, model, functions, token_limit):
         '''
         Construct a list of messages for the OpenAI API.
@@ -392,10 +398,15 @@ class Context:
         return msgs
 
 
-    @staticmethod
-    def describe_theme(theme):
-        ''' Return English description of a puzzle theme.'''
-        return puzzle_themes.get(theme, theme).rstrip(',.:')
+    def pop_function_call(self):
+        for i, entry in reversed(list(enumerate(self.history))):
+            if self.history[i][_role] == _function:
+                Logger.debug(f'{_assistant}: pop_function_call {i}/{len(self.history)}')
+                if i >= 2:
+                    # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
+                    self.history = self.history[:i-1] + self.history[i+1:]
+                    # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
+                    break
 
 
 def remove_func(funcs, function):
@@ -565,6 +576,7 @@ class Assistant:
             Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Do not use FENs in your replies.')
 
+        self._ctxt.pop_function_call()
         self._ctxt.add_response(response)  # Save response into conversation history.
 
         self._respond_to_user(response)
@@ -653,7 +665,6 @@ class Assistant:
             funcs = _FUNCTIONS
 
         for retry_count in range(self.retry_count):
-            # Append the message to the historical conversation context.
             messages = self._ctxt.messages(
                 current_message,
                 app=self._app,
