@@ -807,7 +807,7 @@ class ChessApp(App):
         if self.can_use_assistant():
             if not user_input:
                 user_input = self.voice_input.get_user_input()
-            if user_input:
+            if user_input and user_input[0] != '.':
                 return self.assistant.call(user_input)
 
 

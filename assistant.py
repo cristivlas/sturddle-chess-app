@@ -35,7 +35,7 @@ from gpt_utils import get_token_count
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
-from puzzleview import PuzzleCollection
+from puzzleview import PuzzleCollection, puzzle_description
 from puzzleview import themes_dict as puzzle_themes
 from speech import tts
 from worker import WorkerThread
@@ -369,8 +369,9 @@ class Context:
             system_prompt = _system_prompt
             if app.puzzle:
                 system_prompt += (
-                    'Confirm the puzzle is loaded. If the user asks for help with solving '
-                    'the problem, reply instead with a koan or with a grandmaster quote.'
+                    f'Summarize the active puzzle. If the user asks for help with solving '
+                    f'the problem, reply instead with a koan or with a grandmaster quote. '
+                    f'The description of the puzzle is: {puzzle_description(app.puzzle)}'
                 )
 
         while True:
@@ -557,7 +558,12 @@ class Assistant:
         response = message[_content]
 
         if '```' in response:
+            Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Try again without using code blocks.')
+
+        if '[FEN ' in response:
+            Logger.warning(f'{_assistant}: RETRY {response}')
+            return FunctionResult(AppLogic.RETRY, 'Do not use FENs in your replies.')
 
         self._ctxt.add_response(response)  # Save response into conversation history.
 
@@ -964,7 +970,7 @@ class Assistant:
             pgn = None  # invalidate
 
         if not pgn:
-            retry = f'Try adding the move to this sequence: {self._app.get_current_play()}'
+            retry = f'Try appending the move to this sequence: {self._app.get_current_play()}'
             return FunctionResult(AppLogic.RETRY, retry)
 
         # Completion callback.

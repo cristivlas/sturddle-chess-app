@@ -294,7 +294,7 @@ class Input:
             return True
 
         if not self._ask_mode:
-            return self._app.chat_assist(self.get_user_input())
+            return self._app.chat_assist()
 
         return False
 
