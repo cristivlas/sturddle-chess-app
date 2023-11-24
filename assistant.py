@@ -510,6 +510,7 @@ class Assistant:
 
         except:
             Logger.exception('Assistant: Error generating API response.')
+            return None, FunctionResult(AppLogic.RETRY)
 
         return None, FunctionResult()
 
@@ -864,7 +865,7 @@ class Assistant:
 
         if not results:
             return FunctionResult(AppLogic.RETRY, (
-                'No matches. Try alternative spellings, or use your own knowledge.'
+                'No matches. Try some alternative spellings or synonyms.'
             ))
 
         return self._complete_on_same_thread(user_request, _lookup_openings, results)

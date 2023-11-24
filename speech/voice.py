@@ -136,7 +136,9 @@ class Input:
 
             # Add the send button.
             self._send = ActionButton(
-                text='\uF064',
+                #text='\uF064',
+                #text='\uF075',
+                text='\uF27A',
                 background_disabled_normal=_DISABLED_ACTION_ITEM,
                 disabled=True,
                 font_name=self._app.font_awesome,

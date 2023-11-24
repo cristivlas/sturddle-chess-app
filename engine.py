@@ -644,7 +644,7 @@ class Engine:
                 self.book = chess.polyglot.MemoryMappedReader(self.polyglot_file)
                 return self.book
             except FileNotFoundError:
-                pass
+                Logger.warning(f'engine: {self.polyglot_file} not found.')
         self.book = None
 
 

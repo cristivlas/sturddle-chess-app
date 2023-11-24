@@ -528,6 +528,7 @@ class ChessApp(App):
 
     @mainthread
     def analyze(self, *, assist=None):
+        assert not self.is_analyzing()
         # Save current settings
         book = self.engine.book
         search_callback = self.engine.search_callback
@@ -807,7 +808,7 @@ class ChessApp(App):
         if self.can_use_assistant():
             if not user_input:
                 user_input = self.voice_input.get_user_input()
-            if user_input and user_input[0] != '.':
+            if user_input:
                 return self.assistant.call(user_input)
 
 
