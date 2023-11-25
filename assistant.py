@@ -339,17 +339,23 @@ class Context:
         epd = app.engine.board.epd()
 
         if message[_role] == _user:
-            content = message[_content]
-
+            changes = []
             if self.user != user_color:
-                content = f'I am now playing as {user_color}. {content}'
-            elif self.epd != epd:
-                content = f'The board has changed. {content}'
+                changes.append(f'I am now playing as {user_color}.')
 
-            message = {_role: _user, _content: content}
+            if self.epd != epd:
+                changes.append('The board has changed.')
+
+            if changes:
+                turn = chess.COLOR_NAMES[app.engine.board.turn]
+                changes.append(f'It is {turn}\'s turn to move.')
+                changes = ' '.join(changes)
+                content = f'{changes} {message[_content]}'
+                message = {_role: _user, _content: content}
 
         self.epd = epd  # Keept track of the board state.
         self.user = user_color  # Keep track of the side played by the user.
+
         return message
 
 
@@ -804,9 +810,12 @@ class Assistant:
         # Do not provide analysis in puzzle mode. Let the user figure it out.
         if self._app.puzzle:
             return self._complete_on_same_thread(
-                user_request,
-                _analyze_position,
-                'User should solve puzzles unassisted.'
+                user_request, _analyze_position, 'User should solve puzzles unassisted.'
+            )
+
+        if not self._app.engine.is_opponents_turn():
+            return self._complete_on_same_thread(
+                user_request, _analyze_position, 'It is not the user\'s turn.'
             )
 
         # Start analysing asynchronously; will call back when finished.
@@ -917,6 +926,7 @@ class Assistant:
     def _handle_puzzle_theme(self, user_request, inputs):
         '''
         Handle the request to select a puzzle by given theme.
+        Filter all puzzles by theme and select one at random.
         '''
         theme = inputs.get(_theme)
         if not theme:

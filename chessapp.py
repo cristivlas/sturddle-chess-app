@@ -2573,7 +2573,8 @@ class ChessApp(App):
                     'pv': format_pv(pv, start=1),
                     'best': san(search.context.board().copy(), move),
                     'score': score,
-                    'lead': COLOR_NAMES[winning_side],
+                    'lead': chess.COLOR_NAMES[winning_side],
+                    'turn': chess.COLOR_NAMES[search.context.board().turn],
                 }
                 self.assistant.complete_on_main_thread(*assist, result=result, resume=False)
 

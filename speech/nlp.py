@@ -437,7 +437,6 @@ class NLP:
         r'\bsize\b' : 'side',
         r'\bspawn\b' : 'pawn',
         r'\btake screen\b' : 'takes queen',
-        r'\bthank.*\b': '',  # hack: workaround Whisper hallucination
         r'\bthe ford\b' : 'd4',
         r'\bthe\s*([1-8])' : r'd\1',
         r'\bto eat\b' : 'to e2',
