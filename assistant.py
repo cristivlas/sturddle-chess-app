@@ -50,9 +50,9 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 ''' Function names. '''
 _analyze_position = 'analyze_position'
 _get_game_state = 'get_game_state'
+_load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
 _play_opening = 'play_opening'
-_select_chess_puzzles = 'select_chess_puzzles'
 
 ''' Schema keywords, constants. '''
 _arguments = 'arguments'
@@ -135,9 +135,9 @@ _FUNCTIONS = [
         }
     },
     {
-        _name: _select_chess_puzzles,
+        _name: _load_puzzle,
         _description: (
-            'Select puzzles by theme. Must be called with a valid puzzle theme.'
+            'Load a chess puzzle that matches the specified theme. '
         ) + 'The valid themes are: ' + ', '.join(_valid_puzzle_themes),
         _parameters: {
             _type: _object,
@@ -173,16 +173,10 @@ _FUNCTIONS = [
     },
     {
         _name: _make_moves,
-        _description: (
-            'This function makes moves on the board. The moves are specified as PGN.'
-        ),
+        _description: 'Make a sequence of moves on the board. The moves are specified as PGN.',
         _parameters: {
             _type: _object,
             _properties: {
-                # _fen: {
-                #     _type: _string,
-                #     _description: 'The FEN of the position on top of which to apply the moves.'
-                # },
                 _pgn: {
                     _type: _string,
                     _description: (
@@ -202,23 +196,23 @@ _FUNCTIONS = [
                     _description: 'The side the user wants to play.'
                 }
             },
-            # _required: [_fen, _pgn],
             _required: [_pgn],
         }
     },
 ]
 
-_basic_prompt = (
+_BASIC_PROMPT = (
+    "Always reply with text-to-speech friendly text, with no exception. "
     "Always describe positions by stating the opening and the most recent moves. "
-    "Never mention what squares are occupied by what pieces. "
+    "Never state what pieces occupy what squares, and do not use ASCII art. "
 )
 
-_system_prompt = (
+_SYSTEM_PROMPT = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
     f"when asked to suggest moves. "
-) + _basic_prompt
+) + _BASIC_PROMPT
 
 class AppLogic(Enum):
     NONE = 0
@@ -375,10 +369,10 @@ class Context:
         current_msg = self.annotate_user_message(app, current_msg)
 
         if current_msg[_role] == _function:
-            system_prompt = _basic_prompt  # Save some tokens
+            system_prompt = _BASIC_PROMPT  # Save some tokens
 
         else:
-            system_prompt = _system_prompt
+            system_prompt = _SYSTEM_PROMPT
             if app.puzzle:
                 system_prompt += (
                     f'Summarize the active puzzle. If the user asks for help with solving '
@@ -908,9 +902,10 @@ class Assistant:
         else:
             current = self._app.get_current_play()
 
-            if current.startswith(opening.pgn):
-                retry = f'{opening.name} is already in play. Select another variation.'
-                return FunctionResult(AppLogic.RETRY, retry)
+            # This breaks the use case of asking to replay a position as the other side.
+            # if current.startswith(opening.pgn):
+            #     retry = f'{opening.name} is already in play. Select another variation.'
+            #     return FunctionResult(AppLogic.RETRY, retry)
 
             on_done = partial(self.complete_on_main_thread, user_request, _play_opening, resume=True)
 
@@ -923,7 +918,7 @@ class Assistant:
             return FunctionResult(AppLogic.OK)
 
 
-    def _handle_puzzle_theme(self, user_request, inputs):
+    def _handle_puzzle_request(self, user_request, inputs):
         '''
         Handle the request to select a puzzle by given theme.
         Filter all puzzles by theme and select one at random.
@@ -945,7 +940,7 @@ class Assistant:
             self._app.load_puzzle(puzzle)
 
             msg = f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
-            self.complete_on_main_thread(user_request, _select_chess_puzzles, result=msg)
+            self.complete_on_main_thread(user_request, _load_puzzle, result=msg)
 
         # Schedule running the puzzle (may ask the user for confirmation).
         self._schedule_action(
@@ -970,8 +965,6 @@ class Assistant:
         pgn = inputs.get(_pgn)
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
-
-        # fen = inputs.get(_fen)  # TODO: use for validation, or remove?
 
         # Get the optional params.
         animate = not inputs.get(_restore)
@@ -1014,7 +1007,7 @@ class Assistant:
         self._handlers[_openings] = self._handle_lookup_openings
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
-        self._handlers[_theme] = self._handle_puzzle_theme
+        self._handlers[_theme] = self._handle_puzzle_request
 
 
     def _register_funcs(self):
@@ -1023,7 +1016,7 @@ class Assistant:
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_play_opening, self._handle_play_opening)
-        FunctionCall.register(_select_chess_puzzles, self._handle_puzzle_theme)
+        FunctionCall.register(_load_puzzle, self._handle_puzzle_request)
 
 
     # -------------------------------------------------------------------

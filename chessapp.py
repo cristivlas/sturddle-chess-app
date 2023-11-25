@@ -490,11 +490,11 @@ class ChessApp(App):
         self.engine.promotion_callback = self.get_promotion_type
         self.engine.search_complete_callback = self.on_search_complete
         self.engine.search_callback = self.search_callback
-        #####################################################################
+        # ------------------------------------------------------------
         # wrap engine search
         self._search_move = self.engine.search_move
         self.engine.search_move = self.search_move
-        #####################################################################
+        # ------------------------------------------------------------
         self.use_eco(True) # use Encyclopedia of Chess Openings
         self.moves_record = MovesTree()
         self.voice_input = voice.Input(self)
