@@ -1059,8 +1059,6 @@ class ChessApp(App):
 
         if all((
             self.speak_moves,
-            # This should be covered by the engine not busy conditional:
-            # any((self.study_mode, self.engine.is_opponents_turn(), self.engine.is_game_over())),
             not self.engine.busy,
             not self.in_game_animation,
             not self.voice_input.is_running(),
