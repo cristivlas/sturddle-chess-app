@@ -266,6 +266,10 @@ class Engine:
         return self.board.turn == self.opponent
 
 
+    def is_own_turn(self):
+        return not self.is_opponents_turn()
+
+
     """ Validate and convert UCI string to Move """
     def validate_from_uci(self, uci, promotion=None):
         if not self.is_game_over():

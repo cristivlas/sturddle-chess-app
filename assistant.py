@@ -27,7 +27,7 @@ import re
 import requests
 import weakref
 
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from enum import Enum
 from functools import partial
 from io import StringIO
@@ -65,7 +65,9 @@ _error = 'error'
 _fen = 'FEN'
 _function = 'function'
 _function_call = 'function_call'
+_integer = 'integer'
 _items = 'items'
+_limit = 'limit'
 _make_moves = 'make_moves'
 _object = 'object'
 _openings = 'opening_names'
@@ -123,15 +125,12 @@ _FUNCTIONS = [
                         _type: _string,
                     }
                 },
-                _return: {
-                    _type: _string,
-                    _description: (
-                        "Can be either 'all' or 'best'. Indicates if all "
-                        "matches should be returned, or just the best one."
-                    )
+                _limit: {
+                    _type: _integer,
+                    _description: 'Limit the maximum number of returned results.'
                 }
             },
-            _required: [_openings, _return]
+            _required: [_openings, _limit]
         }
     },
     {
@@ -387,14 +386,15 @@ class Context:
             # Prefix messages with the system prompt.
             msgs = [{_role: 'system', _content: system_prompt}] + self.history + [current_msg]
 
-            if not self.history:
-                break
-
             token_count = get_token_count(model, msgs, functions)
 
             if token_count <= token_limit:
                 Logger.debug(f'{_assistant}: token_count={token_count}')
                 break
+
+            if not self.history:
+                # There are no more old messages to remove!
+                raise RuntimeError(f'Request size (~{token_count} tokens) exceeds token limit ({token_limit}).')
 
             self.history.pop(0)  # Remove the oldest message.
 
@@ -753,12 +753,13 @@ class Assistant:
         '''
 
         def callback(*_):
-            if self._app.engine.busy:
+            if resume:
+                self._app.set_study_mode(False)  # Start the engine.
+
+            if resume and self._app.engine.is_own_turn():
+                # Wait for the engine to make it's move.
                 Clock.schedule_once(callback)
             else:
-                if resume:
-                    self._app.set_study_mode(False)  # Start the engine.
-
                 self.call(user_request, callback_result=self.format_result(function, result))
 
         Clock.schedule_once(callback)
@@ -840,20 +841,23 @@ class Assistant:
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
-        # Return all matches, or just the best one?
-        all = inputs.get('return', 'best') == 'all'
+        # Return a list of matches, or just the best one?
+        max_results = inputs.get(_limit, 1)
 
         def annotate_search_result(search_result):
-            return {
-                _name: search_result.name,
-                'matched_by': search_result.match,
-                'search_score': search_result.score,
-            }
+            if isinstance(search_result, str):
+                return search_result
+            else:
+                return {
+                    _name: search_result.name,
+                    'matched_by': search_result.match,
+                    'search_score': search_result.score,
+                }
 
         results = []
 
         for name in requested_openings:
-            search_result = self._search_opening({_name: name}, return_all_matches=all)
+            search_result = self._search_opening({_name: name}, return_all_matches=bool(max_results > 1))
             if not search_result:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
 
@@ -875,6 +879,11 @@ class Assistant:
                 'No matches. Try some alternative spellings or synonyms.'
             ))
 
+        results = {
+            _result: 'ok' if results else 'no match',
+            _limit: len(results[:max_results]),
+            _return: results[:max_results]
+        }
         return self._complete_on_same_thread(user_request, _lookup_openings, results)
 
 
@@ -911,7 +920,7 @@ class Assistant:
             #     retry = f'{opening.name} is already in play. Select another variation.'
             #     return FunctionResult(AppLogic.RETRY, retry)
 
-            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, resume=True)
+            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True)
 
             def play_opening():
                 # TODO: check and handle return status?
@@ -996,7 +1005,7 @@ class Assistant:
             return FunctionResult(AppLogic.RETRY, retry)
 
         # Completion callback.
-        on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=False)
+        on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
 
         def make_moves():
             status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
@@ -1084,7 +1093,9 @@ class Assistant:
         name, eco = query[_name], query.get(_eco)
 
         if return_all_matches:
-            return db.lookup_all_matches(name, eco, confidence=85, limit=10)
+            results = db.lookup_all_matches(name, eco, confidence=confidence)
+            results = _group_strings([r.name for r in results])
+            return results
 
         else:
             result = self._cached_openings.get(name)
@@ -1129,3 +1140,49 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
+
+
+def _find_starting_subexpressions(string, M):
+    '''Generate subexpressions starting from the beginning, up to M words.'''
+    words = string.split()
+    return [' '.join(words[:i]).rstrip(',') for i in range(1, min(M+1, len(words)+1))]
+
+
+def _is_substring_of_any(subexpr, subexpr_list):
+    '''Check if subexpr is a substring of any expression in subexpr_list.'''
+    return any(subexpr in other for other in subexpr_list if subexpr != other)
+
+
+def _group_strings_by_starting_subexpressions(strings, M):
+    '''
+    Group strings by common subexpressions starting from the beginning,
+    up to M words, and return N groups identified by the longest common subexpressions.
+    '''
+    # Generate starting subexpressions for each string
+    subexpr_in_strings = defaultdict(set)
+    for s in strings:
+        for subexpr in _find_starting_subexpressions(s, M):
+            subexpr_in_strings[subexpr].add(s)
+
+    # Find common subexpressions among the strings
+    common_subexpr = {k: v for k, v in subexpr_in_strings.items() if len(v) > 1}
+
+    # Sort the common subexpressions by their length
+    # sorted_common_subexpr = sorted(common_subexpr, key=len, reverse=True)
+
+    # Sort the common subexpressions by the number of strings containing them
+    sorted_common_subexpr = sorted(common_subexpr, key=lambda k: len(common_subexpr[k]), reverse=True)
+
+    # Filter out subexpressions that are substrings of longer subexpressions
+    sorted_common_subexpr = [expr for expr in sorted_common_subexpr
+                             if not _is_substring_of_any(expr, sorted_common_subexpr)]
+
+    return sorted_common_subexpr
+
+
+def _group_strings(strings, N=12):
+    for M in range(10, 3, -1):
+        groups = _group_strings_by_starting_subexpressions(strings, M)
+        if len(groups) <= N:
+            break
+    return groups
