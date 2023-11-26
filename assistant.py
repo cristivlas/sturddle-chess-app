@@ -212,7 +212,8 @@ _SYSTEM_PROMPT = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. "
+    f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
+    f"name (up to the colon) of the opening, if known. "
 ) + _BASIC_PROMPT
 
 class AppLogic(Enum):
@@ -857,7 +858,7 @@ class Assistant:
         results = []
 
         for name in requested_openings:
-            search_result = self._search_opening({_name: name}, return_all_matches=bool(max_results > 1))
+            search_result = self._search_opening({_name: name}, max_results=max_results)
             if not search_result:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
 
@@ -1071,7 +1072,7 @@ class Assistant:
         self._speak_response(tts_text)
 
 
-    def _search_opening(self, query, confidence=90, return_all_matches=False):
+    def _search_opening(self, query, confidence=90, max_results=1):
         '''  Lookup opening(s) in the ECO database using fuzzy name matching.
 
         If the name lookup for the best match finds no result, automatically
@@ -1081,8 +1082,8 @@ class Assistant:
             query (dict): Must contain 'name' key. May optionally contain 'eco' key.
                 If 'eco' key is present, the search is filtered by eco code.
             confidence (int, optional): The minimum score for the fuzzy match. Defaults to 90.
-            return_all_matches (bool, optional): Return all matches or just the best one?
-                Defaults to False (search for best match).
+
+            max_results (int):
 
         Returns:
             opening.Opening or list: best match or list of matches.
@@ -1092,9 +1093,10 @@ class Assistant:
 
         name, eco = query[_name], query.get(_eco)
 
-        if return_all_matches:
+        if max_results > 1:
             results = db.lookup_all_matches(name, eco, confidence=confidence)
-            results = _group_strings([r.name for r in results])
+            if len(results) > max_results:
+                results = _group_strings([r.name for r in results])
             return results
 
         else:
@@ -1165,7 +1167,8 @@ def _group_strings_by_starting_subexpressions(strings, M):
             subexpr_in_strings[subexpr].add(s)
 
     # Find common subexpressions among the strings
-    common_subexpr = {k: v for k, v in subexpr_in_strings.items() if len(v) > 1}
+    # common_subexpr = {k: v for k, v in subexpr_in_strings.items() if len(v) > 1}
+    common_subexpr = {k: v for k, v in subexpr_in_strings.items()}
 
     # Sort the common subexpressions by their length
     # sorted_common_subexpr = sorted(common_subexpr, key=len, reverse=True)
