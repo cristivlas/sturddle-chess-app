@@ -31,7 +31,7 @@ from collections import namedtuple
 from enum import Enum
 from functools import partial
 from io import StringIO
-from gpt_utils import get_token_count
+from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
@@ -201,10 +201,12 @@ _FUNCTIONS = [
     },
 ]
 
+# Limit responses to English, because the app has hardcoded stuff (for now).
+
 _BASIC_PROMPT = (
-    "Always reply with text-to-speech friendly text, with no exception. "
-    "Always describe positions by stating the opening and the most recent moves. "
-    "Never state what pieces occupy what squares, and do not use ASCII art. "
+    "Always reply with text-to-speech friendly English text, with no exception. "
+    "Always describe the board by stating the opening and the most recent moves. "
+    "Never state the position of individual pieces, and do not use ASCII art. "
 )
 
 _SYSTEM_PROMPT = (
@@ -335,14 +337,15 @@ class Context:
         if message[_role] == _user:
             changes = []
             if self.user != user_color:
-                changes.append(f'I am now playing as {user_color}.')
+                changes.append(f'I am playing as {user_color}.')
 
             if self.epd != epd:
                 changes.append('The board has changed.')
 
             if changes:
-                turn = chess.COLOR_NAMES[app.engine.board.turn]
-                changes.append(f'It is {turn}\'s turn to move.')
+                if not app.engine.is_game_over():
+                    turn = chess.COLOR_NAMES[app.engine.board.turn]
+                    changes.append(f'It is {turn}\'s turn to move.')
                 changes = ' '.join(changes)
                 content = f'{changes} {message[_content]}'
                 message = {_role: _user, _content: content}
@@ -433,7 +436,6 @@ class Assistant:
         self.retry_count = 5
         self.requests_timeout = 3.0
         self.temperature = 0.01
-        self.token_limit = 3584
         self._worker = WorkerThread()
 
 
@@ -665,13 +667,15 @@ class Assistant:
             }
             funcs = _FUNCTIONS
 
+        token_limit = int(get_token_limit(self.model) * 0.85)
+
         for retry_count in range(self.retry_count):
             messages = self._ctxt.messages(
                 current_message,
                 app=self._app,
                 model=self.model,
                 functions=funcs,  # for get_token_count
-                token_limit=self.token_limit
+                token_limit=token_limit
             )
             # Dump pretty-printed messages to log.
             Logger.debug(f'{_assistant}: messages=\n{json.dumps(messages, indent=2)}')
@@ -962,6 +966,9 @@ class Assistant:
         Returns:
             FunctionResult
         '''
+        if self._app.engine.is_game_over():
+            return FunctionResult(AppLogic.INVALID)
+
         pgn = inputs.get(_pgn)
         if not pgn:
             return FunctionResult(AppLogic.INVALID)
@@ -1077,7 +1084,7 @@ class Assistant:
         name, eco = query[_name], query.get(_eco)
 
         if return_all_matches:
-            return db.lookup_all_matches(name, eco, confidence=85)
+            return db.lookup_all_matches(name, eco, confidence=85, limit=10)
 
         else:
             result = self._cached_openings.get(name)

@@ -71,9 +71,14 @@ class Input:
             self._ok_sound.volume = 0.5
 
 
+    def enter(self, *_):
+        if text := self.get_text_input():
+            self._process([text])
+
+
     def _is_ask_mode(self):
         '''
-        Running a confirmation dialog (Yes/No) on?
+        Running a confirmation dialog (Yes/No)?
         '''
         popup = self._popup
         return all((
@@ -130,10 +135,6 @@ class Input:
 
         # In full dialog mode, add a "send" button.
         if show_dialog:
-            def on_send(*_):
-                if text := self.get_text_input():
-                    self._process([text])
-
             # Add the send button.
             self._send = ActionButton(
                 #text='\uF064',
@@ -143,9 +144,9 @@ class Input:
                 disabled=True,
                 font_name=self._app.font_awesome,
                 halign='right',
-                on_press=on_send
+                on_press=self.enter
             )
-            popup.ids.title_box.add_widget(self._send, index=1)
+            popup.ids.title_box.add_widget(self._send, index=-1)
 
         if stt.is_supported():
             def on_error(msg):
@@ -222,7 +223,7 @@ class Input:
 
     def _process(self, results):
         '''
-        Queue results for parsing on the main thread.
+        Queue up STT results to be parsed on the main thread.
         '''
         self._results.append(results)
 
@@ -232,25 +233,25 @@ class Input:
         @mainthread
 
         Run a batch of results through the language processor.
-        Stop input if command was successfully recognized.
-        '''
-        def on_autocorrect(text):
-            if self._input:
-                self._text = text
-                self._input.ids.text.text = text
-            return text
+        Stop listening if the input was handled successfully.
 
+        The user input is processed in three steps:
+            - use the NLP grammar and look for move specs;
+            - if no move specifications are detected, use the commands grammar ("analyze" etc.)
+            - finally, send the input to the ChatGPT-powered Assistant.
+        When the assistant is available (API key valid, network connected, etc.), the NLP grammar
+        will match strings only from the beginning of the input, otherwise it will search through
+        the entire input.
+        '''
+
+        # NLP.run takes a fen string parameter instead of a chess.Board;
+        # slightly inefficient perhaps but more abstract and standalone testable.
         fen = self._app.engine.board.fen()
 
         # Use stricter parsing when the Assistant is available.
         parse_from_start = self._app.can_use_assistant()
 
-        moves = self._nlp.run(
-            fen,
-            results,
-            on_autocorrect=on_autocorrect,
-            parse_from_start=parse_from_start
-        )
+        moves = self._nlp.run(fen, results, parse_from_start=parse_from_start)
 
         # if len(moves) > 1 _select_move will ask for disambiguation
         # stop stt so the machine does not listen to its own speech

@@ -401,6 +401,7 @@ class NLP:
         r'\bbrooks\b' : 'rook',
         r'\bc a\b' : 'c8',
         r'\bcakes\b' : 'takes',
+        r'\bdee\s*([1-8])\b' : r'd\1',
         r'\bdefine\b' : 'e5',
         r'\beat\s*3\b' : 'e3',
         r'\bevery\b' : 'f3',
@@ -481,6 +482,7 @@ class NLP:
         for k in self.corrections:
             text = re.sub(k, self.corrections[k], text)
 
+        Logger.info(f'autocorrect: {text}')
         return text
 
 

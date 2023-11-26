@@ -86,6 +86,14 @@ def get_token_count(model, messages, functions):
     '''
     msg = json.dumps(messages)
     fun = json.dumps(functions) if functions else ''
-    tok = (len(msg) + len(fun)) / 4.5  # approximate characters per token.
+    tok = (len(msg) + len(fun)) / 3.4  # approximate characters per token.
     return int(tok)
 
+
+_limits = {
+    'gpt-3.5-turbo-1106': 16385,
+    'gpt-4': 8192
+}
+
+def get_token_limit(model):
+    return _limits.get(model, 4096)

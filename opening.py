@@ -180,7 +180,7 @@ class ECO:
 
 
     @lru_cache(maxsize=256)
-    def lookup_all_matches(self, name, eco=None, *, confidence=90):
+    def lookup_all_matches(self, name, eco=None, *, confidence=90, limit=None):
         if eco is not None:
             # Filter by ECO code.
             keys = set()
@@ -193,7 +193,8 @@ class ECO:
             self.by_name,
             keys,
             name,
-            min_confidence_score=confidence
+            limit=limit,
+            min_score=confidence
         )
 
 
@@ -270,14 +271,14 @@ class ECO:
 
 
     @staticmethod
-    def fuzzy_match(dict, keys, name, *, min_confidence_score):
+    def fuzzy_match(dict, keys, name, *, limit, min_score):
         name = name.lower()
-        matches = rapidfuzz.process.extract(name, keys)
+        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
         if not matches:
             return []
-        return [
-            Opening(dict[k], match='name', score=s) for k,s,_ in matches if s >= min_confidence_score
-        ]
+
+        return [Opening(dict[k], match='name', score=s)
+                for k,s,_ in matches if s >= min_score]
 
 
     def openings(self):

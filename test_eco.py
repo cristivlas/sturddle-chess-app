@@ -90,11 +90,18 @@ class Tests:
 
         results = self.eco.lookup_all_matches('Lasker')
         results = [r.eco for r in results]
-        assert results == ['A00', 'A02', 'A02', 'A03', 'B01'], results
+        assert results == [
+            'A00', 'A02', 'A02', 'A03', 'B01',
+            'B20', 'B33', 'C52', 'D18', 'D56'
+        ], results
 
         results = self.eco.lookup_all_matches('najdorf variation')
         results = [r.eco for r in results]
-        assert results == ['B84', 'B98', 'B90', 'B90', 'B90'], results
+        assert results == [
+            'B84', 'B98', 'B90', 'B90', 'B90', 'B90', 'B90', 'B90',
+            'B91', 'B92', 'B92', 'B92', 'B93', 'B94', 'B96', 'B96',
+            'B96', 'B97', 'B97', 'B98', 'B98', 'B98', 'B99'
+        ], results
 
 
     def run(self):

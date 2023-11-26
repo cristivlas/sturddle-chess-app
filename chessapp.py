@@ -43,7 +43,7 @@ from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock, mainthread
 from kivy.core.clipboard import Clipboard
 from kivy.core.text import Label as CoreLabel
-from kivy.core.window import Window
+from kivy.core.window import Keyboard, Window
 from kivy.effects.scroll import ScrollEffect
 from kivy.graphics import *
 from kivy.graphics.tesselator import Tesselator
@@ -994,7 +994,7 @@ class ChessApp(App):
         mod = 'meta' if platform == 'macosx' else 'ctrl'
         shift = 'shift'
 
-        # Ctrl+Z or Android back button
+        # Ctrl+Z or Android back button?
         undo = keycode1 in [27, 1001] if is_mobile() else (keycode1 == 122 and mod in modifiers)
         if undo:
             if not self.edit:
@@ -1002,42 +1002,44 @@ class ChessApp(App):
                 self.undo_move()
             return True
 
-        if keycode1 == 32:
-            # spacebar
+        if keycode1 == Keyboard.keycodes['enter'] and self.voice_input.is_running():
+            return self.voice_input.enter()
+
+        if keycode1 == Keyboard.keycodes['spacebar']:
             return self.speech_input()
 
         if mod in modifiers and not self.edit:
             # copy
-            if keycode1 == 99:
+            if keycode1 == Keyboard.keycodes['c']:
                 if shift in modifiers:
                     self.copy_fen()
                 elif f := self._copy():
                     f()
                 return True
             # paste
-            if keycode1 == 118:
+            if keycode1 == Keyboard.keycodes['v']:
                 if shift in modifiers:
                     self.paste_fen()
                 elif f := self._paste():
                     f()
                 return True
             # redo
-            if keycode1 == 121:
+            if keycode1 == Keyboard.keycodes['y']:
                 self.redo_move()
                 return True
 
-            if keycode1 == 101:
+            if keycode1 == Keyboard.keycodes['e']:
                 self.edit_start()
                 return True
 
             # Ctrl+P show complete game record for debugging purposes
-            if keycode1 == 112:
+            if keycode1 == Keyboard.keycodes['p']:
                 title, _ = self.transcribe()
                 text = self.moves_record.export_pgn() + f' {{ {self.engine.board.epd()} }}'
                 self.text_box(title, text)
                 return True
 
-        if keycode1 == 27:
+        if keycode1 == Keyboard.keycodes['escape']:
             return True # don't close on Escape
 
 
