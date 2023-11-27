@@ -861,7 +861,7 @@ class ChessApp(App):
 
     @staticmethod
     def has_modal_views():
-        return isinstance(Window.children[0], ModalView)
+        return Window.children and isinstance(Window.children[0], ModalView)
 
 
     def load_game_study(self, store):

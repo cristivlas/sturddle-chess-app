@@ -208,6 +208,8 @@ _BASIC_PROMPT = (
     "Always reply with text-to-speech friendly English text, with no exception. "
     "Always describe the board by stating the opening and the most recent moves. "
     "Never state the position of individual pieces, and do not use ASCII art. "
+    "When there are discrepancies between the user query terms and search results, "
+    "always use the latter in your replies. "
 )
 
 _SYSTEM_PROMPT = (
@@ -1149,9 +1151,9 @@ class Assistant:
 
 
 def generate_prefixes(string, expr_len):
-    '''Generate all prefixes up to expr_len words for a given string.'''
-    words = string.split(',')
-    return [' '.join(words[:i]).rstrip() for i in range(1, min(expr_len+1, len(words)+1))]
+    '''Generate all prefixes up to expr_len terms for a given string.'''
+    terms = string.split(',')
+    return [' '.join(terms[:i]).rstrip() for i in range(1, min(expr_len+1, len(terms)+1))]
 
 
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
@@ -1161,7 +1163,6 @@ def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
             for p in generate_prefixes(s, n):
                 prefixes[p] += 1
 
-        print(n, len(prefixes))
         if group_hint is None or len(prefixes) <= group_hint:
             break
         # Grouping resulted in too many prefixes, keep looping with shorter prefixes.
