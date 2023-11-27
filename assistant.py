@@ -211,7 +211,7 @@ _BASIC_PROMPT = (
     "Always describe the board by stating the opening and the most recent moves. "
     "Never state the position of individual pieces, and do not use ASCII art. "
     "When there are discrepancies between the user query terms and search results, "
-    "always use the latter in your replies. Observe the turn returned by function calls. "
+    "always use the latter in your replies. "
 )
 
 _SYSTEM_PROMPT = (
@@ -293,7 +293,7 @@ class GameState:
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
             _pgn: self.pgn,
-            _turn: chess.COLOR_NAMES[self.turn],
+            _turn: f"{chess.COLOR_NAMES[self.turn]}'s turn to move",
             _user: self.user_color,
         }
 
@@ -420,8 +420,7 @@ class Context:
         for i, entry in reversed(list(enumerate(self.history))):
             if self.history[i][_role] == _function:
                 Logger.debug(f'{_assistant}: pop_function_call {i}/{len(self.history)}')
-                # Do not remove retry hints, as that may be useful context to keep around.
-                if i >= 2 and not self.history[i][_content].startswith(_retry):
+                if i >= 2:
                     # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
                     self.history = self.history[:i-1] + self.history[i+1:]
                     # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
@@ -1165,7 +1164,7 @@ def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
                 prefixes[p] += 1
         return prefixes
 
-    for n in range(3, 0, -1):
+    for n in range(5, 3, -1):
         prefixes = get_prefixes(n)
 
         if group_hint is None or len(prefixes) == group_hint:
