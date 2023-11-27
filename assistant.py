@@ -122,14 +122,16 @@ _FUNCTIONS = [
             _properties : {
                 _openings: {
                     _type: _array,
-                    _description: 'An array of names to look up.',
+                    _description: (
+                        'An array of names to look up. Always use complete opening names when available.'
+                    ),
                     _items: {
                         _type: _string,
                     }
                 },
                 _limit: {
                     _type: _integer,
-                    _description: 'Limit the maximum number of returned results.'
+                    _description: 'Limit the number of search results.'
                 }
             },
             _required: [_openings, _limit]
@@ -158,18 +160,18 @@ _FUNCTIONS = [
             _properties : {
                 _name: {
                     _type: _string,
-                    _description: 'The name of the opening.'
+                    _description: 'The name of the opening. Always use complete opening names when available.',
                 },
-                _eco: {
-                    _type: _string,
-                    _description: 'ECO code.'
-                },
+                # _eco: {
+                #     _type: _string,
+                #     _description: 'ECO code.'
+                # },
                 _user: {
                     _type: _string,
                     _description: 'The side the user wants to play.'
                 }
             },
-            _required: [_name, _eco]
+            _required: [_name]
         }
     },
     {
@@ -714,7 +716,7 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 if func_result.data:
-                    content = f'{_retry}: use a rephrased query. {func_result.data}'
+                    content = f'{_retry}: use a different query. {func_result.data}'
                     if func_name:
                         current_message = {
                             _role: _function,
@@ -1157,15 +1159,23 @@ def generate_prefixes(string, expr_len):
 
 
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
-    for n in range(3, 0, -1):
+    def _prefixes():
         prefixes = defaultdict(int)
         for s in sorted(strings, reverse=True):
             for p in generate_prefixes(s, n):
                 prefixes[p] += 1
+        return prefixes
 
-        if group_hint is None or len(prefixes) <= group_hint:
+    for n in range(3, 0, -1):
+        prefixes = _prefixes()
+
+        if group_hint is None or len(prefixes) == group_hint:
             break
-        # Grouping resulted in too many prefixes, keep looping with shorter prefixes.
+
+        if len(prefixes) < group_hint:
+            n = n + 1
+            prefixes = _prefixes()
+            break
 
     result = prefixes.items()
 
