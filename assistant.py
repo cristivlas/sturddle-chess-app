@@ -211,7 +211,7 @@ _BASIC_PROMPT = (
     "Always describe the board by stating the opening and the most recent moves. "
     "Never state the position of individual pieces, and do not use ASCII art. "
     "When there are discrepancies between the user query terms and search results, "
-    "always use the latter in your replies. Observe the turn info in function calls. "
+    "always use the latter in your replies. Observe the turn returned by function calls. "
 )
 
 _SYSTEM_PROMPT = (
@@ -450,7 +450,7 @@ class Assistant:
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
         self.model = 'gpt-3.5-turbo-1106'
         self.retry_count = 5
-        self.requests_timeout = 3.0
+        self.requests_timeout = 5.0
         self.temperature = 0.01
         self._worker = WorkerThread()
 
@@ -920,7 +920,7 @@ class Assistant:
         color = _get_color(inputs.get(_user))  # Preferred perspective.
 
         if not opening:
-            Logger.error(f'{_assistant}: opening not found: {inputs}')
+            Logger.warning(f'{_assistant}: opening not found: {inputs}')
             return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         else:
