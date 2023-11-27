@@ -211,7 +211,7 @@ _BASIC_PROMPT = (
     "Always describe the board by stating the opening and the most recent moves. "
     "Never state the position of individual pieces, and do not use ASCII art. "
     "When there are discrepancies between the user query terms and search results, "
-    "always use the latter in your replies. "
+    "always use the latter in your replies. Observe the turn info in function calls. "
 )
 
 _SYSTEM_PROMPT = (
@@ -772,7 +772,7 @@ class Assistant:
             if resume:
                 self._app.set_study_mode(False)  # Start the engine.
 
-            if resume and self._app.engine.is_own_turn():
+            if resume and (self._app.engine.busy or self._app.engine.is_own_turn()):
                 # Wait for the engine to make it's move.
                 Clock.schedule_once(callback)
             else:
@@ -1152,14 +1152,13 @@ class Assistant:
             speak()
 
 
-def generate_prefixes(string, expr_len):
-    '''Generate all prefixes up to expr_len terms for a given string.'''
-    terms = string.split(',')
-    return [' '.join(terms[:i]).rstrip() for i in range(1, min(expr_len+1, len(terms)+1))]
-
-
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
-    def _prefixes():
+    def generate_prefixes(string, expr_len):
+        '''Generate all prefixes up to expr_len terms for a given string.'''
+        terms = string.split(',')
+        return [' '.join(terms[:i]).rstrip() for i in range(1, min(expr_len+1, len(terms)+1))]
+
+    def get_prefixes(n):
         prefixes = defaultdict(int)
         for s in sorted(strings, reverse=True):
             for p in generate_prefixes(s, n):
@@ -1167,14 +1166,13 @@ def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
         return prefixes
 
     for n in range(3, 0, -1):
-        prefixes = _prefixes()
+        prefixes = get_prefixes(n)
 
         if group_hint is None or len(prefixes) == group_hint:
             break
 
         if len(prefixes) < group_hint:
-            n = n + 1
-            prefixes = _prefixes()
+            prefixes = get_prefixes(n + 1)
             break
 
     result = prefixes.items()
