@@ -86,14 +86,13 @@ class Tests:
     def test_all_matches(self):
         results = self.eco.lookup_all_matches('Fischer')
         results = [r.eco for r in results]
-        assert results == ['B88', 'C34', 'E44'], results
+        assert results == ['B88', 'C34', 'C34', 'C34', 'E44'], results
 
         results = self.eco.lookup_all_matches('Lasker')
         results = [r.eco for r in results]
         assert results == [
-            'A00', 'A02', 'A02', 'A03', 'B01',
-            'B20', 'B33', 'C52', 'D18', 'D56'
-        ], results
+            'A00', 'A02', 'A02', 'A03', 'A83', 'B01',
+            'B20', 'B33', 'C52', 'D18', 'D56', 'D57'], results
 
         results = self.eco.lookup_all_matches('najdorf variation')
         results = [r.eco for r in results]

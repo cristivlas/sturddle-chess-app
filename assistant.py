@@ -35,6 +35,7 @@ from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
+from opening import Opening, normalize as normalize_search_term
 from puzzleview import PuzzleCollection, puzzle_description
 from puzzleview import themes_dict as puzzle_themes
 from speech import tts
@@ -80,6 +81,7 @@ _name = 'name'
 _response = 'response'
 _restore = 'restore'
 _result = 'result'
+_retry = 'Retry'
 _return = 'return'
 _state = 'state'
 _string = 'string'
@@ -213,8 +215,16 @@ _SYSTEM_PROMPT = (
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
-    f"name (up to the colon) of the opening, if known. "
+    f"name (up to the colon) of the opening, if known. User questions may not always relate to "
+    f"the position on the board. "
 ) + _BASIC_PROMPT
+
+
+_SEARCH_RETRY_HINTS = (
+    'Use your knowledge of alternative spellings and synonyms, or swap '
+    'query terms with the closest matches from previous search results. '
+)
+
 
 class AppLogic(Enum):
     NONE = 0
@@ -406,7 +416,8 @@ class Context:
         for i, entry in reversed(list(enumerate(self.history))):
             if self.history[i][_role] == _function:
                 Logger.debug(f'{_assistant}: pop_function_call {i}/{len(self.history)}')
-                if i >= 2:
+                # Do not remove retry hints, as that may be useful context to keep around.
+                if i >= 2 and not self.history[i][_content].startswith(_retry):
                     # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
                     self.history = self.history[:i-1] + self.history[i+1:]
                     # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
@@ -574,7 +585,7 @@ class Assistant:
 
         if '```' in response:
             Logger.warning(f'{_assistant}: RETRY {response}')
-            return FunctionResult(AppLogic.RETRY, 'Try again without using code blocks.')
+            return FunctionResult(AppLogic.RETRY, 'Do not use code blocks.')
 
         if '[FEN ' in response:
             Logger.warning(f'{_assistant}: RETRY {response}')
@@ -701,15 +712,15 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 if func_result.data:
+                    content = f'{_retry}: use a rephrased query. {func_result.data}'
                     if func_name:
-                        # Handle function-specific retry logic.
                         current_message = {
                             _role: _function,
                             _name: func_name,
-                            _content: f'{_error}: {func_result.data}'
+                            _content: content
                         }
                     else:
-                        current_message = {_role: _user, _content: func_result.data}
+                        current_message = {_role: _user, _content: content}
                 else:
                     timeout *= 1.5  # Handle network timeouts.
 
@@ -846,14 +857,14 @@ class Assistant:
         max_results = inputs.get(_limit, 1)
 
         def annotate_search_result(search_result):
-            if isinstance(search_result, str):
-                return search_result
-            else:
+            if isinstance(search_result, Opening):
                 return {
                     _name: search_result.name,
                     'matched_by': search_result.match,
                     'search_score': search_result.score,
                 }
+            else:
+                return search_result
 
         results = []
 
@@ -866,6 +877,7 @@ class Assistant:
                 results += [annotate_search_result(match) for match in search_result]
 
             else:
+                assert isinstance(search_result, Opening)
                 best_match = annotate_search_result(search_result)
 
                 # Include more details if a single opening was requested.
@@ -876,9 +888,7 @@ class Assistant:
                 results.append(best_match)
 
         if not results:
-            return FunctionResult(AppLogic.RETRY, (
-                'No matches. Try some alternative spellings or synonyms.'
-            ))
+            return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         results = {
             _result: 'ok' if results else 'no match',
@@ -907,22 +917,14 @@ class Assistant:
 
         if not opening:
             Logger.error(f'{_assistant}: opening not found: {inputs}')
-            retry = (
-                f'The opening was not found. Use {_play_opening} '
-                f'with another name that "{inputs[_name]}" is known as.'
-            )
-            return FunctionResult(AppLogic.RETRY, retry)
+            return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         else:
             current = self._app.get_current_play()
 
-            # This breaks the use case of asking to replay a position as the other side.
-            # if current.startswith(opening.pgn):
-            #     retry = f'{opening.name} is already in play. Select another variation.'
-            #     return FunctionResult(AppLogic.RETRY, retry)
-
-            on_done = partial(self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True)
-
+            on_done = partial(
+                self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True
+            )
             def play_opening():
                 # TODO: check and handle return status?
                 self._app.play_opening(opening, callback=on_done, color=color)
@@ -1086,17 +1088,19 @@ class Assistant:
             max_results (int):
 
         Returns:
-            opening.Opening or list: best match or list of matches.
+            Opening or list: best match or list of matches.
         '''
         assert self._app.eco
         db = self._app.eco
 
         name, eco = query[_name], query.get(_eco)
+        name = normalize_search_term(name)
 
         if max_results > 1:
             results = db.lookup_all_matches(name, eco, confidence=confidence)
             if len(results) > max_results:
-                results = _group_strings([r.name for r in results])
+                matches = [r.name for r in results]
+                results = group_by_prefix(matches, group_hint=max_results)
             return results
 
         else:
@@ -1144,48 +1148,28 @@ class Assistant:
             speak()
 
 
-def _find_starting_subexpressions(string, M):
-    '''Generate subexpressions starting from the beginning, up to M words.'''
-    words = string.split()
-    return [' '.join(words[:i]).rstrip(',') for i in range(1, min(M+1, len(words)+1))]
+def generate_prefixes(string, expr_len):
+    '''Generate all prefixes up to expr_len words for a given string.'''
+    words = string.split(',')
+    return [' '.join(words[:i]).rstrip() for i in range(1, min(expr_len+1, len(words)+1))]
 
 
-def _is_substring_of_any(subexpr, subexpr_list):
-    '''Check if subexpr is a substring of any expression in subexpr_list.'''
-    return any(subexpr in other for other in subexpr_list if subexpr != other)
+def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
+    for n in range(3, 0, -1):
+        prefixes = defaultdict(int)
+        for s in sorted(strings, reverse=True):
+            for p in generate_prefixes(s, n):
+                prefixes[p] += 1
 
-
-def _group_strings_by_starting_subexpressions(strings, M):
-    '''
-    Group strings by common subexpressions starting from the beginning,
-    up to M words, and return N groups identified by the longest common subexpressions.
-    '''
-    # Generate starting subexpressions for each string
-    subexpr_in_strings = defaultdict(set)
-    for s in strings:
-        for subexpr in _find_starting_subexpressions(s, M):
-            subexpr_in_strings[subexpr].add(s)
-
-    # Find common subexpressions among the strings
-    # common_subexpr = {k: v for k, v in subexpr_in_strings.items() if len(v) > 1}
-    common_subexpr = {k: v for k, v in subexpr_in_strings.items()}
-
-    # Sort the common subexpressions by their length
-    # sorted_common_subexpr = sorted(common_subexpr, key=len, reverse=True)
-
-    # Sort the common subexpressions by the number of strings containing them
-    sorted_common_subexpr = sorted(common_subexpr, key=lambda k: len(common_subexpr[k]), reverse=True)
-
-    # Filter out subexpressions that are substrings of longer subexpressions
-    sorted_common_subexpr = [expr for expr in sorted_common_subexpr
-                             if not _is_substring_of_any(expr, sorted_common_subexpr)]
-
-    return sorted_common_subexpr
-
-
-def _group_strings(strings, N=12):
-    for M in range(10, 3, -1):
-        groups = _group_strings_by_starting_subexpressions(strings, M)
-        if len(groups) <= N:
+        print(n, len(prefixes))
+        if group_hint is None or len(prefixes) <= group_hint:
             break
-    return groups
+        # Grouping resulted in too many prefixes, keep looping with shorter prefixes.
+
+    result = prefixes.items()
+
+    if sort_by_freq:
+        # Sort by the number of strings containing them
+        result = sorted(result, key=lambda kv: kv[1], reverse=True)
+
+    return result

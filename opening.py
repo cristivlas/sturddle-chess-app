@@ -35,8 +35,12 @@ def _strip_punctuation(input):
     return ''.join(char for char in input if char not in string.punctuation)
 
 
-def _preprocess(input):
+def _phonetic(input):
     return doublemetaphone(_strip_punctuation(input))[0]
+
+
+def normalize(input):
+    return _strip_punctuation(input.lower())
 
 
 '''
@@ -122,8 +126,8 @@ class ECO:
                 self.by_eco[row['eco'].lower()].append(row)
                 self.by_fen[row['epd']] = row
                 name = row['name']
-                self.by_name[name.lower()] = row
-                self.by_phonetic_name[_preprocess(name)] = row
+                self.by_name[normalize(name)] = row
+                self.by_phonetic_name[_phonetic(name)] = row
 
 
     def lookup(self, board, transpose=False):
@@ -146,7 +150,7 @@ class ECO:
 
     def phonetical_lookup(self, name, *, confidence=75):
         openings = self.by_phonetic_name
-        phonetic_name = _preprocess(name)
+        phonetic_name = _phonetic(name)
 
         result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
         Logger.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')
@@ -185,7 +189,7 @@ class ECO:
             # Filter by ECO code.
             keys = set()
             for eco in self.get_codes(eco):
-                keys.update({r['name'].lower() for r in self.by_eco.get(eco, [])})
+                keys.update({normalize(r['name']) for r in self.by_eco.get(eco, [])})
         else:
             keys = self.by_name.keys()
 
@@ -207,7 +211,7 @@ class ECO:
         if eco is not None:
             keys = set()
             for eco in self.get_codes(eco):
-                keys.update({r['name'].lower() for r in self.by_eco.get(eco, [])})
+                keys.update({normalize(r['name']) for r in self.by_eco.get(eco, [])})
         else:
             keys = self.by_name.keys()
 
@@ -242,7 +246,7 @@ class ECO:
         best_match = None
         best_score = 0
 
-        name = name.lower()
+        name = normalize(name)
 
         # Sort keys by length, so that the shortest matching name is returned.
         keys = sorted(list(keys), key=lambda k: len(k))
@@ -272,7 +276,9 @@ class ECO:
 
     @staticmethod
     def fuzzy_match(dict, keys, name, *, limit, min_score):
-        name = name.lower()
+
+        name = normalize(name)
+
         matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
         if not matches:
             return []
