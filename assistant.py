@@ -211,7 +211,7 @@ _BASIC_PROMPT = (
     "Always describe the board by stating the opening and the most recent moves. "
     "Never state the position of individual pieces, and do not use ASCII art. "
     "When there are discrepancies between the user query terms and search results, "
-    "always use the latter in your replies. "
+    "always use the latter in your replies. Function calls return the game state. "
 )
 
 _SYSTEM_PROMPT = (

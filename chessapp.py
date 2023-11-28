@@ -2261,7 +2261,7 @@ class ChessApp(App):
         On Android the user chooses which app to use (email, text, etc).
 
         On non-Android platforms pop up a Notebook with the game transcript,
-        and the use can copy-and-paste manually.
+        and the user can copy-and-paste manually.
         '''
         title, text = self.transcribe(columns=None)
         if platform == 'android':
