@@ -54,6 +54,7 @@ _get_game_state = 'get_game_state'
 _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
 _play_opening = 'play_opening'
+_status_report = 'status_report'
 
 ''' Schema keywords, constants. '''
 _arguments = 'arguments'
@@ -94,6 +95,29 @@ _user = 'user'
 ''' Functions.
 https://platform.openai.com/docs/guides/function-calling
 '''
+_STATUS = [
+    {
+        _name: _status_report,
+        _description: (
+            f'Report status to the user after {_make_moves} and after {_play_opening}; '
+            f'status includes the current side to move and a brief description.'
+        ),
+        _parameters: {
+            _type: _object,
+            _properties: {
+                _turn: {
+                    _type: _string,
+                    _description: 'The current side to move (black or white)'
+                },
+                _description: {
+                    _type: _string,
+                    _description: 'The result of the previous function call.'
+                }
+            },
+            _required: [_turn, _description]
+        }
+    }
+]
 _FUNCTIONS = [
     {
         _name: _analyze_position,
@@ -207,13 +231,13 @@ _FUNCTIONS = [
 # Limit responses to English, because the app has hardcoded stuff (for now).
 
 _BASIC_PROMPT = (
-    "Always reply with text-to-speech friendly English text. "
-    "Describe the board by stating the opening and the most recent moves. "
-    "Do not state the position of individual pieces or use ASCII art. "
-    "In cases of discrepancies between user query terms and search results, "
-    "rely on the latter for your replies. When asked to make a move, prefix "
-    "it with the previous state PGN. Run analysis when it is unclear to you "
-    "whose turn to move it is. "
+    f"Always reply with text-to-speech friendly English text. "
+    f"Describe the board by stating the opening and the most recent moves. "
+    f"Do not state the position of individual pieces or use ASCII art. "
+    f"In cases of discrepancies between user query terms and search results, "
+    f"rely on the latter for your replies. When asked to make a move, prefix "
+    f"it with the most recent state PGN. Always call {_status_report} after "
+    f"{_make_moves} and after {_play_opening}. "
 )
 
 _SYSTEM_PROMPT = (
@@ -442,6 +466,7 @@ class Assistant:
         self.requests_timeout = 5.0
         self.temperature = 0.01
         self._worker = WorkerThread()
+        self.last_call = None
 
 
     @property
@@ -556,6 +581,7 @@ class Assistant:
 
 
     def _handle_non_function(self, reason, user_request, message):
+
         content = message[_content]
 
         # Handle both plain text and JSON-formatted responses.
@@ -591,9 +617,10 @@ class Assistant:
         return FunctionResult()
 
 
-    @staticmethod
-    def _create_function_call(response):
+    def _create_function_call(self, response):
+        self.last_call = None
         if call := response.get(_function_call):
+            self.last_call = call
             return FunctionCall(call[_name], call[_arguments])
 
 
@@ -661,8 +688,12 @@ class Assistant:
                _content: str(callback_result)
             }
 
-            # Do not use functions when returning the result of a function call.
-            funcs = None
+            # Do not use functions when returning the result of a function call,
+            # except to return status reports.
+            if self.last_call and self.last_call[_name] in (_make_moves, _play_opening):
+                funcs = _STATUS
+            else:
+                funcs = None
 
         else:
             current_message = {
@@ -766,8 +797,6 @@ class Assistant:
 
             else:
                 callback_result = self.format_result(function, result)
-                if resume:
-                    callback_result['note'] = 'Engine may have taken a turn.'
 
                 self.call(user_request, callback_result=callback_result)
 
@@ -1016,6 +1045,32 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
+    def _handle_status_report(self, user_request, inputs):
+        '''
+        The AI gets often confused about which side is up to move,
+        due to the chess engine automatically making its moves...
+        '''
+        turn = inputs.get(_turn)
+        desc = inputs.get(_description)
+        if not turn or not desc:
+            return FunctionResult(AppLogic.INVALID)
+
+        side_to_move = chess.COLOR_NAMES[self._app.engine.board.turn]
+
+        if turn.lower() != side_to_move:
+            # return FunctionResult(AppLogic.RETRY, (
+            #     f"it is now {side_to_move}'s turn to move."
+            # ))
+            return self.complete_on_main_thread(
+                user_request,
+                _status_report,
+                result=f'The engine has played a move! It is {side_to_move}\'s turn.'
+            )
+
+        self._respond_to_user(desc)
+        return FunctionResult(AppLogic.OK)
+
+
     def _register_handlers(self):
         '''
         Backup handlers for parsing the rare and accidental malformed responses.
@@ -1024,6 +1079,7 @@ class Assistant:
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
         self._handlers[_theme] = self._handle_puzzle_request
+        self._handlers[_turn] = self._handle_status_report
 
 
     def _register_funcs(self):
@@ -1033,6 +1089,7 @@ class Assistant:
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_load_puzzle, self._handle_puzzle_request)
+        FunctionCall.register(_status_report, self._handle_status_report)
 
 
     # -------------------------------------------------------------------
