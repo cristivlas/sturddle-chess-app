@@ -68,8 +68,7 @@ class WhisperSTT(STT):
 
     def _stop(self):
         if self._cancel:
-            # wait_for_stop=False: cannot join current thread
-            self._cancel(wait_for_stop=False)
+            self._cancel(wait_for_stop=True)
             self._cancel = None
 
             if self._stop_sound:

@@ -579,6 +579,7 @@ class ChessApp(App):
             self.undo_move()
 
         def redo(*_):
+            assert self.engine.worker.is_paused()
             self.in_game_animation = True
 
             if tts.is_speaking():
@@ -1559,15 +1560,22 @@ class ChessApp(App):
 
     def redo_move(self, b=None, long_press_delay=0.35, in_animation=False):
         if self.can_redo():
-            if in_animation or self.study_mode:
-                # keep redoing as long as button is pressed
-                self._long_press(b, self.redo_move, long_press_delay)
+            if self.study_mode:
+                if not in_animation:
+                    # keep redoing as long as button is pressed
+                    self._long_press(b, self.redo_move, long_press_delay)
 
                 self.board_widget.enable_variation_hints = True
                 move = self.moves_record.pop()
+
                 if in_animation:
-                    self.speak_move_description(move)
+                    try:
+                        self.speak_move_description(move)
+                    except:
+                        Logger.info(f'redo_move: {move} {self.engine.board.fen()}')
+
                 self.engine.apply(move)
+
             else:
                 self.redo_button.disabled = True
                 self.engine.redo()

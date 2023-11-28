@@ -211,8 +211,9 @@ _BASIC_PROMPT = (
     "Describe the board by stating the opening and the most recent moves. "
     "Do not state the position of individual pieces or use ASCII art. "
     "In cases of discrepancies between user query terms and search results, "
-    "rely on the latter for your replies. Ensure that any mention of whose turn "
-    "it is aligns with the 'state' information provided to you."
+    "rely on the latter for your replies. When asked to make a move, prefix "
+    "it with the previous state PGN. Run analysis when it is unclear to you "
+    "whose turn to move it is. "
 )
 
 _SYSTEM_PROMPT = (
@@ -293,8 +294,8 @@ class GameState:
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
             _pgn: self.pgn,
-            _turn: chess.COLOR_NAMES[self.turn],
-            _user: self.user_color,
+            _turn: chess.COLOR_NAMES[self.turn].capitalize(),
+            _user: self.user_color.capitalize(),
         }
 
     def __str__(self):
@@ -414,17 +415,6 @@ class Context:
             self.history.pop(0)  # Remove the oldest message.
 
         return msgs
-
-
-    def pop_function_call(self):
-        for i, entry in reversed(list(enumerate(self.history))):
-            if self.history[i][_role] == _function:
-                Logger.debug(f'{_assistant}: pop_function_call {i}/{len(self.history)}')
-                if i >= 2:
-                    # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
-                    self.history = self.history[:i-1] + self.history[i+1:]
-                    # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
-                    break
 
 
 def remove_func(funcs, function):
@@ -594,7 +584,6 @@ class Assistant:
             Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Do not use FENs in your replies.')
 
-        self._ctxt.pop_function_call()
         self._ctxt.add_response(response)  # Save response into conversation history.
 
         self._respond_to_user(response)
@@ -632,7 +621,7 @@ class Assistant:
 
             self._busy = False
             self._cancelled = False
-            self._app.update()
+            self._app.update(self._app.engine.last_moves()[-1])
 
             if status is None:
                 self._respond_to_user('Sorry, I cannot complete your request at this time.')
@@ -715,7 +704,7 @@ class Assistant:
 
             elif func_result.response == AppLogic.RETRY:
                 if func_result.data:
-                    content = f'{_retry}: use a different query. {func_result.data}'
+                    content = f'{_retry}: use different arguments. {func_result.data}'
                     if func_name:
                         current_message = {
                             _role: _function,
@@ -772,10 +761,18 @@ class Assistant:
                 self._app.set_study_mode(False)  # Start the engine.
 
             if resume and (self._app.engine.busy or self._app.engine.is_own_turn()):
-                # Wait for the engine to make it's move.
+                # Wait for the engine to make its move.
                 Clock.schedule_once(callback)
+
             else:
-                self.call(user_request, callback_result=self.format_result(function, result))
+                callback_result = self.format_result(function, result)
+                if resume:
+                    callback_result['note'] = 'Engine may have taken a turn.'
+
+                self.call(user_request, callback_result=callback_result)
+
+        if self._app.engine.is_game_over():
+            resume = False
 
         Clock.schedule_once(callback)
 
@@ -791,10 +788,9 @@ class Assistant:
         '''
 
         # Always include the name of the function and the current state.
-        formatted_result = {
-            _function: function,
-            _state: str(GameState(self._app))
-        }
+        formatted_result = GameState(self._app).to_dict()
+        formatted_result[_function] = function
+
         if result is not None:
             formatted_result[_result] = str(result)
 
@@ -923,8 +919,6 @@ class Assistant:
             return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         else:
-            current = self._app.get_current_play()
-
             on_done = partial(
                 self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True
             )
@@ -1007,7 +1001,7 @@ class Assistant:
             pgn = None  # invalidate
 
         if not pgn:
-            retry = f'Try appending the move to this sequence: {self._app.get_current_play()}'
+            retry = f'Try appending the sequence to the PGN from the previous game state.'
             return FunctionResult(AppLogic.RETRY, retry)
 
         # Completion callback.
