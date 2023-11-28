@@ -180,7 +180,9 @@ class Input:
 
         def callback(*_):
             if self._results:
-                self._parse(self._results.pop())
+                last = self._results.pop()
+                self._input.ids.text.text = last[0]
+                self._parse(last)
 
         if self._results:
             # Delay parsing to allow for the UI to update.
