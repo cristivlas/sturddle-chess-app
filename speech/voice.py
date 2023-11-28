@@ -72,7 +72,9 @@ class Input:
 
 
     def enter(self, *_):
+        assert self._input
         if text := self.get_text_input():
+            self._input.ids.text.focus = False  # Hide the virtual keyboard.
             self._process([text])
 
 
@@ -137,8 +139,6 @@ class Input:
         if show_dialog:
             # Add the send button.
             self._send = ActionButton(
-                #text='\uF064',
-                #text='\uF075',
                 text='\uF27A',
                 background_disabled_normal=_DISABLED_ACTION_ITEM,
                 disabled=True,

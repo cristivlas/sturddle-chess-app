@@ -219,8 +219,7 @@ _SYSTEM_PROMPT = (
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
-    f"name (up to the colon) of the opening, if known. User questions may not always relate to "
-    f"the position on the board. "
+    f"name (up to the colon) of the opening, if known. "
 ) + _BASIC_PROMPT
 
 
@@ -353,7 +352,7 @@ class Context:
             if self.user != user_color:
                 changes.append(f'I am playing as {user_color}.')
 
-            if self.epd != epd:
+            if self.epd and self.epd != epd:
                 changes.append('The board has changed.')
 
             if changes:
