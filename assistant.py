@@ -207,11 +207,12 @@ _FUNCTIONS = [
 # Limit responses to English, because the app has hardcoded stuff (for now).
 
 _BASIC_PROMPT = (
-    "Always reply with text-to-speech friendly English text, with no exception. "
-    "Always describe the board by stating the opening and the most recent moves. "
-    "Never state the position of individual pieces, and do not use ASCII art. "
-    "When there are discrepancies between the user query terms and search results, "
-    "always use the latter in your replies. Function calls return the game state. "
+    "Always reply with text-to-speech friendly English text. "
+    "Describe the board by stating the opening and the most recent moves. "
+    "Do not state the position of individual pieces or use ASCII art. "
+    "In cases of discrepancies between user query terms and search results, "
+    "rely on the latter for your replies. Ensure that any mention of whose turn "
+    "it is aligns with the 'state' information provided to you."
 )
 
 _SYSTEM_PROMPT = (
@@ -292,7 +293,7 @@ class GameState:
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
             _pgn: self.pgn,
-            _turn: f"{chess.COLOR_NAMES[self.turn]}'s turn to move",
+            _turn: chess.COLOR_NAMES[self.turn],
             _user: self.user_color,
         }
 
