@@ -13,7 +13,7 @@ package.domain = chess
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf,nnue
+source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
@@ -22,7 +22,7 @@ source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf,nnue
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = tests,bin,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots,venv
+source.exclude_dirs = tests,bin,build,sturddle_chess_engine,__pycache__,p4a-recipes,screenshots,tools,venv
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it

@@ -78,8 +78,9 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
     name = NAME
     cython_args = ['--cplus']
 
-    def strip_object_files(self, arch, env, build_dir=None):
-        pass
+    # Do not strip symbols, for debugging crashes
+    #def strip_object_files(self, arch, env, build_dir=None):
+    #    pass
 
     def get_project_dir(self):
         dir = self.ctx.root_dir
