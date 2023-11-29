@@ -99,8 +99,7 @@ _STATUS = [
     {
         _name: _status_report,
         _description: (
-            f'Report status to the user after {_make_moves} and after {_play_opening}; '
-            f'status includes the current side to move and a brief description.'
+            f'Report status to the user after {_make_moves} and after {_play_opening}.'
         ),
         _parameters: {
             _type: _object,
@@ -111,7 +110,7 @@ _STATUS = [
                 },
                 _description: {
                     _type: _string,
-                    _description: 'The result of the previous function call.'
+                    _description: 'The result of the previous function call, minus turn info.'
                 }
             },
             _required: [_turn, _description]
@@ -235,9 +234,8 @@ _BASIC_PROMPT = (
     f"Describe the board by stating the opening and the most recent moves. "
     f"Do not state the position of individual pieces or use ASCII art. "
     f"In cases of discrepancies between user query terms and search results, "
-    f"rely on the latter for your replies. When asked to make a move, prefix "
-    f"it with the most recent state PGN. Always call {_status_report} after "
-    f"{_make_moves} and after {_play_opening}. "
+    f"rely on the latter for your replies. You must call {_status_report} after "
+    f"{_make_moves} and after {_play_opening}, never after other calls. "
 )
 
 _SYSTEM_PROMPT = (
@@ -359,8 +357,8 @@ class Context:
 
     def annotate_user_message(self, app, message):
         '''
-        Modify the content of user messages when the user is solving puzzles
-        of when the side played by the user has changed from the last exchange.
+        Modify the content of user messages when the position
+        or the side played by the user has changed from the last exchange.
         This helps the backend AI better understand the context.
 
         Args:
@@ -370,11 +368,11 @@ class Context:
         Returns:
             dict: The input message unchanged, or the modified message.
         '''
-        user_color = _get_user_color(app)
-        epd = app.engine.board.epd()
-
         if message[_role] == _user:
+            user_color = _get_user_color(app)
+            epd = app.engine.board.epd()
             changes = []
+
             if self.user != user_color:
                 changes.append(f'I am playing as {user_color}.')
 
@@ -389,8 +387,8 @@ class Context:
                 content = f'{changes} {message[_content]}'
                 message = {_role: _user, _content: content}
 
-        self.epd = epd  # Keept track of the board state.
-        self.user = user_color  # Keep track of the side played by the user.
+            self.epd = epd  # Keep track of the board state.
+            self.user = user_color  # Keep track of the side played by the user.
 
         return message
 
@@ -439,6 +437,17 @@ class Context:
             self.history.pop(0)  # Remove the oldest message.
 
         return msgs
+
+    def prune_function_calls(self):
+        indices = [i for i in range(len(self.history))]
+        # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
+        for i, entry in enumerate(self.history[:-2]):
+            if self.history[i][_role] == _function:
+                indices.remove(i)
+                if i > 0 and _function_call in self.history[i-1]:
+                    indices.remove(i-1)
+        self.history = [self.history[i] for i in indices]
+        # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
 
 
 def remove_func(funcs, function):
@@ -610,6 +619,7 @@ class Assistant:
             Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Do not use FENs in your replies.')
 
+        self._ctxt.prune_function_calls()
         self._ctxt.add_response(response)  # Save response into conversation history.
 
         self._respond_to_user(response)
@@ -1057,17 +1067,12 @@ class Assistant:
 
         side_to_move = chess.COLOR_NAMES[self._app.engine.board.turn]
 
-        if turn.lower() != side_to_move:
-            # return FunctionResult(AppLogic.RETRY, (
-            #     f"it is now {side_to_move}'s turn to move."
-            # ))
-            return self.complete_on_main_thread(
-                user_request,
-                _status_report,
-                result=f'The engine has played a move! It is {side_to_move}\'s turn.'
-            )
+        turn = turn.lower()
+        if turn == side_to_move or turn not in desc.lower():
+            self._respond_to_user(desc)
+        else:
+            ...  # looks like AI's understanding of side-to-move is out of sync, ignore
 
-        self._respond_to_user(desc)
         return FunctionResult(AppLogic.OK)
 
 
