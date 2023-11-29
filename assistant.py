@@ -416,8 +416,8 @@ class Context:
             if app.puzzle:
                 system_prompt += (
                     f'Summarize the active puzzle. If the user asks for help with solving '
-                    f'the problem, reply instead with a koan or with a grandmaster quote. '
-                    f'The description of the puzzle is: {puzzle_description(app.puzzle)}'
+                    f'the problem, reply instead with a novel grandmaster quote, or koan. '
+                    f'The theme of the puzzle is: {puzzle_description(app.puzzle)}'
                 )
 
         while True:
@@ -1058,21 +1058,13 @@ class Assistant:
     def _handle_status_report(self, user_request, inputs):
         '''
         The AI gets often confused about which side is up to move,
-        due to the chess engine automatically making its moves...
+        due to the chess engine responding with a move, if the move
+        sequence from _make_moves or _play_opening ends on the
+        engine's turn.
+
+        Just "absorb" the message to avoid incorrect
+        statements about whose turn it is to move.
         '''
-        turn = inputs.get(_turn)
-        desc = inputs.get(_description)
-        if not turn or not desc:
-            return FunctionResult(AppLogic.INVALID)
-
-        side_to_move = chess.COLOR_NAMES[self._app.engine.board.turn]
-
-        turn = turn.lower()
-        if turn == side_to_move or turn not in desc.lower():
-            self._respond_to_user(desc)
-        else:
-            ...  # looks like AI's understanding of side-to-move is out of sync, ignore
-
         return FunctionResult(AppLogic.OK)
 
 
