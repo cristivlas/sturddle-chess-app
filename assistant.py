@@ -50,7 +50,6 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 
 ''' Function names. '''
 _analyze_position = 'analyze_position'
-_get_game_state = 'get_game_state'
 _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
 _play_opening = 'play_opening'
@@ -129,14 +128,6 @@ _FUNCTIONS = [
             _properties: {}
         }
     },
-    # {
-    #     _name: _get_game_state,
-    #     _description: 'Get game state including FEN, PGN and the side the user is playing.',
-    #     _parameters: {
-    #         _type: _object,
-    #         _properties: {}
-    #     }
-    # },
     {
         _name: _lookup_openings,
         _description: f'This function searches chess openings by name in the {_ECO}.',
@@ -765,6 +756,7 @@ class Assistant:
 
     def _complete_on_same_thread(self, user_request, function, result=None):
         ''' Call the AI synchronously to return the results of a function call.
+        This is useful for the AI to understand the most recent state of the game.
 
         Args:
             user_request (str): User input that trigger the function call returning results.
@@ -871,10 +863,6 @@ class Assistant:
         self._app.analyze(assist=(user_request, _analyze_position))
 
         return FunctionResult(AppLogic.OK)
-
-
-    def _handle_get_state(self, user_request, inputs):
-        return self._complete_on_same_thread(user_request, _get_game_state)
 
 
     def _handle_lookup_openings(self, user_request, inputs):
@@ -1081,7 +1069,6 @@ class Assistant:
 
     def _register_funcs(self):
         FunctionCall.register(_analyze_position, self._handle_analysis)
-        FunctionCall.register(_get_game_state, self._handle_get_state)
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_play_opening, self._handle_play_opening)
