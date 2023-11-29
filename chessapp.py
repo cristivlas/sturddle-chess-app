@@ -68,7 +68,7 @@ from kivy.utils import get_color_from_hex, platform
 import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
-from boardwidget import BoardWidget
+# from boardwidget import BoardWidget
 from engine import Engine
 from metaphone import doublemetaphone
 from movestree import MovesTree
@@ -1914,7 +1914,7 @@ class ChessApp(App):
             current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
-                if pgn == current_pgn and color == self.engine.opponent:
+                if pgn == current_pgn and (color is None or color == self.engine.opponent):
                     return False  # There is no move to be made.
 
                 animate = True  # Override and always animate continuations.
@@ -2042,6 +2042,9 @@ class ChessApp(App):
 
 
     def validate_clipboard(self):
+        if self.voice_input.is_running():
+            return False  # disable pasting while listening for voice
+
         if text := _from_clipboard():
             if game := chess.pgn.read_game(StringIO(text)):
                 return game.mainline_moves() or game.headers.get('FEN', None)

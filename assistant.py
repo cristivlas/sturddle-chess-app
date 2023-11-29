@@ -109,7 +109,16 @@ _STATUS = [
                 },
                 _description: {
                     _type: _string,
-                    _description: 'The result of the previous function call, minus turn info.'
+                    _description: (
+                        'The result of the previous function call, '
+                        'minus turn info and minus errors.'
+                    )
+                },
+                _error: {
+                    _type: _string,
+                    _description: (
+                        'Description of any error that may have occurred.'
+                    ),
                 }
             },
             _required: [_turn, _description]
@@ -474,6 +483,7 @@ class Assistant:
         self.temperature = 0.01
         self._worker = WorkerThread()
         self.last_call = None
+        self.session = requests.Session()
 
 
     @property
@@ -486,6 +496,8 @@ class Assistant:
             self._app.stop_spinner()
             self._busy = False
             self._cancelled = True
+            self.session.close()
+            self.session = requests.Session()
 
 
     @property
@@ -525,7 +537,7 @@ class Assistant:
         try:
             Logger.info(f'{_assistant}: posting request to {self.endpoint}')
 
-            response = requests.post(
+            response = self.session.post(
                 self.endpoint,
                 headers=headers,
                 json=json_data,
@@ -960,7 +972,11 @@ class Assistant:
             def play_opening():
                 status = self._app.play_opening(opening, callback=on_done, color=color)
                 if not status:
-                    self.complete_on_main_thread(user_request, _play_opening, result=_error)
+                    self.complete_on_main_thread(
+                        user_request,
+                        _play_opening,
+                        result=f'{_error}: opening may already be in play'
+                    )
 
             self._schedule_action(play_opening)
 
@@ -1064,6 +1080,10 @@ class Assistant:
         '''
         if _turn not in inputs or _description not in inputs:
             return FunctionResult(AppLogic.INVALID)
+
+        error = inputs.get(_error)
+        if error:
+            self._respond_to_user(error)
 
         return FunctionResult(AppLogic.OK)
 
