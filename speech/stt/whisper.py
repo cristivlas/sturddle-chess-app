@@ -60,7 +60,7 @@ class WhisperSTT(STT):
             on_result(result)
 
         with sr.Microphone() as source:
-            self._sr.adjust_for_ambient_noise(source, duration=2)
+            self._sr.adjust_for_ambient_noise(source, duration=1.5)
             self._cancel = self._sr.listen_in_background(sr.Microphone(), callback, self.time_limit)
 
         if self._start_sound:
