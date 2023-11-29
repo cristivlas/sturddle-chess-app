@@ -297,7 +297,7 @@ class GameState:
         if app:
             #self.epd = app.engine.board.epd()
             self.pgn = app.transcribe(columns=None, engine=False)[1]
-            self.turn = app.engine.board.turn
+            self.turn = None if app.engine.is_game_over() else app.engine.board.turn
             self.user_color = _get_user_color(app)
             self.valid = True
 
@@ -307,7 +307,7 @@ class GameState:
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
             _pgn: self.pgn,
-            _turn: chess.COLOR_NAMES[self.turn].capitalize(),
+            _turn: None if self.turn is None else chess.COLOR_NAMES[self.turn].capitalize(),
             _user: self.user_color.capitalize(),
         }
 
@@ -364,11 +364,12 @@ class Context:
             epd = app.engine.board.epd()
             changes = []
 
-            if self.user != user_color:
-                changes.append(f'I am playing as {user_color}.')
+            if not app.engine.is_game_over():
+                if self.user != user_color:
+                    changes.append(f'I am playing as {user_color}.')
 
-            if self.epd and self.epd != epd:
-                changes.append('The board has changed.')
+                # if self.epd and self.epd != epd:
+                #     changes.append('The board has changed.')
 
             if changes:
                 if not app.engine.is_game_over():
@@ -429,7 +430,13 @@ class Context:
 
         return msgs
 
+
     def prune_function_calls(self):
+        '''
+        Remove older function calls and results from the message history, to keep
+        the size of the context under control (the game state info sent back from
+        functions can get large fast, and the most recent state is what matters anyway).
+        '''
         indices = [i for i in range(len(self.history))]
         # Logger.debug(f'{_assistant}: history=\n{json.dumps(self.history, indent=2)}')
         for i, entry in enumerate(self.history[:-2]):
@@ -531,7 +538,7 @@ class Assistant:
             if response:
                 self._ctxt.add_message(messages[-1])  # outgoing message posted successfully
 
-                return self._handle_api_response(user_request, parse_json(response.content))
+                return self._on_api_response(user_request, parse_json(response.content))
 
             else:
                 Logger.error(f'{_assistant}: {parse_json(response.content)}')
@@ -547,7 +554,7 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_api_response(self, user_request, response):
+    def _on_api_response(self, user_request, response):
         '''
         Handle response from the OpenAI API, dispatch function calls as needed.
         '''
@@ -560,7 +567,7 @@ class Assistant:
             if reason != _function_call:
                 Logger.info(f'{_assistant}: {reason}')
 
-                return None, self._handle_non_function(reason, user_request, message)
+                return None, self._on_non_function(reason, user_request, message)
 
             elif function_call := self._create_function_call(message):
 
@@ -580,8 +587,8 @@ class Assistant:
         return None, FunctionResult()
 
 
-    def _handle_non_function(self, reason, user_request, message):
-
+    def _on_non_function(self, reason, user_request, message):
+        ''' Called when the finish_reason in the API response is anything but 'function_call' '''
         content = message[_content]
 
         # Handle both plain text and JSON-formatted responses.
@@ -602,6 +609,7 @@ class Assistant:
 
         response = message[_content]
 
+        # Handle some bad responses from the AI model.
         if '```' in response:
             Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Do not use code blocks.')
@@ -1053,6 +1061,9 @@ class Assistant:
         Just "absorb" the message to avoid incorrect
         statements about whose turn it is to move.
         '''
+        if _turn not in inputs or _description not in inputs:
+            return FunctionResult(AppLogic.INVALID)
+
         return FunctionResult(AppLogic.OK)
 
 
