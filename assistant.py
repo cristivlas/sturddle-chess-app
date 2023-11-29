@@ -958,8 +958,9 @@ class Assistant:
                 self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True
             )
             def play_opening():
-                # TODO: check and handle return status?
-                self._app.play_opening(opening, callback=on_done, color=color)
+                status = self._app.play_opening(opening, callback=on_done, color=color)
+                if not status:
+                    self.complete_on_main_thread(user_request, _play_opening, result=_error)
 
             self._schedule_action(play_opening)
 
