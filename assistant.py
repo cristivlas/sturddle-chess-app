@@ -377,8 +377,8 @@ class Context:
                 if self.user != user_color:
                     changes.append(f'I am playing as {user_color}.')
 
-                # if self.epd and self.epd != epd:
-                #     changes.append('The board has changed.')
+                if self.epd and self.epd != epd:
+                    changes.append('The position has changed.')
 
             if changes:
                 if not app.engine.is_game_over():
