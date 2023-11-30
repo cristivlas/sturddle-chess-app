@@ -68,9 +68,7 @@ from kivy.utils import get_color_from_hex, platform
 import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
-# from boardwidget import BoardWidget
 from engine import Engine
-from metaphone import doublemetaphone
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from normalize import substitute_chess_moves

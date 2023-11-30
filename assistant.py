@@ -231,7 +231,7 @@ _FUNCTIONS = [
 
 _BASIC_PROMPT = (
     f"Always reply with text-to-speech friendly English text. "
-    f"Describe the board by stating the opening and the most recent moves. "
+    f"Describe the board by stating the opening and a few recent moves. "
     f"Do not state the position of individual pieces or use ASCII art. "
     f"In cases of discrepancies between user query terms and search results, "
     f"rely on the latter for your replies. You must call {_status_report} after "
@@ -243,7 +243,8 @@ _SYSTEM_PROMPT = (
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
-    f"name (up to the colon) of the opening, if known. "
+    f"name (up to the colon) of the opening, if known. Board position may change frequently due "
+    f"to user actions or automatic moves by the engine. Changes require new analysis. "
 ) + _BASIC_PROMPT
 
 
@@ -311,20 +312,22 @@ class GameState:
             self.valid = True
 
     def to_dict(self):
+        turn = None
+        if self.turn is not None:
+            # Format the turn to make it as clear as possible to the AI:
+            turn = f'{chess.COLOR_NAMES[self.turn].capitalize()} to move'
+
         return {
             # Do not send the FEN, it looks like ChatGPT cannot parse it
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
             _pgn: self.pgn,
-            _turn: None if self.turn is None else chess.COLOR_NAMES[self.turn].capitalize(),
+            _turn: turn,
             _user: self.user_color.capitalize(),
         }
 
     def __str__(self):
         return str(self.to_dict()) if self.valid else 'invalid'
-
-    def __eq__(self, other):
-        return str(self) == str(other)
 
 
 class Context:
@@ -967,7 +970,11 @@ class Assistant:
 
         else:
             on_done = partial(
-                self.complete_on_main_thread, user_request, _play_opening, result='ok', resume=True
+                self.complete_on_main_thread,
+                user_request,
+                _play_opening,
+                result='ok',
+                resume=True
             )
             def play_opening():
                 status = self._app.play_opening(opening, callback=on_done, color=color)
@@ -1074,16 +1081,19 @@ class Assistant:
         due to the chess engine responding with a move, if the move
         sequence from _make_moves or _play_opening ends on the
         engine's turn.
-
-        Just "absorb" the message to avoid incorrect
-        statements about whose turn it is to move.
         '''
-        if _turn not in inputs or _description not in inputs:
+        turn = inputs.get(_turn)
+        desc = inputs.get(_description)
+        if not turn or not desc:
             return FunctionResult(AppLogic.INVALID)
 
         error = inputs.get(_error)
+
         if error:
             self._respond_to_user(error)
+
+        elif turn.lower() == chess.COLOR_NAMES[self._app.engine.board.turn]:
+            self._respond_to_user(inputs[_description])
 
         return FunctionResult(AppLogic.OK)
 
