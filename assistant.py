@@ -1057,8 +1057,7 @@ class Assistant:
             pgn = None  # invalidate
 
         if not pgn:
-            retry = f'Try appending the sequence to the PGN from the previous game state.'
-            return FunctionResult(AppLogic.RETRY, retry)
+            return FunctionResult(AppLogic.RETRY, f'there was an error, run {_analyze_position}')
 
         # Completion callback.
         on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
@@ -1087,18 +1086,15 @@ class Assistant:
         error = inputs.get(_error)
 
         if error and error != 'None':
-            Logger.info(f'{_assistant}: status={error}')
+            Logger.warning(f'{_assistant}: status={error}')
             self.complete_on_main_thread(user_request, _status_report, result=error)
 
         elif turn.lower() == chess.COLOR_NAMES[self._app.engine.board.turn]:
             self._respond_to_user(desc)
 
         else:
-            self.complete_on_main_thread(
-                user_request,
-                _status_report,
-                result='Your understanding of the board needs to be updated.'
-            )
+            return FunctionResult(AppLogic.RETRY, f'run {_analyze_position}')
+
         return FunctionResult(AppLogic.OK)
 
 
