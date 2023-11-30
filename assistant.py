@@ -98,7 +98,7 @@ _STATUS = [
     {
         _name: _status_report,
         _description: (
-            f'Report status to the user after {_make_moves} and after {_play_opening}.'
+            f'Report status after {_make_moves} and after {_play_opening}.'
         ),
         _parameters: {
             _type: _object,
@@ -711,7 +711,6 @@ class Assistant:
                _name: callback_result.pop(_function),
                _content: str(callback_result)
             }
-
             # Do not use functions when returning the result of a function call,
             # except to return status reports.
             if self.last_call and self.last_call[_name] in (_make_moves, _play_opening):
@@ -811,7 +810,6 @@ class Assistant:
             result (any): The result of the function call.
             resume (bool): True if the engine needs to be resumed.
         '''
-
         def callback(*_):
             if resume:
                 self._app.set_study_mode(False)  # Start the engine.
@@ -840,7 +838,6 @@ class Assistant:
         Returns:
             dict: A dictionary containing the result and the game state.
         '''
-
         # Always include the name of the function and the current state.
         formatted_result = GameState(self._app).to_dict()
         formatted_result[_function] = function
@@ -866,7 +863,6 @@ class Assistant:
         Returns:
             FunctionResult:
         '''
-
         # Handle the "game over" edge case.
         if self._app.engine.is_game_over():
             return self._complete_on_same_thread(user_request, _analyze_position)
@@ -877,7 +873,8 @@ class Assistant:
                 user_request, _analyze_position, 'User should solve puzzles unassisted.'
             )
 
-        if not self._app.engine.is_opponents_turn():
+        # Do not provide analysis on the engine's turn
+        if self._app.engine.is_own_turn():
             return self._complete_on_same_thread(
                 user_request, _analyze_position, 'It is not the user\'s turn.'
             )
@@ -1089,12 +1086,19 @@ class Assistant:
 
         error = inputs.get(_error)
 
-        if error:
-            self._respond_to_user(error)
+        if error and error != 'None':
+            Logger.info(f'{_assistant}: status={error}')
+            self.complete_on_main_thread(user_request, _status_report, result=error)
 
         elif turn.lower() == chess.COLOR_NAMES[self._app.engine.board.turn]:
-            self._respond_to_user(inputs[_description])
+            self._respond_to_user(desc)
 
+        else:
+            self.complete_on_main_thread(
+                user_request,
+                _status_report,
+                result='Your understanding of the board needs to be updated.'
+            )
         return FunctionResult(AppLogic.OK)
 
 
@@ -1130,7 +1134,6 @@ class Assistant:
 
         Args:
             text (str): The message to be presented to the user.
-
         '''
         # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
         tts_text = substitute_chess_moves(response, ';')
