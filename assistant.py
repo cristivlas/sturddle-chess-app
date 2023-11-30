@@ -1056,8 +1056,9 @@ class Assistant:
         else:
             pgn = None  # invalidate
 
+        retry_message = f'there was an error making the move(s), run {_analyze_position}'
         if not pgn:
-            return FunctionResult(AppLogic.RETRY, f'there was an error, run {_analyze_position}')
+            return FunctionResult(AppLogic.RETRY, retry_message)
 
         # Completion callback.
         on_done = partial(self.complete_on_main_thread, user_request, _make_moves, resume=True)
@@ -1065,7 +1066,7 @@ class Assistant:
         def make_moves():
             status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
             if not status:
-                self.complete_on_main_thread(user_request, _make_moves, result=_error)
+                self.complete_on_main_thread(user_request, _make_moves, result=retry_message)
 
         self._schedule_action(make_moves)
         return FunctionResult(AppLogic.OK)
@@ -1087,7 +1088,7 @@ class Assistant:
 
         if error and error != 'None':
             Logger.warning(f'{_assistant}: status={error}')
-            self.complete_on_main_thread(user_request, _status_report, result=error)
+            return FunctionResult(AppLogic.RETRY, f'run {_analyze_position}')
 
         elif turn.lower() == chess.COLOR_NAMES[self._app.engine.board.turn]:
             self._respond_to_user(desc)
