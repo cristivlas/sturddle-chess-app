@@ -1229,6 +1229,12 @@ class Assistant:
 
 
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
+    '''
+    Group search results (for openings) by prefix, sort descending by frequency.
+    The same effect could probably be achieved by organizing the ECO information
+    as graphs or trees of openings with variations. The "flat" way of storing may
+    work better with the rapidfuzz name searching though.
+    '''
     def generate_prefixes(string, expr_len):
         '''Generate all prefixes up to expr_len terms for a given string.'''
         terms = string.split(',')
