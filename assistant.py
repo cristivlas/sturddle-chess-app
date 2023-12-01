@@ -52,8 +52,9 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 _analyze_position = 'analyze_position'
 _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
+_make_one_move = 'make_one_move'
+_make_moves = 'make_moves'
 _play_opening = 'play_opening'
-_status_report = 'status_report'
 
 ''' Schema keywords, constants. '''
 _arguments = 'arguments'
@@ -69,7 +70,8 @@ _function_call = 'function_call'
 _integer = 'integer'
 _items = 'items'
 _limit = 'limit'
-_make_moves = 'make_moves'
+_move = 'move'
+_name = 'name'
 _object = 'object'
 _openings = 'opening_names'
 _role = 'role'
@@ -77,7 +79,6 @@ _parameters = 'parameters'
 _pgn = 'pgn'
 _properties = 'properties'
 _required = 'required'
-_name = 'name'
 _response = 'response'
 _restore = 'restore'
 _result = 'result'
@@ -94,37 +95,6 @@ _user = 'user'
 ''' Functions.
 https://platform.openai.com/docs/guides/function-calling
 '''
-_STATUS = [
-    {
-        _name: _status_report,
-        _description: (
-            f'Report status after {_make_moves} and after {_play_opening}.'
-        ),
-        _parameters: {
-            _type: _object,
-            _properties: {
-                _turn: {
-                    _type: _string,
-                    _description: 'The current side to move (black or white)'
-                },
-                _description: {
-                    _type: _string,
-                    _description: (
-                        'The result of the previous function call, '
-                        'minus turn info and minus errors.'
-                    )
-                },
-                _error: {
-                    _type: _string,
-                    _description: (
-                        'Description of any error that may have occurred.'
-                    ),
-                }
-            },
-            _required: [_turn, _description]
-        }
-    }
-]
 _FUNCTIONS = [
     {
         _name: _analyze_position,
@@ -225,6 +195,20 @@ _FUNCTIONS = [
             _required: [_pgn],
         }
     },
+    {
+        _name: _make_one_move,
+        _description: 'Make one single move on the board.',
+        _parameters: {
+            _type: _object,
+            _properties: {
+                _move: {
+                    _type: _string,
+                    _description: 'The move to make, in Standard Algebraic Notation (SAN).'
+                }
+            },
+            _required: [_move]
+        }
+    }
 ]
 
 # Limit responses to English, because the app has hardcoded stuff (for now).
@@ -234,8 +218,7 @@ _BASIC_PROMPT = (
     f"Describe the board by stating the opening and a few recent moves. "
     f"Do not state the position of individual pieces or use ASCII art. "
     f"In cases of discrepancies between user query terms and search results, "
-    f"rely on the latter for your replies. You must call {_status_report} after "
-    f"{_make_moves} and after {_play_opening}, never after other calls. "
+    f"rely on the latter for your replies. "
 )
 
 _SYSTEM_PROMPT = (
@@ -711,12 +694,8 @@ class Assistant:
                _name: callback_result.pop(_function),
                _content: str(callback_result)
             }
-            # Do not use functions when returning the result of a function call,
-            # except to return status reports.
-            if self.last_call and self.last_call[_name] in (_make_moves, _play_opening):
-                funcs = _STATUS
-            else:
-                funcs = None
+            # Do not use functions when returning the result of a function call
+            funcs = None
 
         else:
             current_message = {
@@ -1066,36 +1045,23 @@ class Assistant:
         def make_moves():
             status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
             if not status:
-                self.complete_on_main_thread(user_request, _make_moves, result=retry_message)
+                return FunctionResult(AppLogic.RETRY, retry_message)
 
         self._schedule_action(make_moves)
         return FunctionResult(AppLogic.OK)
 
 
-    def _handle_status_report(self, user_request, inputs):
-        '''
-        The AI gets often confused about which side is up to move,
-        due to the chess engine responding with a move, if the move
-        sequence from _make_moves or _play_opening ends on the
-        engine's turn.
-        '''
-        turn = inputs.get(_turn)
-        desc = inputs.get(_description)
-        if not turn or not desc:
+    def _handle_make_one_move(self, user_request, inputs):
+        san = inputs.get(_move)
+        if not san:
             return FunctionResult(AppLogic.INVALID)
 
-        error = inputs.get(_error)
+        try:
+            move = self._app.engine.board.parse_san(san)
+        except ValueError:
+            return FunctionResult(AppLogic.INVALID)
 
-        if error and error != 'None':
-            Logger.warning(f'{_assistant}: status={error}')
-            return FunctionResult(AppLogic.RETRY, f'run {_analyze_position}')
-
-        elif turn.lower() == chess.COLOR_NAMES[self._app.engine.board.turn]:
-            self._respond_to_user(desc)
-
-        else:
-            return FunctionResult(AppLogic.RETRY, f'run {_analyze_position}')
-
+        self._app.engine.input(move)
         return FunctionResult(AppLogic.OK)
 
 
@@ -1104,19 +1070,19 @@ class Assistant:
         Backup handlers for parsing the rare and accidental malformed responses.
         '''
         self._handlers[_openings] = self._handle_lookup_openings
+        self._handlers[_make_one_move] = self._handle_make_one_move
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
         self._handlers[_theme] = self._handle_puzzle_request
-        self._handlers[_turn] = self._handle_status_report
 
 
     def _register_funcs(self):
         FunctionCall.register(_analyze_position, self._handle_analysis)
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
+        FunctionCall.register(_make_one_move, self._handle_make_one_move)
         FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_load_puzzle, self._handle_puzzle_request)
-        FunctionCall.register(_status_report, self._handle_status_report)
 
 
     # -------------------------------------------------------------------

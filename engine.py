@@ -311,7 +311,10 @@ class Engine:
 
 
     def input(self, move, promotion=None):
-        move = self.validate_from_uci(move, promotion)
+        if isinstance(move, str):
+            move = self.validate_from_uci(move, promotion)
+        else:
+            assert isinstance(move, chess.Move)
         self.update(move)
         if self.apply(move):
             return self.make_move()
