@@ -1912,11 +1912,11 @@ class ChessApp(App):
             current_pgn = self.get_current_play()
 
             if current_pgn and pgn.startswith(current_pgn):
-                if pgn == current_pgn and (color is None or color == self.engine.opponent):
+                if not animate and pgn == current_pgn and (color is None or color == self.engine.opponent):
                     return False  # There is no move to be made.
 
                 animate = True  # Override and always animate continuations.
-                if name:
+                if name and len(pgn) > len(current_pgn):
                     self.speak(f'{name} continuation:')
 
                 current = self.game_len()  # Animated play starts at the current move.

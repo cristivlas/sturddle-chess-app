@@ -57,6 +57,7 @@ _make_moves = 'make_moves'
 _play_opening = 'play_opening'
 
 ''' Schema keywords, constants. '''
+_animate = 'animate'
 _arguments = 'arguments'
 _assistant = 'assistant'
 _array = 'array'
@@ -80,7 +81,6 @@ _pgn = 'pgn'
 _properties = 'properties'
 _required = 'required'
 _response = 'response'
-_restore = 'restore'
 _result = 'result'
 _retry = 'Retry'
 _return = 'return'
@@ -180,16 +180,16 @@ _FUNCTIONS = [
                         'The desired moves must be preceded by the complete game history.'
                     )
                 },
-                _restore: {
+                _animate: {
                     _type: 'boolean',
                     _description: (
-                        'True if restoring a previous state, False otherwise. False '
-                        '(the default) instructs the app to show the moves one by one.'
+                        'True to make the moves one by one, in an animated fashion. '
+                        'Default is False. Use True when the user wants to see a replay.'
                     ),
                 },
                 _user: {
                     _type: _string,
-                    _description: 'The side the user wants to play.'
+                    _description: 'The side the user wants to play as.'
                 }
             },
             _required: [_pgn],
@@ -227,7 +227,7 @@ _SYSTEM_PROMPT = (
     f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
     f"name (up to the colon) of the opening, if known. Board position may change frequently due "
-    f"to user actions or automatic moves by the engine. Changes require new analysis. "
+    f"to user actions or automatic moves by the engine; such changes require fresh analysis. "
 ) + _BASIC_PROMPT
 
 
@@ -280,6 +280,7 @@ def _get_user_color(app):
 _colors = {'black': False, 'white': True}
 
 def _get_color(name):
+    ''' Convert color name back to chess.Color '''
     if name is not None:
         return _colors.get(name.lower())
 
@@ -949,7 +950,7 @@ class Assistant:
                 self.complete_on_main_thread,
                 user_request,
                 _play_opening,
-                result='ok',
+                result='Success.',
                 resume=True
             )
             def play_opening():
@@ -1018,7 +1019,7 @@ class Assistant:
             return FunctionResult(AppLogic.INVALID)
 
         # Get the optional params.
-        animate = not inputs.get(_restore)
+        animate = inputs.get(_animate)
         color = _get_color(inputs.get(_user))
 
         opening = None
@@ -1033,10 +1034,10 @@ class Assistant:
             pgn = game.accept(exporter).rstrip(' *')
 
         else:
-            pgn = None  # invalidate
+            pgn = None  # invalid
 
-        retry_message = f'there was an error making the move(s), run {_analyze_position}'
         if not pgn:
+            retry_message = f'The PGN input is invalid, run {_analyze_position}.'
             return FunctionResult(AppLogic.RETRY, retry_message)
 
         # Completion callback.
@@ -1045,7 +1046,9 @@ class Assistant:
         def make_moves():
             status = self._app.play_pgn(pgn, animate=animate, callback=on_done, color=color, name=opening)
             if not status:
-                return FunctionResult(AppLogic.RETRY, retry_message)
+                retry_message = f'There was an error making the moves, run {_analyze_position}.'
+                # At this point we're in a asynchronous callback, can't use AppLogic.RETRY
+                return self.complete_on_main_thread(user_request, _make_moves, result=retry_message)
 
         self._schedule_action(make_moves)
         return FunctionResult(AppLogic.OK)
@@ -1067,7 +1070,7 @@ class Assistant:
 
     def _register_handlers(self):
         '''
-        Backup handlers for parsing the rare and accidental malformed responses.
+        "Backup" handlers for parsing the rare and accidental malformed responses.
         '''
         self._handlers[_openings] = self._handle_lookup_openings
         self._handlers[_make_one_move] = self._handle_make_one_move
@@ -1151,6 +1154,7 @@ class Assistant:
 
         else:
             result = self._cached_openings.get(name)
+            assert result is None or isinstance(result, Opening)
 
             if not result:
                 result = db.lookup_best_matching_name(name, eco, confidence=confidence)
