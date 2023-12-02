@@ -1011,7 +1011,8 @@ class ChessApp(App):
         if keycode1 == Keyboard.keycodes['spacebar']:
             return self.speech_input()
 
-        if mod in modifiers and not self.edit:
+        # Ctrl+ functions. Disabled in edit mode or when modal views are active.
+        if mod in modifiers and not self.edit and not self.has_modal_views():
             # copy
             if keycode1 == Keyboard.keycodes['c']:
                 if shift in modifiers:
