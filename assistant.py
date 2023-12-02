@@ -613,9 +613,9 @@ class Assistant:
             Logger.warning(f'{_assistant}: RETRY {response}')
             return FunctionResult(AppLogic.RETRY, 'Do not use code blocks.')
 
-        if '[FEN ' in response:
+        if contains_epd(response):
             Logger.warning(f'{_assistant}: RETRY {response}')
-            return FunctionResult(AppLogic.RETRY, 'Do not use FENs in your replies.')
+            return FunctionResult(AppLogic.RETRY, 'Do not use FEN or EPD in your replies.')
 
         self._ctxt.prune_function_calls()
         self._ctxt.add_response(response)  # Save response into conversation history.
@@ -1234,3 +1234,15 @@ def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
         result = sorted(result, key=lambda kv: kv[1], reverse=True)
 
     return result
+
+
+_epd_regex = (
+    r'([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+'  # Piece placement
+    r'\s[bw]'  # Active color
+    r'\s[-KQkq]+'  # Castling availability
+    r'\s([a-h][1-8]|-)'  # En passant target square
+    r'(\s[^\s]+)*'  # Optional fields
+)
+
+def contains_epd(text):
+    return re.search(_epd_regex, text) is not None
