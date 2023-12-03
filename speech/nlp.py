@@ -482,7 +482,7 @@ class NLP:
         for k in self.corrections:
             text = re.sub(k, self.corrections[k], text)
 
-        Logger.info(f'autocorrect: {text}')
+        Logger.debug(f'autocorrect: {text}')
         return text
 
 

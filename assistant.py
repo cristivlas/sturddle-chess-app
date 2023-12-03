@@ -228,6 +228,8 @@ _SYSTEM_PROMPT = (
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
     f"name (up to the colon) of the opening, if known. Board position may change frequently due "
     f"to user actions or automatic moves by the engine; such changes require fresh analysis. "
+    f"Users interact with you through a speech-to-text system, which may occasionally mistranslate "
+    f"their speech. "
 ) + _BASIC_PROMPT
 
 
@@ -651,6 +653,11 @@ class Assistant:
         if not user_input:
             return False
 
+        self._busy = True
+        self._app.start_spinner()
+
+        Logger.debug(f'{_assistant}: {user_input}')
+
         def run_in_background():
             status = self._call_on_same_thread(user_input, callback_result)
 
@@ -661,8 +668,6 @@ class Assistant:
             if status is None:
                 self._respond_to_user('Sorry, I cannot complete your request at this time.')
 
-        self._busy = True
-        self._app.start_spinner()
         self._worker.send_message(run_in_background)
 
         return True
