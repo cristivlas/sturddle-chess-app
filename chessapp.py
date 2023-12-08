@@ -1760,7 +1760,6 @@ class ChessApp(App):
     def puzzles(self, *_):
         '''
         Show modal view with a selection of puzzles.
-
         '''
         confirm = True
 
@@ -1777,7 +1776,7 @@ class ChessApp(App):
 
         def confirm_puzzle_selection(puzzle):
             if confirm and self.puzzle != puzzle:
-                self.new_action('play selected puzzle', partial(select_puzzle, puzzle))
+                self.new_action('play the selected puzzle', partial(select_puzzle, puzzle))
             else:
                 select_puzzle(puzzle)
 
