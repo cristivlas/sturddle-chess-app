@@ -527,7 +527,8 @@ class ChessApp(App):
 
     @mainthread
     def analyze(self, *, assist=None):
-        assert not self.is_analyzing()
+        if self.is_analyzing():
+            return
         # Save current settings
         book = self.engine.book
         search_callback = self.engine.search_callback
@@ -745,6 +746,7 @@ class ChessApp(App):
     def can_auto_open(self):
         return (
             self.engine.can_auto_open()
+            and not bool(self.edit)
             and not self.in_game_animation
             and not self.is_analyzing()
         )
@@ -2244,7 +2246,6 @@ class ChessApp(App):
             def __exit__(self, *_):
                 self._event.cancel()
                 _refresh()
-
 
         with TimerContext() as ctxt:
             move = self._search_move(analysis_mode)  # call the chess engine

@@ -215,10 +215,10 @@ _FUNCTIONS = [
 
 _BASIC_PROMPT = (
     f"Always reply with text-to-speech friendly English text. "
-    f"Describe the board by stating the opening and a few recent moves. "
     f"Do not state the position of individual pieces or use ASCII art. "
-    f"In cases of discrepancies between user query terms and search results, "
-    f"rely on the latter for your replies. "
+    # f"In cases of discrepancies between user query terms and search results, "
+    # f"rely on the latter for your replies. "
+    f"Be concise. Do not return move sequences in non-function call replies. "
 )
 
 _SYSTEM_PROMPT = (
@@ -228,8 +228,8 @@ _SYSTEM_PROMPT = (
     f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
     f"name (up to the colon) of the opening, if known. Board position may change frequently due "
     f"to user actions or automatic moves by the engine; such changes require fresh analysis. "
-    f"Users interact with you through a speech-to-text system, which may occasionally mistranslate "
-    f"their speech. "
+    # f"Users interact with you through a speech-to-text system, which may occasionally mistranslate "
+    # f"their speech. "
 ) + _BASIC_PROMPT
 
 
@@ -1069,7 +1069,15 @@ class Assistant:
         except ValueError:
             return FunctionResult(AppLogic.INVALID)
 
-        self._app.engine.input(move)
+        self._app.speak_move_description(move)
+
+        def make_move(*_):
+            if tts.is_speaking():
+                Clock.schedule_once(make_move, 0.25)
+            else:
+                self._app.engine.input(move)
+
+        make_move()
         return FunctionResult(AppLogic.OK)
 
 
