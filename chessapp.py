@@ -126,6 +126,7 @@ PIECE_CODES = [
 ]
 COLOR_NAMES = ['Black', 'White']
 
+SWIPE_DIST = cm(1.5)
 
 
 def is_mobile():
@@ -1048,8 +1049,11 @@ class ChessApp(App):
 
 
     def on_long_press(self, _):
-        tts.stop()  # cancel any text-to-speech in progress
-        self.speech_input()  # start the voice user interface
+        if self.touch and abs(Window.mouse_pos[0] - self.touch.x) >= SWIPE_DIST:
+            ...
+        else:
+            tts.stop()  # cancel any text-to-speech in progress
+            self.speech_input()  # start the voice user interface
 
 
     def on_menu_button(self, btn, *_):
@@ -1133,9 +1137,9 @@ class ChessApp(App):
         # detect swipe left / right
         if start:
             if abs(start.y - touch.y) <= cm(3):
-                if touch.x - start.x >= cm(2):
+                if touch.x - start.x >= SWIPE_DIST:
                     self.on_swipe_right(start, touch)
-                elif start.x - touch.x >= cm(2):
+                elif start.x - touch.x >= SWIPE_DIST:
                     self.on_swipe_left(start, touch)
 
 
