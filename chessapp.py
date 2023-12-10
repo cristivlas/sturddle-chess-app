@@ -835,7 +835,7 @@ class ChessApp(App):
 
 
     @staticmethod
-    def find_undefended_pieces(board, support=False):
+    def find_unsupported_pieces(board, support=False):
         # Initialize lists for black (index 0) and white (index 1) pieces
         undefended = [[], []]
 
@@ -849,7 +849,10 @@ class ChessApp(App):
             is_attacked = board.is_attacked_by(not piece.color, square)
 
             if support != is_attacked:
-                undefended[piece.color].append((piece, chess.square_name(square).upper()))
+                undefended[piece.color].append((
+                    chess.PIECE_NAMES[piece.piece_type],
+                    chess.square_name(square).upper())
+                )
 
         return undefended
 
@@ -2616,8 +2619,8 @@ class ChessApp(App):
                 }
 
                 # Include undefended and unsupported pieces in the analysis.
-                undefended = self.find_undefended_pieces(self.engine.board)
-                unsupported = self.find_undefended_pieces(self.engine.board, support=True)
+                undefended = self.find_unsupported_pieces(self.engine.board)
+                unsupported = self.find_unsupported_pieces(self.engine.board, support=True)
                 for color in chess.COLORS:
                     if undefended[color]:
                         result[f'undefended_{chess.COLOR_NAMES[color]}'] = undefended[color]
