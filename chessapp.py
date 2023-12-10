@@ -841,8 +841,8 @@ class ChessApp(App):
 
         for square in chess.SQUARES:
             piece = board.piece_at(square)
-            # Skip pieces that are defended by their own color.
-            if not piece or board.is_attacked_by(piece.color, square):
+            # Skip kings and pieces that are defended by their own color.
+            if not piece or piece.piece_type == chess.KING or board.is_attacked_by(piece.color, square):
                 continue
 
             # Attacked by the opposite color?

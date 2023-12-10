@@ -216,20 +216,15 @@ _FUNCTIONS = [
 _BASIC_PROMPT = (
     f"Always reply with text-to-speech friendly English text. "
     f"Do not state the position of individual pieces or use ASCII art. "
-    # f"In cases of discrepancies between user query terms and search results, "
-    # f"rely on the latter for your replies. "
     f"Be concise. Do not return move sequences in non-function call replies. "
 )
 
 _SYSTEM_PROMPT = (
     f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
-    f"the latter to play out PVs returned by {_analyze_position}. Always use {_analyze_position} "
-    f"when asked to suggest moves. When calling {_lookup_openings}, prefix variations by the base "
-    f"name (up to the colon) of the opening, if known. Board position may change frequently due "
-    f"to user actions or automatic moves by the engine; such changes require fresh analysis. "
-    # f"Users interact with you through a speech-to-text system, which may occasionally mistranslate "
-    # f"their speech. "
+    f"the latter to play out PVs returned by {_analyze_position}. Treat all previous answers to "
+    f"analytical questions as stale. When calling {_lookup_openings}, prefix variations by the "
+    f"base name of the opening, up to the colon delimiter. "
 ) + _BASIC_PROMPT
 
 
