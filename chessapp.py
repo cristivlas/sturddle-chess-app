@@ -994,10 +994,10 @@ class ChessApp(App):
             square = chess.parse_square(w.move[-2:])
             if w.inside(touch.pos):
                 w.model.set_piece_at(square, w.drag)
-                self.update()
+                self.update(save_state=False)
             else:
                 w.model.remove_piece_at(square)
-                self.update()
+                self.update(save_state=False)
             w.move = str()
 
 
@@ -1367,7 +1367,7 @@ class ChessApp(App):
 
 
     @mainthread
-    def update(self, move=None, show_comment=True):
+    def update(self, move=None, show_comment=True, save_state=True):
         self.engine.bootstrap.set()
 
         with self.board_widget.model._lock:
@@ -1379,7 +1379,7 @@ class ChessApp(App):
 
             if self.edit:
                 self.edit_update_castling_rights()
-            else:
+            elif save_state:
                 self.save()
 
         # check for engine errors from the worker thread
@@ -1724,8 +1724,8 @@ class ChessApp(App):
     def confirm(self, text, yes_action, no_action=None, *, spoken_message=None):
         '''
         Show a message box asking the user to confirm an action.
-        TODO: add setting for turning confirmations off.
-
+        TODO: add setting for turning confirmations off? Confirmations
+        are very useful when the LLM-powered Assistant hallucinates.
         '''
         def callback(msgbox):
             if msgbox.value == 'yes':
@@ -1742,7 +1742,9 @@ class ChessApp(App):
 
 
     def _modal_box(self, title, content, close='\uF057', on_open=lambda *_:None, on_close=lambda *_:None):
-
+        '''
+        Helper function for showing settings pages and puzzle selection.
+        '''
         def dismiss(*args):
             self.save()
             on_close(*args)

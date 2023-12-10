@@ -658,7 +658,7 @@ class Assistant:
 
             self._busy = False
             self._cancelled = False
-            self._app.update(self._app.engine.last_moves()[-1])
+            self._app.update(self._app.engine.last_moves()[-1], save_state=False)
 
             if status is None:
                 self._respond_to_user('Sorry, I cannot complete your request at this time.')
