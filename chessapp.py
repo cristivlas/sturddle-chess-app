@@ -834,6 +834,26 @@ class ChessApp(App):
         self.confirm('Exit application (game will be saved)', self.stop)
 
 
+    @staticmethod
+    def find_undefended_pieces(board, support=False):
+        # Initialize lists for black (index 0) and white (index 1) pieces
+        undefended = [[], []]
+
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            # Skip pieces that are defended by their own color.
+            if not piece or board.is_attacked_by(piece.color, square):
+                continue
+
+            # Attacked by the opposite color?
+            is_attacked = board.is_attacked_by(not piece.color, square)
+
+            if support != is_attacked:
+                undefended[piece.color].append((piece, chess.square_name(square).upper()))
+
+        return undefended
+
+
     def format_opening(self, opening_name):
         opening = opening_name
         if not opening.endswith(' Opening'):
@@ -2594,6 +2614,16 @@ class ChessApp(App):
                     'lead': chess.COLOR_NAMES[winning_side],
                     'turn': chess.COLOR_NAMES[search.context.board().turn],
                 }
+
+                # Include undefended and unsupported pieces in the analysis.
+                undefended = self.find_undefended_pieces(self.engine.board)
+                unsupported = self.find_undefended_pieces(self.engine.board, support=True)
+                for color in chess.COLORS:
+                    if undefended[color]:
+                        result[f'undefended_{chess.COLOR_NAMES[color]}'] = undefended[color]
+                    if unsupported[color]:
+                        result[f'unsupported_{chess.COLOR_NAMES[color]}'] = unsupported[color]
+
                 self.assistant.complete_on_main_thread(*assist, result=result, resume=False)
 
             else:
