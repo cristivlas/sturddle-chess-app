@@ -224,6 +224,7 @@ _SYSTEM_PROMPT = (
     f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
     f"the latter to play out PVs returned by {_analyze_position}. When calling {_lookup_openings}, "
     f"prefix variations by the base name of the opening, up to the colon delimiter. "
+    f"You must always run fresh analysis when the position changes. "
 ) + _BASIC_PROMPT
 
 
