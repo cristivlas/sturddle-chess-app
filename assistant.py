@@ -1081,7 +1081,7 @@ class Assistant:
         "Backup" handlers for parsing the rare and accidental malformed responses.
         '''
         self._handlers[_openings] = self._handle_lookup_openings
-        self._handlers[_make_one_move] = self._handle_make_one_move
+        self._handlers[_move] = self._handle_make_one_move
         self._handlers[_name] = self._handle_play_opening
         self._handlers[_pgn] = self._handle_make_moves
         self._handlers[_theme] = self._handle_puzzle_request
