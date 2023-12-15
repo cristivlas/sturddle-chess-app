@@ -220,11 +220,14 @@ _BASIC_PROMPT = (
 )
 
 _SYSTEM_PROMPT = (
-    f"You are a chess tutor within a chess app, guiding on openings, puzzles, and game analysis. "
-    f"You can demonstrate openings with {_play_opening}, and make moves with {_make_moves}. Use "
-    f"the latter to play out PVs returned by {_analyze_position}. When calling {_lookup_openings}, "
-    f"prefix variations by the base name of the opening, up to the colon delimiter. "
-    f"You must always run fresh analysis when the position changes. "
+    f"You are a chess tutor within a chess app, guiding on openings, puzzles, "
+    f"and game analysis. Base your advice strictly on the provided game state; "
+    f"avoid assumptions or extrapolations beyond this data. You can demonstrate "
+    f"openings with {_play_opening}, and make moves with {_make_moves}. Use "
+    f"the latter to play out PVs returned by {_analyze_position}. When calling "
+    f"{_lookup_openings}, prefix variations by the base name of the opening, up "
+    f"to the colon delimiter. You must always run fresh analysis when the position "
+    f"changes. "
 ) + _BASIC_PROMPT
 
 
@@ -810,8 +813,8 @@ class Assistant:
 
 
     def format_result(self, function, result=None):
-        ''' Format the results of a function call.
-
+        ''' Format and "decorate" the results of a function call with
+        GameState information.
         Args:
             function (str): The name of the function that has completed.
             result (any): The result of the function call.
