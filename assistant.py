@@ -27,6 +27,7 @@ import re
 import requests
 import weakref
 
+from center import CenterControl
 from collections import defaultdict, namedtuple
 from enum import Enum
 from functools import partial
@@ -1246,45 +1247,9 @@ class Assistant:
             speak()
 
 
-# Define scoring constants for evaluate_center_control
-OCCUPANCY_SCORE = 1.5
-ATTACK_SCORE = 1
-UNDEFENDED_MULTIPLIER = 0.5
-PINNED_MULTIPLIER = 0.25
-CHECK_PENALTY = -2
-
 def evaluate_center_control(board):
-    center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
-    score = {chess.WHITE: 0, chess.BLACK: 0}
-
-    for color in [chess.WHITE, chess.BLACK]:
-        # Apply penalty if the side is in check
-        if color == board.turn and board.is_check():
-            score[color] += CHECK_PENALTY
-
-        for square in center_squares:
-            # Check if a piece is occupying the square
-            if piece := board.piece_at(square):
-                piece_score = OCCUPANCY_SCORE
-                if board.is_pinned(color, square):
-                    piece_score *= PINNED_MULTIPLIER
-                if not board.is_attacked_by(color, square) and board.is_attacked_by(not color, square):
-                    piece_score *= UNDEFENDED_MULTIPLIER
-                score[piece.color] += piece_score
-
-            # Add scores for attacking pieces
-            attackers = board.attackers(color, square)
-            for attacker in attackers:
-                attack_score = ATTACK_SCORE
-                if board.is_pinned(color, attacker):
-                    attack_score *= PINNED_MULTIPLIER
-                if not board.is_attacked_by(color, attacker) and board.is_attacked_by(not color, attacker):
-                    attack_score *= UNDEFENDED_MULTIPLIER
-                score[color] += attack_score
-
-    if score[chess.WHITE] == score[chess.BLACK]:
-        return None
-    return chess.COLOR_NAMES[score[chess.WHITE] > score[chess.BLACK]]
+    center_control = CenterControl(board)
+    return center_control.status
 
 
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
