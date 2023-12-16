@@ -1246,7 +1246,7 @@ class Assistant:
             speak()
 
 
-# Define scoring constants for calculate_center_control
+# Define scoring constants for evaluate_center_control
 OCCUPANCY_SCORE = 1.5
 ATTACK_SCORE = 1
 UNDEFENDED_MULTIPLIER = 0.5
@@ -1268,7 +1268,7 @@ def evaluate_center_control(board):
                 piece_score = OCCUPANCY_SCORE
                 if board.is_pinned(color, square):
                     piece_score *= PINNED_MULTIPLIER
-                if not board.is_attacked_by(color, square):
+                if not board.is_attacked_by(color, square) and board.is_attacked_by(not color, square):
                     piece_score *= UNDEFENDED_MULTIPLIER
                 score[piece.color] += piece_score
 
@@ -1278,7 +1278,7 @@ def evaluate_center_control(board):
                 attack_score = ATTACK_SCORE
                 if board.is_pinned(color, attacker):
                     attack_score *= PINNED_MULTIPLIER
-                if not board.is_attacked_by(color, attacker):
+                if not board.is_attacked_by(color, attacker) and board.is_attacked_by(not color, attacker):
                     attack_score *= UNDEFENDED_MULTIPLIER
                 score[color] += attack_score
 
