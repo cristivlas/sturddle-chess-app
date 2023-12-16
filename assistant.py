@@ -54,6 +54,7 @@ _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
 _make_one_move = 'make_one_move'
 _make_moves = 'make_moves'
+_move_impact_on_center = 'move_impact_on_center'
 _play_opening = 'play_opening'
 
 ''' Schema keywords, constants. '''
@@ -62,6 +63,7 @@ _arguments = 'arguments'
 _assistant = 'assistant'
 _array = 'array'
 _content = 'content'
+_center_control = 'center_control'
 _description = 'description'
 _eco = 'eco'
 _error = 'error'
@@ -105,6 +107,20 @@ _FUNCTIONS = [
         _parameters: {
             _type: _object,
             _properties: {}
+        }
+    },
+    {
+        _name: _move_impact_on_center,
+        _description: 'Analyze the impact of a specified move on controlling the center.',
+        _parameters: {
+            _type: _object,
+            _properties: {
+                _move: {
+                    _type: _string,
+                    _description: 'Move, in Standard Algebraic Notation (SAN).'
+                }
+            },
+            _required: [_move]
         }
     },
     {
@@ -290,6 +306,7 @@ class GameState:
         self.valid = False
         if app:
             #self.epd = app.engine.board.epd()
+            self.center = evaluate_center_control(app.engine.board)
             self.pgn = app.transcribe(columns=None, engine=False)[1]
             self.turn = None if app.engine.is_game_over() else app.engine.board.turn
             self.user_color = _get_user_color(app)
@@ -305,6 +322,7 @@ class GameState:
             # Do not send the FEN, it looks like ChatGPT cannot parse it
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
+            _center_control: self.center,
             _pgn: self.pgn,
             _turn: turn,
             _user: self.user_color.capitalize(),
@@ -1079,6 +1097,24 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
+    def _handle_move_impact_on_center(self, user_request, inputs):
+        san = inputs.get(_move)
+        if not san:
+            return FunctionResult(AppLogic.INVALID)
+
+        board = self._app.engine.board.copy()
+        try:
+            board.push_san(san)
+        except:
+            return FunctionResult(AppLogic.INVALID)
+
+        center_before = evaluate_center_control(self._app.engine.board)
+        center_after = evaluate_center_control(board)
+
+        result = {f'before_{san}': center_before, f'after_{san}': center_after}
+        return self._complete_on_same_thread(user_request, _move_impact_on_center, result)
+
+
     def _register_handlers(self):
         '''
         "Backup" handlers for parsing the rare and accidental malformed responses.
@@ -1095,6 +1131,7 @@ class Assistant:
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_make_one_move, self._handle_make_one_move)
+        FunctionCall.register(_move_impact_on_center, self._handle_move_impact_on_center)
         FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_load_puzzle, self._handle_puzzle_request)
 
@@ -1207,6 +1244,47 @@ class Assistant:
         if text:
             Logger.debug(f'{_assistant}: {text}')
             speak()
+
+
+# Define scoring constants for calculate_center_control
+OCCUPANCY_SCORE = 1.5
+ATTACK_SCORE = 1
+UNDEFENDED_MULTIPLIER = 0.5
+PINNED_MULTIPLIER = 0.25
+CHECK_PENALTY = -2
+
+def evaluate_center_control(board):
+    center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
+    score = {chess.WHITE: 0, chess.BLACK: 0}
+
+    for color in [chess.WHITE, chess.BLACK]:
+        # Apply penalty if the side is in check
+        if color == board.turn and board.is_check():
+            score[color] += CHECK_PENALTY
+
+        for square in center_squares:
+            # Check if a piece is occupying the square
+            if piece := board.piece_at(square):
+                piece_score = OCCUPANCY_SCORE
+                if board.is_pinned(color, square):
+                    piece_score *= PINNED_MULTIPLIER
+                if not board.is_attacked_by(color, square):
+                    piece_score *= UNDEFENDED_MULTIPLIER
+                score[piece.color] += piece_score
+
+            # Add scores for attacking pieces
+            attackers = board.attackers(color, square)
+            for attacker in attackers:
+                attack_score = ATTACK_SCORE
+                if board.is_pinned(color, attacker):
+                    attack_score *= PINNED_MULTIPLIER
+                if not board.is_attacked_by(color, attacker):
+                    attack_score *= UNDEFENDED_MULTIPLIER
+                score[color] += attack_score
+
+    if score[chess.WHITE] == score[chess.BLACK]:
+        return None
+    return chess.COLOR_NAMES[score[chess.WHITE] > score[chess.BLACK]]
 
 
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):

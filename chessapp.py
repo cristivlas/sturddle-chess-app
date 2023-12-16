@@ -2625,9 +2625,9 @@ class ChessApp(App):
                 unsupported = self.find_unsupported_pieces(self.engine.board, support=True)
                 for color in chess.COLORS:
                     if undefended[color]:
-                        result[f'undefended_{chess.COLOR_NAMES[color]}'] = undefended[color]
+                        result[f'undefended_{chess.COLOR_NAMES[color]}_pieces'] = undefended[color]
                     if unsupported[color]:
-                        result[f'unsupported_{chess.COLOR_NAMES[color]}'] = unsupported[color]
+                        result[f'unsupported_{chess.COLOR_NAMES[color]}_pieces'] = unsupported[color]
 
                 self.assistant.complete_on_main_thread(*assist, result=result, resume=False)
 
