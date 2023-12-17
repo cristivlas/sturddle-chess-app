@@ -245,7 +245,8 @@ class NLP:
 
     @strip_determiner
     def _on_analyze(self, s, loc, tok):
-        self.command = 'analyze'
+        assert tok
+        self.command = tok[0]
 
 
     def _on_any(self, s, loc, tok):

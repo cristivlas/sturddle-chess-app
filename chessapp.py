@@ -528,7 +528,7 @@ class ChessApp(App):
 
 
     @mainthread
-    def analyze(self, *, assist=None):
+    def analyze(self, *, assist=None, full=False):
         if self.is_analyzing():
             return
         # Save current settings
@@ -552,7 +552,7 @@ class ChessApp(App):
 
         def on_analysis_complete(search, color, move, score):
             try:
-                self.on_search_complete(search, color, move, score, analysis=True, assist=assist)
+                self.on_search_complete(search, color, move, score, analysis=True, assist=assist, full=full)
             finally:
                 self.engine.book = book
                 self.engine.depth_limit = depth_limit
@@ -1086,7 +1086,7 @@ class ChessApp(App):
                 return True
 
             if keycode1 == Keyboard.keycodes['a']:
-                self.visualize_center_control()
+                self.visualize_center_control(CenterControl(self.board_widget.model))
                 return True
 
         if keycode1 == Keyboard.keycodes['escape']:
@@ -2377,9 +2377,7 @@ class ChessApp(App):
 
 
     def variation_hints(self, board):
-        '''
-        boardwidget callback
-        '''
+        ''' boardwidget callback '''
         if self.study_mode and not self.edit:
             node = self.moves_record.current
             if node and node.parent and len(node.parent.variations) > 1:
@@ -2387,20 +2385,29 @@ class ChessApp(App):
 
 
     @mainthread
-    def visualize_center_control(self):
+    def visualize_center_control(self, center):
         self.update_board()
-        center = CenterControl(self.board_widget.model)
+        Logger.info(f'center_ctrl: {center.status}')
+
+        square_size = self.board_widget.square_size
 
         with self.board_widget.canvas:
             for c in [i for sublist in center.controllers for i in sublist]:
-                # TODO: visual cues for pinned and undefended?
-                v = 10 * (c.value - 1)
-                rgba = (1 - .45/(1+math.exp(-v)), .5 + .5/(1+math.exp(-v)), 0, 0.5)
+                # print(chess.square_name(c.square), c.value)
+
+                v = 12 * (c.value - CenterControl.ATTACK_SCORE)
+                rgba = (1 - .45/(1+math.exp(-v)), .5 + .5/(1+math.exp(-v)), 0, 0.35)
 
                 if c.square in CenterControl.center_squares:
                     Color(*rgba)
                     xy = self.board_widget.screen_coords(c.square % 8, c.square // 8)
-                    Rectangle(pos=xy, size=2*[self.board_widget.square_size])
+                    Rectangle(pos=xy, size=2*[square_size])
+
+                if c.pinned:
+                    xy = [i + square_size/2 for i in self.board_widget.screen_coords(c.square % 8, c.square // 8)]
+
+                    source = 'images/pin.png' if c.pinned else None
+                    Rectangle(pos=xy, size=2*[square_size/2], source=source)
 
                 for s in c.controlled_squares:
                     if s != c.square:
@@ -2609,7 +2616,7 @@ class ChessApp(App):
         return f'{limit:2d} min'
 
 
-    def on_search_complete(self, search, color, move, score, analysis=False, assist=None):
+    def on_search_complete(self, search, color, move, score, analysis=False, assist=None, full=False):
         '''
         Callback that runs on the search thread (background).
 
@@ -2647,6 +2654,7 @@ class ChessApp(App):
                 score = f'{score/100:.1f}'
 
             if assist:
+                # Analysis completed on behalf of the Assistant, send back results.
                 result = {
                     'pv': format_pv(pv, start=1),
                     'best': san(search.context.board().copy(), move),
@@ -2668,6 +2676,11 @@ class ChessApp(App):
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
+                if full:
+                    center = CenterControl(self.board_widget.model)
+                    if center.status != None:
+                        text = f'{center.status.capitalize()} controls the center, see diagram. {text}.'
+                        self.visualize_center_control(center)
 
                 def show_eval_on_main_thread(text, *_):
                     self.show_comment(text)

@@ -269,9 +269,10 @@ class Input:
 
     def _run_command(self, command, args):
         actions = {
-            'analyze': self._app.analyze,
+            'analyze': lambda *_: self._app.analyze(full=True),
             'backup': self._app.backup,
             'edit': self._app.edit_start,
+            'evaluate': self._app.analyze,
             'exit': self._app.exit,
             'hints': self._app.hints,
             'new': self._app.new_game,

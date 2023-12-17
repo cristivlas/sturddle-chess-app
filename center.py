@@ -19,34 +19,46 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import chess
 
 class Controller:
-    def __init__(self, piece, square):
-        self.piece = piece  # The piece object
+    def __init__(self, piece_type, square):
+        self.piece_type = piece_type
         self.square = square  # The square where the piece is located
         self.controlled_squares = []  # Squares controlled by this piece
         self.pinned = False  # Is the piece pinned?
-        self.undefended = False  # Is the piece undefended?
+        self.threatened = False  # Is the piece threatened?
         self.value = 0  # Numeric value of contribution to center control
 
     def add_controlled_square(self, square):
         if square not in self.controlled_squares:
             self.controlled_squares.append(square)
 
-    def set_pinned(self, pinned_status):
-        self.pinned = pinned_status
-
-    def set_undefended(self, undefended_status):
-        self.undefended = undefended_status
-
     def update_contribution(self, value):
         self.value += value
+
+    def update_threatened(self, board, color):
+        if not self.threatened:
+            attacked = False
+            attackers = board.attackers(not color, self.square)
+
+            for attacking_square in attackers:
+                if board.is_pinned(not color, attacking_square):
+                    continue
+
+                if board.piece_type_at(attacking_square) < self.piece_type:
+                    self.threatened = True
+                    return
+
+                attacked = True
+
+            # Piece is threatened with capture if not defended by pieces of own color.
+            self.threatened = attacked and not board.is_attacked_by(color, self.square)
 
 
 class CenterControl:
     # Constants for scoring
-    OCCUPANCY_SCORE = 1.5
-    ATTACK_SCORE = 1
-    UNDEFENDED_MULTIPLIER = 0.25
-    PINNED_MULTIPLIER = 0.5
+    OCCUPANCY_SCORE = 1
+    ATTACK_SCORE = 0.75
+    THREATENDED_MULTIPLIER = 0.25
+    PINNED_MULTIPLIER = 0.25
     CHECK_PENALTY = -2
 
     center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
@@ -64,10 +76,12 @@ class CenterControl:
 
             for square in self.center_squares:
                 if piece := board.piece_at(square):
+                    if piece.piece_type == chess.KING:
+                        continue  # Exclude kings from analysis.
                     if piece.color == color:
                         controller = self.find_or_create_controller(piece.piece_type, square, color)
-                        controller.set_pinned(board.is_pinned(color, square))
-                        controller.set_undefended(self.undefended(board, color, square))
+                        controller.pinned = board.is_pinned(color, square)
+                        controller.update_threatened(board, color)
                         controller.add_controlled_square(square)
                         controller.update_contribution(self.OCCUPANCY_SCORE)
 
@@ -75,31 +89,27 @@ class CenterControl:
                 for attacker_square in attackers:
                     attacker = board.piece_at(attacker_square)
                     controller = self.find_or_create_controller(attacker.piece_type, attacker_square, color)
-                    controller.set_pinned(board.is_pinned(color, attacker_square))
-                    controller.set_undefended(self.undefended(board, color, attacker_square))
+                    controller.pinned = board.is_pinned(color, attacker_square)
+                    controller.update_threatened(board, color)
                     controller.add_controlled_square(square)
                     controller.update_contribution(self.ATTACK_SCORE)
 
             for controller in self.controllers[color]:
                 if controller.pinned:
                     controller.value *= self.PINNED_MULTIPLIER
-                if controller.undefended:
-                    controller.value *= self.UNDEFENDED_MULTIPLIER
+                if controller.threatened:
+                    controller.value *= self.THREATENDED_MULTIPLIER / (1 + (board.turn != color))
                 self.score[color] += controller.value
 
         # Set control status based on score
         if self.score[chess.WHITE] != self.score[chess.BLACK]:
             self.status = chess.COLOR_NAMES[self.score[chess.WHITE] > self.score[chess.BLACK]]
 
-    @staticmethod
-    def undefended(board, color, square):
-        return not board.is_attacked_by(color, square) and board.is_attacked_by(not color, square)
-
-    def find_or_create_controller(self, piece, square, color):
+    def find_or_create_controller(self, piece_type, square, color):
         for c in self.controllers[color]:
-            if c.piece == piece and c.square == square:
+            if c.piece_type == piece_type and c.square == square:
                 return c
 
-        controller = Controller(piece, square)
+        controller = Controller(piece_type, square)
         self.controllers[color].append(controller)
         return controller
