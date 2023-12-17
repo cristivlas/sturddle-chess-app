@@ -55,7 +55,6 @@ _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
 _make_one_move = 'make_one_move'
 _make_moves = 'make_moves'
-_move_impact_on_center = 'move_impact_on_center'
 _play_opening = 'play_opening'
 
 ''' Schema keywords, constants. '''
@@ -108,20 +107,6 @@ _FUNCTIONS = [
         _parameters: {
             _type: _object,
             _properties: {}
-        }
-    },
-    {
-        _name: _move_impact_on_center,
-        _description: 'Analyze the impact of a specified move on controlling the center.',
-        _parameters: {
-            _type: _object,
-            _properties: {
-                _move: {
-                    _type: _string,
-                    _description: 'Move, in Standard Algebraic Notation (SAN).'
-                }
-            },
-            _required: [_move]
         }
     },
     {
@@ -1099,24 +1084,6 @@ class Assistant:
         return FunctionResult(AppLogic.OK)
 
 
-    def _handle_move_impact_on_center(self, user_request, inputs):
-        san = inputs.get(_move)
-        if not san:
-            return FunctionResult(AppLogic.INVALID)
-
-        board = self._app.engine.board.copy()
-        try:
-            board.push_san(san)
-        except:
-            return FunctionResult(AppLogic.INVALID)
-
-        center_before = CenterControl(self._app.engine.board).status
-        center_after = CenterControl(board).status
-
-        result = {f'before_{san}': center_before, f'after_{san}': center_after}
-        return self._complete_on_same_thread(user_request, _move_impact_on_center, result)
-
-
     def _register_handlers(self):
         '''
         "Backup" handlers for parsing the rare and accidental malformed responses.
@@ -1133,7 +1100,6 @@ class Assistant:
         FunctionCall.register(_lookup_openings, self._handle_lookup_openings)
         FunctionCall.register(_make_moves, self._handle_make_moves)
         FunctionCall.register(_make_one_move, self._handle_make_one_move)
-        FunctionCall.register(_move_impact_on_center, self._handle_move_impact_on_center)
         FunctionCall.register(_play_opening, self._handle_play_opening)
         FunctionCall.register(_load_puzzle, self._handle_puzzle_request)
 
