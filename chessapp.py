@@ -37,6 +37,8 @@ from os import path
 from time import sleep
 
 import chess.pgn
+
+from center import CenterControl
 from kivy.app import App
 from kivy.animation import Animation
 from kivy.base import ExceptionHandler, ExceptionManager
@@ -830,6 +832,20 @@ class ChessApp(App):
             spell_digits=spell_digits)
 
 
+    def draw_arrow(self, from_square, to_square, color=(0.25, 0.75, 0, 0.45)):
+        half_square = self.board_widget.square_size / 2
+        def square_center_xy(square):
+            return [i + half_square for i in self.board_widget.screen_coords(square % 8, square // 8)]
+
+        return Arrow(
+            from_xy=square_center_xy(from_square),
+            to_xy = square_center_xy(to_square),
+            color=color,
+            width=self.board_widget.square_size / 7.5,
+            outline_color=(1, 1, 0.5, 0.75),
+            outline_width=2)
+
+
     def exit(self, *_):
         self.confirm('Exit application (game will be saved)', self.stop)
 
@@ -1067,6 +1083,10 @@ class ChessApp(App):
                 title, _ = self.transcribe()
                 text = self.moves_record.export_pgn() + f' {{ {self.engine.board.epd()} }}'
                 self.text_box(title, text)
+                return True
+
+            if keycode1 == Keyboard.keycodes['a']:
+                self.visualize_center_control()
                 return True
 
         if keycode1 == Keyboard.keycodes['escape']:
@@ -2136,15 +2156,9 @@ class ChessApp(App):
     def _hint(self):
         if not self.edit:
             hints = []
+            board = None
 
             if self.puzzle:
-                board = None
-                # try:
-                #     board = self.engine.board.copy()
-                #     hints = [board.parse_san(m) for m in self.puzzle[2]]
-                # except:
-                #     pass
-
                 desc = puzzle_description(self.puzzle)
                 if desc:
                     hints = [desc]
@@ -2161,10 +2175,10 @@ class ChessApp(App):
                 return partial(self._move_hints, board, hints)
 
 
-    """
-    Draw opening moves hints on the board widget canvas
-    """
     def _move_hints(self, board, entries, redraw=True):
+        """
+        Draw opening moves hints on the board widget canvas
+        """
         if redraw:
             self.board_widget.redraw()
         self.board_widget.visible_hints = True
@@ -2370,6 +2384,27 @@ class ChessApp(App):
             node = self.moves_record.current
             if node and node.parent and len(node.parent.variations) > 1:
                 self._move_hints(board, [n.move for n in node.parent.variations], False)
+
+
+    @mainthread
+    def visualize_center_control(self):
+        self.update_board()
+        center = CenterControl(self.board_widget.model)
+
+        with self.board_widget.canvas:
+            for c in [i for sublist in center.controllers for i in sublist]:
+                # TODO: visual cues for pinned and undefended?
+                v = 10 * (c.value - 1)
+                rgba = (1 - .45/(1+math.exp(-v)), .5 + .5/(1+math.exp(-v)), 0, 0.5)
+
+                if c.square in CenterControl.center_squares:
+                    Color(*rgba)
+                    xy = self.board_widget.screen_coords(c.square % 8, c.square // 8)
+                    Rectangle(pos=xy, size=2*[self.board_widget.square_size])
+
+                for s in c.controlled_squares:
+                    if s != c.square:
+                        self.draw_arrow(c.square, s, color=rgba)
 
     #
     # Board Editing
@@ -2708,3 +2743,4 @@ class ChessApp(App):
     @property
     def cpu_cores_max(self):
         return chess_engine.get_param_info()['Threads'][2]
+

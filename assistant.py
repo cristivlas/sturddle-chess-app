@@ -307,7 +307,7 @@ class GameState:
         self.valid = False
         if app:
             #self.epd = app.engine.board.epd()
-            self.center = evaluate_center_control(app.engine.board)
+            self.center = CenterControl(app.engine.board)
             self.pgn = app.transcribe(columns=None, engine=False)[1]
             self.turn = None if app.engine.is_game_over() else app.engine.board.turn
             self.user_color = _get_user_color(app)
@@ -323,7 +323,7 @@ class GameState:
             # Do not send the FEN, it looks like ChatGPT cannot parse it
             # and it may result in unpronounceable strings in the replies
             #_fen: self.epd,
-            _center_control: self.center,
+            _center_control: self.center.status,
             _pgn: self.pgn,
             _turn: turn,
             _user: self.user_color.capitalize(),
@@ -340,6 +340,7 @@ class Context:
         self.history = []
         self.user = None  # The side the user is playing
         self.epd = None
+
 
     def add_message(self, message):
         self.history.append(message)
@@ -1109,8 +1110,8 @@ class Assistant:
         except:
             return FunctionResult(AppLogic.INVALID)
 
-        center_before = evaluate_center_control(self._app.engine.board)
-        center_after = evaluate_center_control(board)
+        center_before = CenterControl(self._app.engine.board).status
+        center_after = CenterControl(board).status
 
         result = {f'before_{san}': center_before, f'after_{san}': center_after}
         return self._complete_on_same_thread(user_request, _move_impact_on_center, result)
@@ -1247,11 +1248,6 @@ class Assistant:
             speak()
 
 
-def evaluate_center_control(board):
-    center_control = CenterControl(board)
-    return center_control.status
-
-
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
     '''
     Group search results (for openings) by prefix, sort descending by frequency.
@@ -1300,3 +1296,4 @@ _epd_regex = (
 
 def contains_epd(text):
     return re.search(_epd_regex, text) is not None
+

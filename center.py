@@ -25,7 +25,7 @@ class Controller:
         self.controlled_squares = []  # Squares controlled by this piece
         self.pinned = False  # Is the piece pinned?
         self.undefended = False  # Is the piece undefended?
-        self.contribution_value = 0  # Numeric value of contribution to center control
+        self.value = 0  # Numeric value of contribution to center control
 
     def add_controlled_square(self, square):
         if square not in self.controlled_squares:
@@ -38,15 +38,15 @@ class Controller:
         self.undefended = undefended_status
 
     def update_contribution(self, value):
-        self.contribution_value += value
+        self.value += value
 
 
 class CenterControl:
     # Constants for scoring
     OCCUPANCY_SCORE = 1.5
     ATTACK_SCORE = 1
-    UNDEFENDED_MULTIPLIER = 0.5
-    PINNED_MULTIPLIER = 0.25
+    UNDEFENDED_MULTIPLIER = 0.25
+    PINNED_MULTIPLIER = 0.5
     CHECK_PENALTY = -2
 
     center_squares = [chess.D4, chess.D5, chess.E4, chess.E5]
@@ -57,10 +57,6 @@ class CenterControl:
         self.score = {chess.WHITE: 0, chess.BLACK: 0}
         self.populate_controllers(board)
 
-    def add_controller(self, piece, square, color):
-        controller = Controller(piece, square)
-        self.controllers[color].append(controller)
-
     def populate_controllers(self, board):
         for color in [chess.WHITE, chess.BLACK]:
             if color == board.turn and board.is_check():
@@ -68,40 +64,28 @@ class CenterControl:
 
             for square in self.center_squares:
                 if piece := board.piece_at(square):
-                    piece_score = self.OCCUPANCY_SCORE
-                    is_pinned = board.is_pinned(color, square)
-                    is_undefended = self.undefended(board, color, square)
-
-                    if is_pinned:
-                        piece_score *= self.PINNED_MULTIPLIER
-                    if is_undefended:
-                        piece_score *= self.UNDEFENDED_MULTIPLIER
-
-                    controller = self.find_or_create_controller(piece, square, color)
-                    controller.set_pinned(is_pinned)
-                    controller.set_undefended(is_undefended)
-                    controller.add_controlled_square(square)
-                    controller.update_contribution(piece_score)
-                    self.score[piece.color] += piece_score
+                    if piece.color == color:
+                        controller = self.find_or_create_controller(piece.piece_type, square, color)
+                        controller.set_pinned(board.is_pinned(color, square))
+                        controller.set_undefended(self.undefended(board, color, square))
+                        controller.add_controlled_square(square)
+                        controller.update_contribution(self.OCCUPANCY_SCORE)
 
                 attackers = board.attackers(color, square)
                 for attacker_square in attackers:
                     attacker = board.piece_at(attacker_square)
-                    attack_score = self.ATTACK_SCORE
-                    is_pinned = board.is_pinned(color, attacker_square)
-                    is_undefended = self.undefended(board, color, attacker_square)
-
-                    if is_pinned:
-                        attack_score *= self.PINNED_MULTIPLIER
-                    if is_undefended:
-                        attack_score *= self.UNDEFENDED_MULTIPLIER
-
-                    controller = self.find_or_create_controller(attacker, attacker_square, color)
-                    controller.set_pinned(is_pinned)
-                    controller.set_undefended(is_undefended)
+                    controller = self.find_or_create_controller(attacker.piece_type, attacker_square, color)
+                    controller.set_pinned(board.is_pinned(color, attacker_square))
+                    controller.set_undefended(self.undefended(board, color, attacker_square))
                     controller.add_controlled_square(square)
-                    controller.update_contribution(attack_score)
-                    self.score[color] += attack_score
+                    controller.update_contribution(self.ATTACK_SCORE)
+
+            for controller in self.controllers[color]:
+                if controller.pinned:
+                    controller.value *= self.PINNED_MULTIPLIER
+                if controller.undefended:
+                    controller.value *= self.UNDEFENDED_MULTIPLIER
+                self.score[color] += controller.value
 
         # Set control status based on score
         if self.score[chess.WHITE] != self.score[chess.BLACK]:
@@ -112,9 +96,10 @@ class CenterControl:
         return not board.is_attacked_by(color, square) and board.is_attacked_by(not color, square)
 
     def find_or_create_controller(self, piece, square, color):
-        existing_controller = next((c for c in self.controllers[color] if c.piece == piece and c.square == square), None)
-        if existing_controller:
-            return existing_controller
-        else:
-            self.add_controller(piece, square, color)
-            return self.controllers[color][-1]  # Return the newly added controller
+        for c in self.controllers[color]:
+            if c.piece == piece and c.square == square:
+                return c
+
+        controller = Controller(piece, square)
+        self.controllers[color].append(controller)
+        return controller
