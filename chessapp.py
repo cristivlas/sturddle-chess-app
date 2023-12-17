@@ -2387,7 +2387,7 @@ class ChessApp(App):
     @mainthread
     def visualize_center_control(self, center):
         self.update_board()
-        Logger.info(f'center_ctrl: {center.status}')
+        Logger.debug(f'center_ctrl: {center.status}')
 
         square_size = self.board_widget.square_size
 
@@ -2405,7 +2405,7 @@ class ChessApp(App):
 
                 if c.pinned:
                     xy = [i + square_size/2 for i in self.board_widget.screen_coords(c.square % 8, c.square // 8)]
-
+                    Color(1,1,1)
                     source = 'images/pin.png' if c.pinned else None
                     Rectangle(pos=xy, size=2*[square_size/2], source=source)
 
