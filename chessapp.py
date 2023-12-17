@@ -2659,7 +2659,7 @@ class ChessApp(App):
                     'pv': format_pv(pv, start=1),
                     'best': san(search.context.board().copy(), move),
                     'score': score,
-                    'lead': chess.COLOR_NAMES[winning_side],
+                    'lead': chess.COLOR_NAMES[winning_side] if score else None,
                     'turn': chess.COLOR_NAMES[search.context.board().turn],
                 }
 
