@@ -370,14 +370,16 @@ class Context:
                     changes.append(f'I am playing as {user_color}.')
 
                 if self.epd and self.epd != epd:
-                    changes.append('The position has changed.')
+                    #changes.append('The position has changed.')
+                    changes.append(f'The position has changed: {GameState(app).pgn}.')
 
             if changes:
                 if not app.engine.is_game_over():
                     turn = chess.COLOR_NAMES[app.engine.board.turn]
                     changes.append(f'It is {turn}\'s turn to move.')
                 changes = ' '.join(changes)
-                content = f'{changes} {message[_content]}'
+                #content = f'{changes} {message[_content]}'
+                content = f'{message[_content]} (Context: {changes})'
                 message = {_role: _user, _content: content}
 
             self.epd = epd  # Keep track of the board state.
