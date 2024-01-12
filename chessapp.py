@@ -71,6 +71,7 @@ import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
 from engine import Engine
+#from intent import IntentClassifier
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from normalize import substitute_chess_moves
@@ -518,6 +519,8 @@ class ChessApp(App):
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
+        #self.intent_recognizer = IntentClassifier()
+        #self.intent_recognizer.load('intent-model')
 
 
     def about(self, *_):
@@ -727,7 +730,6 @@ class ChessApp(App):
             self.hash_label.texture_update()
 
         self.nps_label.bind(font_resize=sync_font_sizes)
-
         return root
 
 
@@ -817,7 +819,13 @@ class ChessApp(App):
             if not user_input:
                 user_input = self.voice_input.get_user_input()
             if user_input:
-                return self.assistant.call(user_input)
+                intents = self.detect_intents(user_input)
+                return self.assistant.call(user_input, intents=intents)
+
+
+    def detect_intents(self, user_input):
+        return []
+        # eturn self.intent_recognizer.classify_intent(user_input)
 
 
     def describe_move(self, move, spell_digits=False):

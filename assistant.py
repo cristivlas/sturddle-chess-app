@@ -639,7 +639,7 @@ class Assistant:
             return FunctionCall(call[_name], call[_arguments])
 
 
-    def call(self, user_input, callback_result=None):
+    def call(self, user_input, callback_result=None, intents=[]):
         '''
         Entry point. Initiate asynchronous task and return. Put up a spinner.
 
@@ -657,6 +657,9 @@ class Assistant:
 
         if not user_input:
             return False
+
+        if intents and self._resolve_intents(user_input, intents):
+            return True
 
         self._busy = True
         self._app.start_spinner()
@@ -1111,6 +1114,24 @@ class Assistant:
     # Miscellaneous helpers.
     #
     # -------------------------------------------------------------------
+
+    def _resolve_intents(self, user_input, intents):
+        search_param = []
+        for i, _ in intents:
+            action, param = i.split(':')
+            if action == 'analyze':
+                self._ctxt.add_message({_role: _user, _content: user_input})
+                return self._handle_analysis(user_input, {}).response == AppLogic.OK
+            elif action == 'search':
+                search_param.append(param.strip())
+            elif action == 'puzzle':
+                self._ctxt.add_message({_role: _user, _content: user_input})
+                return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
+
+        if search_param:
+            self._ctxt.add_message({_role: _user, _content: user_input})
+            return self._handle_lookup_openings(user_input, {_openings: search_param}).response == AppLogic.OK
+
 
     def _respond_to_user(self, response):
         '''

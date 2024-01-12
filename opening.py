@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import csv
 import io
+import os
 import string
 
 import chess
@@ -113,7 +114,7 @@ class ECO:
 
 
     def tsv_files(self):
-        for dir, _subdirs, files in walk('eco/dist'):
+        for dir, _subdirs, files in walk(f'{os.path.dirname(__file__)}/eco/dist'):
             for f in sorted(files):
                 if f.endswith('.tsv'):
                     yield path.join(dir, f)
