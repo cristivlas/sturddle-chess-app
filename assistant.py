@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2021, 2022, 2023 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2021, 2022, 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -405,15 +405,15 @@ class Context:
 
         if current_msg[_role] == _function:
             system_prompt = _BASIC_PROMPT  # Save some tokens
-
         else:
             system_prompt = _SYSTEM_PROMPT
-            if app.puzzle:
-                system_prompt += (
-                    f'Summarize the active puzzle. If the user asks for help with solving '
-                    f'the problem, reply instead with a novel grandmaster quote, or koan. '
-                    f'The theme of the puzzle is: {puzzle_description(app.puzzle)}'
-                )
+
+        if app.puzzle:
+            system_prompt += (
+                f'Summarize the active puzzle without providing any move hints. '
+                f'If the user asks for help with solving the problem, reply with '
+                f'a grandmaster quote, or a koan. The puzzle theme is: {puzzle_description(app.puzzle)}. '
+            )
 
         while True:
             # Prefix messages with the system prompt.
@@ -1116,20 +1116,23 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _resolve_intents(self, user_input, intents):
+        # insert this message into the conversation history
+        # if the intent is recognized, for future context
+        user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
         search_param = []
         for i, _ in intents:
             action, param = i.split(':')
             if action == 'analyze':
-                self._ctxt.add_message({_role: _user, _content: user_input})
+                self._ctxt.add_message(user_msg)
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
             elif action == 'search':
                 search_param.append(param.strip())
             elif action == 'puzzle':
-                self._ctxt.add_message({_role: _user, _content: user_input})
+                self._ctxt.add_message(user_msg)
                 return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
 
         if search_param:
-            self._ctxt.add_message({_role: _user, _content: user_input})
+            self._ctxt.add_message(user_msg)
             return self._handle_lookup_openings(user_input, {_openings: search_param}).response == AppLogic.OK
 
 

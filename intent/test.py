@@ -24,8 +24,8 @@ class TestIntentClassifier(unittest.TestCase):
     def tearDownClass(cls):
         # Clean up any saved model files
         for file in [
-            'dictionary.pkl',
-            'tfidf_model.pkl',
+            'dictionary.json',
+            'tfidf_idf.npy',
             'annoy_index.ann',
             'index_to_intent.pkl',
         ]:

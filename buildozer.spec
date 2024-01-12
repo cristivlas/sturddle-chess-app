@@ -13,11 +13,11 @@ package.domain = chess
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf
+source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf,ann,json,pkl,npy
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
-#source.include_patterns = intent-model/*
+source.include_patterns = intent-model/*
 
 # (list) Source files to exclude (let empty to not exclude anything)
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
@@ -27,7 +27,7 @@ source.exclude_dirs = __pycache__,bin,build,docs,sturddle_chess_engine,p4a-recip
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
-source.exclude_patterns = license,log,images/*/*.jpg,build.py,speech/stt/data/*
+source.exclude_patterns = LICENSE,log,images/*/*.jpg,build.py,speech/stt/data/*
 
 # (str) Application versioning (method 1)
 # version =
@@ -39,8 +39,8 @@ version.filename = %(source.dir)s/main.py
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
 
-#requirements = annoy,chess,gensim,kivy,metaphone,numpy,num2words,python3,plyer,pyparsing,rapidfuzz,scipy,setuptools,SturddleChessEngine,word2number
-requirements = chess,kivy,metaphone,num2words,python3,plyer,pyparsing,rapidfuzz,setuptools,SturddleChessEngine,word2number
+requirements = annoy,chess,kivy,metaphone,numpy,num2words,python3,plyer,pyparsing,rapidfuzz,setuptools,SturddleChessEngine,word2number
+#requirements = chess,kivy,metaphone,num2words,python3,plyer,pyparsing,rapidfuzz,setuptools,SturddleChessEngine,word2number
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

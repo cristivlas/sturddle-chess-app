@@ -1,3 +1,4 @@
+annoy
 chess
 kivy
 Cython

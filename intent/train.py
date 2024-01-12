@@ -57,7 +57,6 @@ def camel_case_tokenize(string):
 
 
 def generate_synthetic_data(eco):
-    # Data for 'analyze' intent.
     sample_phrases = {
         'analyze:': [
             'analyze',
@@ -65,6 +64,18 @@ def generate_synthetic_data(eco):
             'suggest a move',
             'recommend a move',
             'what is the best move',
+        ],
+        'play:':[
+            'play',
+            'play it',
+            'play move',
+            'play opening',
+        ],
+        'setup:': [
+            'setup',
+            'set it up',
+            'set up the board',
+            'set position',
         ],
     }
 
