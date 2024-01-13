@@ -69,8 +69,11 @@ def generate_synthetic_data(eco):
             'suggest a move',
             'recommend a move',
             'what is the best move',
+            'what is a good move in the current position',
+            'what is a good move in the current situation',
             'move recommendation?',
             'recommendation',
+            'make a move recommendation',
         ],
         # Examples of unhandled / unknown intents:
         'other':[
@@ -108,7 +111,8 @@ def generate_synthetic_data(eco):
             'who is that',
             'where are',
             'why are',
-            'who are'
+            'who are',
+            'recommend a puzzle',
         ],
         'play':[
             'make the move',
@@ -133,17 +137,20 @@ def generate_synthetic_data(eco):
         theme = ' '.join(camel_case_tokenize(theme))
         sample_phrases[key] = [
             theme,
-            f'practice {theme}',
-            f'practice {theme}',
-            f'solve {theme}',
-            f'solve {theme}',
+            f"I want to practice {theme}",
+            f"I would like to practice {theme}",
+            f"I'd like to practice {theme}",
+            f"Practice {theme}",
+            f"Let's solve {theme}",
+            f"Let us solve {theme}",
+            f"Let us practice {theme}",
         ]
 
     # Add phrases for openings.
     unique_names = set()
     for key in eco.by_name:
         for part in eco.by_name[key]['name'].split(':'):
-            unique_names.add(part)
+            unique_names.add(part.strip())
 
     for opening_name in unique_names:
         sample_phrases[f'search:{opening_name}'] = generate_combinatorial_variations(opening_name)

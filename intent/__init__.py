@@ -55,7 +55,7 @@ class TfidfModel:
 
 
 class IntentClassifier:
-    def __init__(self, annoy_trees=8):
+    def __init__(self, annoy_trees=16):
         self.dictionary = None
         self.tfidf_model = None
         self.annoy_index = None
