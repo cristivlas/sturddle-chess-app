@@ -820,13 +820,16 @@ class ChessApp(App):
                 user_input = self.voice_input.get_user_input()
             if user_input:
                 intents = self.detect_intents(user_input)
-                Logger.info(f'intents: {intents}')
+                Logger.info(f'intents: {intents} ({user_input})')
                 return self.assistant.call(user_input, intents=intents)
 
 
     def detect_intents(self, user_input):
-        # return []
-        return self.intent_recognizer.classify_intent(user_input)
+        '''
+        Detect the intent in the user free-form input, to save a roundtrip to the LLM
+        '''
+        # return []  # disable, for debugging
+        return self.intent_recognizer.classify_intent(user_input, top_n=5)
 
 
     def describe_move(self, move, spell_digits=False):

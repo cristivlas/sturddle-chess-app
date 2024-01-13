@@ -32,8 +32,8 @@ from os import path, walk
 from metaphone import doublemetaphone
 
 
-def _strip_punctuation(input):
-    return ''.join(char for char in input if char not in string.punctuation)
+def _strip_punctuation(text):
+    return ''.join(char for char in text if char not in string.punctuation)
 
 
 def _phonetic(input):

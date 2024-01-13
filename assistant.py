@@ -1119,21 +1119,35 @@ class Assistant:
         # insert this message into the conversation history
         # if the intent is recognized, for future context
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
+
+        self._app.voice_input.stop()
+
         search_param = []
+
         for i, _ in intents:
-            action, param = i.split(':')
-            if action == 'analyze':
+            action = i.split(':')
+            verb = action[0].strip()
+            if verb == 'analyze':
                 self._ctxt.add_message(user_msg)
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
-            elif action == 'search':
-                search_param.append(param.strip())
-            elif action == 'puzzle':
-                self._ctxt.add_message(user_msg)
-                return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
+            elif verb == 'search':
+                if len(action) > 1:
+                    search_param.append(action[1].strip())
+            elif verb == 'puzzle':
+                if len(action) > 1:
+                    self._ctxt.add_message(user_msg)
+                    param = action[1].strip()
+                    return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
+            else:
+                break
 
         if search_param:
             self._ctxt.add_message(user_msg)
-            return self._handle_lookup_openings(user_input, {_openings: search_param}).response == AppLogic.OK
+            args = {
+                _openings: search_param,
+                _limit: len(search_param)
+            }
+            return self._handle_lookup_openings(user_input, args).response == AppLogic.OK
 
 
     def _respond_to_user(self, response):

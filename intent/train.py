@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Generate syntehtic data and train an IntentClassifier.
+Data is specific to the Chess App.
+Save the model to a specified folder (default is 'intent-model')
+"""
 import argparse
 import itertools
 import os
@@ -58,20 +63,63 @@ def camel_case_tokenize(string):
 
 def generate_synthetic_data(eco):
     sample_phrases = {
-        'analyze:': [
+        'analyze': [
             'analyze',
             'run analysis',
             'suggest a move',
             'recommend a move',
             'what is the best move',
+            'move recommendation?',
+            'recommendation',
         ],
-        'play:':[
+        # Examples of unhandled / unknown intents:
+        'other':[
+            'any',
+            'any other',
+            'any more',
+            'anyhow',
+            'anyone',
+            'anything',
+            'anything else',
+            'anywhere',
+            'anywho',
+            'list',
+            'list variations',
+            'show',
+            'show the move',
+            'show variations',
+            'what',
+            'what are',
+            'what other',
+            'what move',
+            'what opening',
+            'what is',
+            'where',
+            'why',
+            'who',
+            'where is',
+            'why is',
+            'who is',
+            'where is this',
+            'why is this',
+            'who is this',
+            'where is that',
+            'why is that',
+            'who is that',
+            'where are',
+            'why are',
+            'who are'
+        ],
+        'play':[
+            'make the move',
+            'move',
+            'move it',
             'play',
             'play it',
             'play move',
             'play opening',
         ],
-        'setup:': [
+        'setup': [
             'setup',
             'set it up',
             'set up the board',

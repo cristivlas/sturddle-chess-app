@@ -3,8 +3,10 @@ import os
 import re
 import numpy as np
 import pickle
+import string
 
 from annoy import AnnoyIndex
+from kivy import Logger
 from metaphone import doublemetaphone
 
 
@@ -53,7 +55,7 @@ class TfidfModel:
 
 
 class IntentClassifier:
-    def __init__(self, annoy_trees=10):
+    def __init__(self, annoy_trees=8):
         self.dictionary = None
         self.tfidf_model = None
         self.annoy_index = None
@@ -94,8 +96,8 @@ class IntentClassifier:
     def classify_intent(self, query, *, top_n=1, threshold=1.0):
         '''Classifies the intent of a given query.'''
         if self.dictionary:
-            query = query.lower()
             # Hack
+            query = query.lower()
             keywords = ['find', 'look up', 'lookup', 'search', 'what is']
             for k in keywords:
                 if query.startswith(k):
@@ -132,7 +134,9 @@ class IntentClassifier:
 
     def load(self, path):
         '''Loads the model components from the specified path.'''
-        if os.path.exists(path):
+        if not os.path.exists(path):
+            Logger.warning(f'intent-model: "{path}" does not exist')
+        else:
             # Load the custom dictionary
             with open(f'{path}/dictionary.json', 'r') as f:
                 word2idx = json.load(f)
@@ -163,10 +167,12 @@ def preprocess_and_mark_digits(token):
     if token.isdigit():
         # Convert each digit in the token to its word equivalent
         return ''.join(digit_words[int(digit)] for digit in token)
-    # return token
     return doublemetaphone(token)[0]
 
 def custom_preprocess(text):
+    # Strip punctuation
+    text = ''.join(char for char in text if char not in string.punctuation)
     # Tokenize, keep digits and mark them
     tokens = re.findall(r'\b\d+\b|\w+', text)  # Split on word boundaries, keep digits
     return [preprocess_and_mark_digits(token.lower()) for token in tokens]
+
