@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import json
+import jstyleson as json
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from intent import IntentClassifier
@@ -25,7 +25,7 @@ def run_tests(model_path, test_data_path):
         result = classifier.classify_intent(input_text)
         assert result, input_text
         result = result[0][0]
-        assert result == expected, f'Failed test for input: {input_text}. Expected: "{expected}", Got: "{result}"'
+        assert result == expected, f'Failed test for input: "{input_text}". Expected: "{expected}", Got: "{result}"'
 
     print('All tests passed successfully.')
 

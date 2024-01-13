@@ -140,10 +140,10 @@ def generate_synthetic_data(eco):
             f"I want to practice {theme}",
             f"I would like to practice {theme}",
             f"I'd like to practice {theme}",
-            f"Practice {theme}",
-            f"Let's solve {theme}",
-            f"Let us solve {theme}",
-            f"Let us practice {theme}",
+            f"practice {theme}",
+            f"let's solve {theme}",
+            f"let us solve {theme}",
+            f"let us practice {theme}",
         ]
 
     # Add phrases for openings.
@@ -160,7 +160,7 @@ def generate_synthetic_data(eco):
         for phrase in phrases:
             synthetic_data.append((phrase, intent))
 
-    Logger.debug(f'Generated {len(synthetic_data)} samples.')
+    Logger.debug(f'generated: {len(synthetic_data)} samples.')
     return synthetic_data
 
 
@@ -170,8 +170,9 @@ def main():
 
     args = parser.parse_args()
     Logger.setLevel(LOG_LEVELS['debug'])
-    data = generate_synthetic_data(ECO())
+    data = set(generate_synthetic_data(ECO()))
 
+    Logger.info(f'train: {len(data)} data samples')
     classifier = IntentClassifier()
     classifier.train(data)
     classifier.save(args.model_name)
