@@ -99,6 +99,7 @@ class SpeechListener(PythonJavaClass):
 
     @java_method('(Landroid/os/Bundle;)V')
     def onPartialResults(self, results):
+        #Logger.info(f'onPartialResults: {results}')
         self._on_results(results, done=False)
 
 
@@ -109,6 +110,7 @@ class SpeechListener(PythonJavaClass):
 
     @java_method('(Landroid/os/Bundle;)V')
     def onResults(self, results):
+        #Logger.info(f'onResults: {results}')
         self._on_results(results, done=True)
 
 
@@ -129,10 +131,11 @@ class SpeechListener(PythonJavaClass):
             if isinstance(match, bytes):
                 match = match.encode().decode('utf-8')
 
-            if not self.results or self.results[-1] != match:
-                self.results.append(match)
+            #if not self.results or self.results[-1] != match:
+            #    self.results.append(match)
+            self._results_callback([match], done)
 
-        self._results_callback(self.results, done)
+        #self._results_callback(self.results, done)
 
 
 class AndroidSTT(STT):
@@ -177,7 +180,7 @@ class AndroidSTT(STT):
 
         # results settings
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1000)
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, True)
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, False)
 
         if self.is_offline_supported():
             intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, self.prefer_offline)

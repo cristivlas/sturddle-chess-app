@@ -411,7 +411,7 @@ class Context:
         if app.puzzle:
             system_prompt += (
                 f'Summarize the active puzzle without providing any move hints. '
-                f'If the user asks for help with solving the problem, reply with '
+                f'When the user asks for the solution to the problem, reply with '
                 f'a grandmaster quote, or a koan. The puzzle theme is: {puzzle_description(app.puzzle)}. '
             )
 
@@ -1119,8 +1119,6 @@ class Assistant:
         # insert this message into the conversation history
         # if the intent is recognized, for future context
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
-
-        self._app.voice_input.stop()
 
         search_param = []
 

@@ -207,7 +207,7 @@ class Input:
             Logger.debug('voice: stopped')
 
 
-    def _on_results(self, results, done = True):
+    def _on_results(self, results, done=True):
         '''
         results: list(str)
         done: False if results are partial, True if recognition complete

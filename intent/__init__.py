@@ -57,7 +57,7 @@ class TfidfModel:
 class IntentClassifier:
     SEED = 4013
 
-    def __init__(self, annoy_trees=8):
+    def __init__(self, annoy_trees=32):
         self.dictionary = None
         self.tfidf_model = None
         self.annoy_index = None
@@ -99,14 +99,6 @@ class IntentClassifier:
     def classify_intent(self, query, *, top_n=1, threshold=1.0):
         '''Classifies the intent of a given query.'''
         if self.dictionary:
-            # Hack
-            query = query.lower()
-            keywords = ['find', 'look up', 'lookup', 'search', 'what is']
-            for k in keywords:
-                if query.startswith(k):
-                    query = query[len(k):].strip()
-                    break
-
             preprocessed_query = self.preprocess(query)
             query_bow = self.dictionary.doc2bow(preprocessed_query)
             query_tfidf = self.tfidf_model.transform(query_bow)
@@ -166,6 +158,7 @@ class IntentClassifier:
 
 
 digit_words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+stop_words = ['a', 'an', 'the']
 
 def preprocess_and_mark_digits(token):
     if token.isdigit():
@@ -176,7 +169,12 @@ def preprocess_and_mark_digits(token):
 def custom_preprocess(text):
     # Strip punctuation
     text = ''.join(char for char in text if char not in string.punctuation)
+
     # Tokenize, keep digits and mark them
     tokens = re.findall(r'\b\d+\b|\w+', text)  # Split on word boundaries, keep digits
+
+    # Remove stop words
+    tokens = [tok for tok in tokens if tok not in stop_words]
+
     return [preprocess_and_mark_digits(token.lower()) for token in tokens]
 

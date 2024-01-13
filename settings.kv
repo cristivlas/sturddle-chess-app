@@ -296,6 +296,11 @@
             on_active: app.assistant.enabled = self.active
             id: enabled
         OptLabel:
+            text: 'RAG'
+        Switch:
+            active: app.use_intent_recognizer
+            on_active: app.use_intent_recognizer = self.active
+        OptLabel:
             text: 'Model'
         BoxLayout:
             padding: [0, dp(10), 0, dp(10)]

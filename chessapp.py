@@ -521,6 +521,7 @@ class ChessApp(App):
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
         self.intent_recognizer = IntentClassifier()
         self.intent_recognizer.load('intent-model')
+        self.use_intent_recognizer = True
 
 
     def about(self, *_):
@@ -828,8 +829,10 @@ class ChessApp(App):
         '''
         Detect the intent in the user free-form input, to save a roundtrip to the LLM
         '''
-        # return []  # disable, for debugging
-        return self.intent_recognizer.classify_intent(user_input, top_n=5)
+        if self.use_intent_recognizer:
+            return self.intent_recognizer.classify_intent(user_input, top_n=5)
+
+        return []
 
 
     def describe_move(self, move, spell_digits=False):

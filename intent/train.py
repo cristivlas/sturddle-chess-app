@@ -24,6 +24,10 @@ all_puzzle_themes =  { k for k in puzzle_themes if PuzzleCollection().filter(k) 
 
 def alternative_words(word):
     variations = [word]
+    if word == 'search':
+        variations += ['what is', 'look up']
+    elif word == 'variation':
+        variations += ['variations', 'line']
     return variations
 
 
@@ -73,20 +77,26 @@ def generate_synthetic_data(eco):
             'what is a good move in this position?',
             'move recommendation?',
             'recommendation',
-            'make a move recommendation',
+            'make a recommendation',
         ],
         # Examples of unhandled / unknown intents:
         'other':[
-            'any',
-            'any other',
-            'any more',
+            'any other idea',
+            'any more ideas',
             'anyhow',
             'anyone',
             'anything',
             'anything else',
             'anywhere',
             'anywho',
-            'list',
+            'good bye',
+            'bye',
+            'buy me a coffee and a sandwich',
+            'hello',
+            'hello hello',
+            'hello world',
+            'like that',
+            'like to see',
             'list variations',
             'show',
             'show the move',
@@ -113,6 +123,9 @@ def generate_synthetic_data(eco):
             'why are',
             'who are',
             'recommend a puzzle',
+            'load it up',
+            'let us see that',
+            'I would like to see',
         ],
         'play':[
             'make the move',
@@ -150,10 +163,11 @@ def generate_synthetic_data(eco):
     unique_names = set()
     for key in eco.by_name:
         for part in eco.by_name[key]['name'].split(':'):
-            unique_names.add(part.strip())
+            unique_names.add(part.strip().lower())
 
     for opening_name in unique_names:
         sample_phrases[f'search:{opening_name}'] = generate_combinatorial_variations(opening_name)
+        sample_phrases[f'search:{opening_name}'] += generate_combinatorial_variations('search ' + opening_name)
 
     synthetic_data = []
     for intent, phrases in sample_phrases.items():
