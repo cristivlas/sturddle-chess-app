@@ -55,6 +55,8 @@ class TfidfModel:
 
 
 class IntentClassifier:
+    SEED = 4013
+
     def __init__(self, annoy_trees=8):
         self.dictionary = None
         self.tfidf_model = None
@@ -81,9 +83,10 @@ class IntentClassifier:
         # Convert sparse TF-IDF vectors to dense format
         dense_tfidf_corpus = [self.tfidf_model.transform(doc) for doc in bow_corpus]
 
-        # Building an Annoy Index
+        # Build an Annoy Index
         self.dim = len(self.dictionary)
         self.annoy_index = AnnoyIndex(self.dim, 'angular')
+        self.annoy_index.set_seed(self.SEED)
 
         for i, vec in enumerate(dense_tfidf_corpus):
             self.annoy_index.add_item(i, vec)
@@ -155,6 +158,7 @@ class IntentClassifier:
             self.dim = len(self.dictionary.idx2word)
             self.annoy_index = AnnoyIndex(self.dim, 'angular')
             self.annoy_index.load(f'{path}/annoy_index.ann')
+            self.annoy_index.set_seed(self.SEED)
 
             # Load index to intent mapping
             with open(f'{path}/index_to_intent.pkl', 'rb') as f:

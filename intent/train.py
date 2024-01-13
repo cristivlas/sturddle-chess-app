@@ -6,8 +6,8 @@ Save the model to a specified folder (default is 'intent-model')
 """
 import argparse
 import itertools
+import numpy as np
 import os
-import string
 import sys
 
 os.environ['KIVY_NO_ARGS']='1'
@@ -69,8 +69,8 @@ def generate_synthetic_data(eco):
             'suggest a move',
             'recommend a move',
             'what is the best move',
-            'what is a good move in the current position',
             'what is a good move in the current situation',
+            'what is a good move in this position?',
             'move recommendation?',
             'recommendation',
             'make a move recommendation',
@@ -170,11 +170,10 @@ def main():
 
     args = parser.parse_args()
     Logger.setLevel(LOG_LEVELS['debug'])
-    data = set(generate_synthetic_data(ECO()))
+    data = generate_synthetic_data(ECO())
 
-    Logger.info(f'train: {len(data)} data samples')
     classifier = IntentClassifier()
-    classifier.train(data)
+    classifier.train(sorted(set(data)))
     classifier.save(args.model_name)
 
 
