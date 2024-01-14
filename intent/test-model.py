@@ -23,7 +23,7 @@ def run_tests(model_path, test_data_path):
         input_text = case['input']
         expected = case['expected']
         result = classifier.classify_intent(input_text)
-        result = result[0][0] if result else 'None'
+        result = ':'.join(result[0][0].split(':')[:2]) if result else 'None'
         assert result == expected, f'Failed test for input: "{input_text}". Expected: "{expected}", Got: "{result}"'
 
     print('All tests passed successfully.')

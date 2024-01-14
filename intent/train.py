@@ -169,15 +169,17 @@ def generate_synthetic_data(eco):
                 Logger.debug(f'puzzle: {p}')
 
     # Add phrases for openings.
-    unique_names = set()
-    for key in eco.by_name:
-        for part in eco.by_name[key]['name'].split(':'):
-            unique_names.add(part.strip().lower())
+    unique_names = {}
+    for eco, rows in eco.by_eco.items():
+        for r in rows:
+            for part in r['name'].split(':'):
+                unique_names[part.strip().lower()] = eco
 
-    for opening_name in unique_names:
-        sample_phrases[f'search:{opening_name}'] = generate_combinatorial_variations(opening_name)
-        sample_phrases[f'search:{opening_name}'] += generate_combinatorial_variations('search ' + opening_name)
-
+    for name, eco in unique_names.items():
+        sample_phrases[f'search:{name}:{eco}'] = (
+            generate_combinatorial_variations(name) +
+            generate_combinatorial_variations('search ' + name)
+        )
     synthetic_data = []
     for intent, phrases in sample_phrases.items():
         for phrase in phrases:

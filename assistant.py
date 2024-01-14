@@ -917,7 +917,8 @@ class Assistant:
         results = []
 
         for name in requested_openings:
-            search_result = self._search_opening({_name: name}, max_results=max_results)
+            args = {_name: name, _eco: inputs.get(name, None)}
+            search_result = self._search_opening(args, max_results=max_results)
             if not search_result:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
 
@@ -1127,8 +1128,8 @@ class Assistant:
     def _resolve_intents(self, user_input, intents):
         Logger.info(f'intents: {intents} ({user_input})')
 
-        # insert this message into the conversation history
-        # if the intent is recognized, for future context
+        # Add this message into the conversation history
+        # if the intent is recognized, for future context.
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
 
         search_param = set()
@@ -1141,7 +1142,7 @@ class Assistant:
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
             elif verb == 'search':
                 if len(action) > 1:
-                    search_param.add(action[1].strip())
+                    search_param.add(tuple(action[1:]))
             elif verb == 'puzzle':
                 if len(action) > 1:
                     self._ctxt.add_message(user_msg)
@@ -1151,11 +1152,12 @@ class Assistant:
                 break
 
         if search_param:
-            self._ctxt.add_message(user_msg)
-            args = {
-                _openings: search_param,
-                _limit: len(search_param)
-            }
+            self._ctxt.add_message(user_msg)  # Add to conversation.
+
+            args = {_openings: [], _limit: len(search_param)}
+            for name, eco in search_param:
+                args[_openings].append(name)
+                args[name] = eco
             return self._handle_lookup_openings(user_input, args).response == AppLogic.OK
 
 
