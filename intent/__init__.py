@@ -158,7 +158,7 @@ class IntentClassifier:
 
 
 digit_words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-stop_words = ['a', 'an', 'the']
+stop_words = ['.', ',', '-', 'a', 'an', 'all', 'some', 'the']
 
 def preprocess_and_mark_digits(token):
     if token.isdigit():

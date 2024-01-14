@@ -675,7 +675,7 @@ class Assistant:
         def background_task():
             if not callback_result and self._app.use_intent_recognizer:
                 # Attempt to detect user's intent locally, to save a roundtrip.
-                intents = self.intent_recognizer.classify_intent(user_input, top_n=3)
+                intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
 
                 if intents and self._resolve_intents(user_input, intents):
                     return task_completed()
@@ -1131,7 +1131,7 @@ class Assistant:
         # if the intent is recognized, for future context
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
 
-        search_param = []
+        search_param = set()
 
         for i, _ in intents:
             action = i.split(':')
@@ -1141,7 +1141,7 @@ class Assistant:
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
             elif verb == 'search':
                 if len(action) > 1:
-                    search_param.append(action[1].strip())
+                    search_param.add(action[1].strip())
             elif verb == 'puzzle':
                 if len(action) > 1:
                     self._ctxt.add_message(user_msg)

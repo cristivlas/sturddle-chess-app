@@ -42,7 +42,7 @@ def generate_combinatorial_variations(sentence, *, exceptions=[]):
         ' '.join(combination) for combination in itertools.product(*word_variations)
     )
     for s in sentence_variations:
-        Logger.debug(f'opening: {s}')
+        Logger.debug(f'search: {s}')
 
     return list(sentence_variations)
 
@@ -163,6 +163,10 @@ def generate_synthetic_data(eco):
             f"let us solve {theme}",
             f"let us practice {theme}",
         ]
+    for k, phrases in sample_phrases.items():
+        if k.startswith('puzzle:'):
+            for p in phrases:
+                Logger.debug(f'puzzle: {p}')
 
     # Add phrases for openings.
     unique_names = set()
