@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2022, 2023 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2022, 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -203,6 +203,7 @@ class AndroidSTT(STT):
 
     @run_on_ui_thread
     def _stop(self):
+        Logger.info(f'_stop: recognizer={self.speech}')
         if not self.speech:
             return
 

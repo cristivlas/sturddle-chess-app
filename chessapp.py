@@ -71,7 +71,6 @@ import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
 from engine import Engine
-from intent import IntentClassifier
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
 from normalize import substitute_chess_moves
@@ -519,8 +518,6 @@ class ChessApp(App):
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
-        self.intent_recognizer = IntentClassifier()
-        self.intent_recognizer.load('intent-model')
         self.use_intent_recognizer = True
 
 
@@ -819,20 +816,9 @@ class ChessApp(App):
         if self.can_use_assistant():
             if not user_input:
                 user_input = self.voice_input.get_user_input()
+
             if user_input:
-                intents = self.detect_intents(user_input)
-                Logger.info(f'intents: {intents} ({user_input})')
-                return self.assistant.call(user_input, intents=intents)
-
-
-    def detect_intents(self, user_input):
-        '''
-        Detect the intent in the user free-form input, to save a roundtrip to the LLM
-        '''
-        if self.use_intent_recognizer:
-            return self.intent_recognizer.classify_intent(user_input, top_n=5)
-
-        return []
+                return self.assistant.call(user_input)
 
 
     def describe_move(self, move, spell_digits=False):
@@ -1129,11 +1115,12 @@ class ChessApp(App):
 
         if all((
             self.speak_moves,
+            not self.assistant.busy,
             not self.engine.busy,
             not self.in_game_animation,
             not self.voice_input.is_running(),
             not self.edit,
-            not modal or not self.has_modal_views()
+            not modal or not self.has_modal_views(),
         )):
             self.voice_input.start(modal)
             return True

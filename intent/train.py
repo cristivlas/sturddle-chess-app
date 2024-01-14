@@ -16,8 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from intent import IntentClassifier
 from kivy.logger import Logger, LOG_LEVELS
 from opening import ECO
-from puzzleview import themes_dict as puzzle_themes
-from puzzleview import PuzzleCollection
+from puzzleview import themes_dict as puzzle_themes, PuzzleCollection
 
 all_puzzle_themes =  { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
@@ -147,13 +146,19 @@ def generate_synthetic_data(eco):
     # Add phrases for puzzle themes.
     for theme in all_puzzle_themes:
         key = 'puzzle:' + theme
+        description = puzzle_themes[theme].lower()
         theme = ' '.join(camel_case_tokenize(theme))
+
         sample_phrases[key] = [
             theme,
+            f"{description} puzzle",
+            f"practice {description}",
+            f"study {description}",
             f"I want to practice {theme}",
             f"I would like to practice {theme}",
             f"I'd like to practice {theme}",
             f"practice {theme}",
+            f"study {theme}",
             f"let's solve {theme}",
             f"let us solve {theme}",
             f"let us practice {theme}",

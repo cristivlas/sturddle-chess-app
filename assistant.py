@@ -31,6 +31,7 @@ from center import CenterControl
 from collections import defaultdict, namedtuple
 from enum import Enum
 from functools import partial
+from intent import IntentClassifier
 from io import StringIO
 from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
@@ -478,6 +479,8 @@ class Assistant:
         self._worker = WorkerThread()
         self.last_call = None
         self.session = requests.Session()
+        self.intent_recognizer = IntentClassifier()
+        self.intent_recognizer.load('intent-model')
 
 
     @property
@@ -639,7 +642,7 @@ class Assistant:
             return FunctionCall(call[_name], call[_arguments])
 
 
-    def call(self, user_input, callback_result=None, intents=[]):
+    def call(self, user_input, callback_result=None):
         '''
         Entry point. Initiate asynchronous task and return. Put up a spinner.
 
@@ -658,26 +661,32 @@ class Assistant:
         if not user_input:
             return False
 
-        if intents and self._resolve_intents(user_input, intents):
-            return True
-
         self._busy = True
         self._app.start_spinner()
 
         Logger.debug(f'{_assistant}: {user_input}')
 
-        def run_in_background():
-            status = self._call_on_same_thread(user_input, callback_result)
-
+        def task_completed():
             self._busy = False
             self._cancelled = False
             self._app.update(self._app.engine.last_moves()[-1], save_state=False)
 
+
+        def background_task():
+            if not callback_result and self._app.use_intent_recognizer:
+                # Attempt to detect user's intent locally, to save a roundtrip.
+                intents = self.intent_recognizer.classify_intent(user_input, top_n=3)
+
+                if intents and self._resolve_intents(user_input, intents):
+                    return task_completed()
+
+            # Call the remote service.
+            status = self._call_on_same_thread(user_input, callback_result)
+            task_completed()
             if status is None:
                 self._respond_to_user('Sorry, I cannot complete your request at this time.')
 
-        self._worker.send_message(run_in_background)
-
+        self._worker.send_message(background_task)
         return True
 
 
@@ -1116,6 +1125,8 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _resolve_intents(self, user_input, intents):
+        Logger.info(f'intents: {intents} ({user_input})')
+
         # insert this message into the conversation history
         # if the intent is recognized, for future context
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
