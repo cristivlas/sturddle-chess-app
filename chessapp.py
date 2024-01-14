@@ -1898,6 +1898,9 @@ class ChessApp(App):
             assert len(Window.children) == 4  # three setting pages, plus the root App
             advanced_settings = Window.children[1]
             assert isinstance(advanced_settings, ModalView)
+            assert hasattr(advanced_settings, 'content')
+            assert hasattr(advanced_settings.content, 'ids')
+            assert hasattr(advanced_settings.content.ids, 'speak_moves')
             advanced_settings.content.ids.speak_moves.active = self.speak_moves
 
         self._modal_box('Assistant', ExtraSettings(), close='\uF100', on_close=update_controls)

@@ -62,10 +62,7 @@ class SpeechListener(PythonJavaClass):
         self._error_callback = lambda *_: None
         self._results_callback = lambda *_: None
         self._end_of_speech = lambda *_: None
-        self.results = []
-
-        # prevent callbacks while stopping
-        self.is_stopping = False
+        self.is_stopping = False  # prevent callbacks while stopping
 
 
     @java_method('()V')
@@ -99,7 +96,6 @@ class SpeechListener(PythonJavaClass):
 
     @java_method('(Landroid/os/Bundle;)V')
     def onPartialResults(self, results):
-        #Logger.info(f'onPartialResults: {results}')
         self._on_results(results, done=False)
 
 
@@ -110,7 +106,6 @@ class SpeechListener(PythonJavaClass):
 
     @java_method('(Landroid/os/Bundle;)V')
     def onResults(self, results):
-        #Logger.info(f'onResults: {results}')
         self._on_results(results, done=True)
 
 
@@ -126,16 +121,12 @@ class SpeechListener(PythonJavaClass):
         if self.is_stopping:
             return
 
-        matches = results.getStringArrayList(SpeechResults)
-        for match in matches.toArray():
-            if isinstance(match, bytes):
-                match = match.encode().decode('utf-8')
+        arrays = results.getStringArrayList(SpeechResults)
+        strings = [s.encode().decode('utf-8') if isinstance(s, bytes) else s for s in arrays]
+        Logger.debug(f'_on_results: done={done}, strings={strings}')
 
-            #if not self.results or self.results[-1] != match:
-            #    self.results.append(match)
-            self._results_callback([match], done)
-
-        #self._results_callback(self.results, done)
+        if strings:
+            self._results_callback(strings, done)
 
 
 class AndroidSTT(STT):
@@ -170,7 +161,7 @@ class AndroidSTT(STT):
         assert not self.speech
         intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
 
-        # language preferences
+        # Language preferences.
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, self.language)
         intent.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, True)
         intent.putExtra(
@@ -178,7 +169,7 @@ class AndroidSTT(STT):
             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
         )
 
-        # results settings
+        # Results settings.
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1000)
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, False)
 
@@ -186,14 +177,14 @@ class AndroidSTT(STT):
             intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, self.prefer_offline)
             Logger.debug(f'stt: prefer_offline={self.prefer_offline}')
 
-        # listener and callbacks
+        # Create listener and wire up the callbacks.
         self.listener = SpeechListener()
 
         self.listener._end_of_speech = self._end
         self.listener._error_callback = self._end
         self.listener._results_callback = self.results_callback
 
-        # create recognizer and start
+        # Create recognizer and start listening.
         self.speech = SpeechRecognizer.createSpeechRecognizer(activity)
         self.speech.setRecognitionListener(self.listener)
         self.speech.startListening(intent)
@@ -203,17 +194,13 @@ class AndroidSTT(STT):
 
     @run_on_ui_thread
     def _stop(self):
-        Logger.info(f'_stop: recognizer={self.speech}')
         if not self.speech:
             return
 
         self.listener.is_stopping = True
         self.speech.cancel()
-
-        # free object
-        self.speech.destroy()
+        self.speech.destroy()  # release resources
         self.speech = None
-
         self.listener = None
 
 

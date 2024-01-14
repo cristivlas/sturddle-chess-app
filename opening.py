@@ -280,12 +280,12 @@ class ECO:
 
         name = normalize(name)
 
-        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
+        # matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
+        matches = rapidfuzz.process.extract(name, keys, limit=limit)
         if not matches:
             return []
 
-        return [Opening(dict[k], match='name', score=s)
-                for k,s,_ in matches if s >= min_score]
+        return [Opening(dict[k], match='name', score=s) for k,s,_ in matches if s >= min_score]
 
 
     def openings(self):

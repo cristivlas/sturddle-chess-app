@@ -675,7 +675,10 @@ class Assistant:
         def background_task():
             if not callback_result and self._app.use_intent_recognizer:
                 # Attempt to detect user's intent locally, to save a roundtrip.
+                Logger.info(f'{_assistant}: calling intent recognizer')
                 intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
+
+                Logger.info(f'{_assistant}: intents={intents}, user_input="{user_input}"')
 
                 if intents and self._resolve_intents(user_input, intents):
                     return task_completed()
@@ -917,8 +920,14 @@ class Assistant:
         results = []
 
         for name in requested_openings:
-            args = {_name: name, _eco: inputs.get(name, None)}
-            search_result = self._search_opening(args, max_results=max_results)
+            args = {
+                _name: name,
+                _eco: inputs.get(name, None)
+            }
+
+            # search_result = self._search_opening(args, max_results=max_results)
+            search_result = self._search_opening(args, max_results=1)
+
             if not search_result:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
 
@@ -936,8 +945,8 @@ class Assistant:
 
                 results.append(best_match)
 
-        if not results:
-            return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
+        # if not results:
+        #     return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         results = {
             _result: 'ok' if results else 'no match',
@@ -966,7 +975,8 @@ class Assistant:
 
         if not opening:
             Logger.warning(f'{_assistant}: opening not found: {inputs}')
-            return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
+            # return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
+            return self._complete_on_same_thread(user_request, _play_opening, 'Opening not found.')
 
         else:
             on_done = partial(
@@ -1126,10 +1136,9 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _resolve_intents(self, user_input, intents):
-        Logger.info(f'intents: {intents} ({user_input})')
+        """ Execute functions associated with the recognized intents, if any. """
 
-        # Add this message into the conversation history
-        # if the intent is recognized, for future context.
+        # Add this message into the conversation history if the intent is recognized, for context.
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
 
         search_param = set()
@@ -1192,10 +1201,6 @@ class Assistant:
 
     def _search_opening(self, query, confidence=90, max_results=1):
         '''  Lookup opening(s) in the ECO database using fuzzy name matching.
-
-        If the name lookup for the best match finds no result, automatically
-        fail over to phonetical match, return that result if found.
-
         Args:
             query (dict): Must contain 'name' key. May optionally contain 'eco' key.
                 If 'eco' key is present, the search is filtered by eco code.
@@ -1224,10 +1229,13 @@ class Assistant:
             assert result is None or isinstance(result, Opening)
 
             if not result:
+                '''
                 result = db.lookup_best_matching_name(name, eco, confidence=confidence)
-
                 if not result:
+                    Logger.info(f'{_assistant}: failover to phonetic search: "{name}"')
                     result = db.phonetical_lookup(name)
+                '''
+                result = db.phonetical_lookup(name, confidence=min(confidence, 80))
 
                 if result:
                     self._cached_openings[result.name] = result
