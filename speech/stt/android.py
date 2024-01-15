@@ -137,7 +137,7 @@ class AndroidSTT(STT):
     '''
     def __init__(self, **kwargs):
         super().__init__()
-        self.speech = None
+        self.recognizer = None
         self.listener = None
         self._listening = False
 
@@ -158,7 +158,24 @@ class AndroidSTT(STT):
 
     @run_on_ui_thread
     def _start(self):
-        assert not self.speech
+        if self.listener:
+            assert self.recognizer
+            self.listener.is_stopping = False
+        else:
+            assert not self.recognizer
+
+            # Create recognizer.
+            self.recognizer = SpeechRecognizer.createSpeechRecognizer(activity)
+
+            # Create a listener and wire up the callbacks.
+            self.listener = SpeechListener()
+
+            self.listener._end_of_speech = self._end
+            self.listener._error_callback = self._end
+            self.listener._results_callback = self.results_callback
+
+            self.recognizer.setRecognitionListener(self.listener)
+
         intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
 
         # Language preferences.
@@ -177,31 +194,24 @@ class AndroidSTT(STT):
             intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, self.prefer_offline)
             Logger.debug(f'stt: prefer_offline={self.prefer_offline}')
 
-        # Create listener and wire up the callbacks.
-        self.listener = SpeechListener()
-
-        self.listener._end_of_speech = self._end
-        self.listener._error_callback = self._end
-        self.listener._results_callback = self.results_callback
-
-        # Create recognizer and start listening.
-        self.speech = SpeechRecognizer.createSpeechRecognizer(activity)
-        self.speech.setRecognitionListener(self.listener)
-        self.speech.startListening(intent)
-
+        self.recognizer.startListening(intent)
         self._listening = True
 
 
     @run_on_ui_thread
-    def _stop(self):
-        if not self.speech:
+    def _stop(self, destroy=True):
+        if not self.recognizer:
             return
 
         self.listener.is_stopping = True
-        self.speech.cancel()
-        self.speech.destroy()  # release resources
-        self.speech = None
-        self.listener = None
+        self.recognizer.stopListening()
+        self._listening = False
+
+        if destroy:
+            self.recognizer.cancel()
+            self.recognizer.destroy()  # release resources
+            self.recognizer = None
+            self.listener = None
 
 
     def _is_listening(self):

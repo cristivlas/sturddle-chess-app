@@ -371,8 +371,8 @@ class Context:
                     changes.append(f'I am playing as {user_color}.')
 
                 if self.epd and self.epd != epd:
-                    #changes.append('The position has changed.')
-                    changes.append(f'The position has changed: {GameState(app).pgn}.')
+                    if not app.puzzle:
+                        changes.append(f'The position has changed: {GameState(app).pgn}.')
 
             if changes:
                 if not app.engine.is_game_over():
@@ -630,7 +630,7 @@ class Assistant:
         self._ctxt.prune_function_calls()
         self._ctxt.add_response(response)  # Save response into conversation history.
 
-        self._respond_to_user(response)
+        self.respond_to_user(response)
 
         return FunctionResult()
 
@@ -666,17 +666,24 @@ class Assistant:
 
         Logger.debug(f'{_assistant}: {user_input}')
 
+        def detect_intent(user_input):
+            intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
+            if not intents:
+                user_input = user_input.replace("'s", "")
+                intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
+            return intents
+
         def task_completed():
             self._busy = False
             self._cancelled = False
             self._app.update(self._app.engine.last_moves()[-1], save_state=False)
 
-
         def background_task():
+            intents = None
             if not callback_result and self._app.use_intent_recognizer:
                 # Attempt to detect user's intent locally, to save a roundtrip.
                 Logger.info(f'{_assistant}: calling intent recognizer')
-                intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
+                intents = detect_intent(user_input)
 
                 Logger.info(f'{_assistant}: intents={intents}, user_input="{user_input}"')
 
@@ -684,16 +691,16 @@ class Assistant:
                     return task_completed()
 
             # Call the remote service.
-            status = self._call_on_same_thread(user_input, callback_result)
+            status = self._call_on_same_thread(user_input, callback_result, intents)
             task_completed()
             if status is None:
-                self._respond_to_user('Sorry, I cannot complete your request at this time.')
+                self.respond_to_user('Sorry, I cannot complete your request at this time.')
 
         self._worker.send_message(background_task)
         return True
 
 
-    def _call_on_same_thread(self, user_request, callback_result=None):
+    def _call_on_same_thread(self, user_request, callback_result=None, intents=None):
         '''
         Calls the OpenAI model in the background and handles the response.
 
@@ -729,6 +736,13 @@ class Assistant:
                 _content: user_request,
             }
             funcs = _FUNCTIONS
+
+            # If a search: intent has not been identified, avoid searching again.
+            # The worst case scenario of looking for an opening name that is not
+            # in the "database" is expensive, b/c rapidfuzz does not build the C++
+            # speedups on all platforms (particulary on Android via p4a/buildozer).
+            if intents is not None and 'search:' not in intents:
+                funcs = remove_func(funcs, _lookup_openings)
 
         token_limit = int(get_token_limit(self.model) * 0.85)
 
@@ -924,9 +938,7 @@ class Assistant:
                 _name: name,
                 _eco: inputs.get(name, None)
             }
-
-            # search_result = self._search_opening(args, max_results=max_results)
-            search_result = self._search_opening(args, max_results=1)
+            search_result = self._search_opening(args, max_results=max_results)
 
             if not search_result:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
@@ -1170,7 +1182,7 @@ class Assistant:
             return self._handle_lookup_openings(user_input, args).response == AppLogic.OK
 
 
-    def _respond_to_user(self, response):
+    def respond_to_user(self, response):
         '''
         Present the response to a request back to the user via tts and on-screen text bubble.
 
@@ -1229,14 +1241,10 @@ class Assistant:
             assert result is None or isinstance(result, Opening)
 
             if not result:
-                '''
                 result = db.lookup_best_matching_name(name, eco, confidence=confidence)
-                if not result:
-                    Logger.info(f'{_assistant}: failover to phonetic search: "{name}"')
-                    result = db.phonetical_lookup(name)
-                '''
-                result = db.phonetical_lookup(name, confidence=min(confidence, 80))
-
+                # if not result:
+                #     Logger.info(f'{_assistant}: failover to phonetic search: "{name}"')
+                #     result = db.phonetical_lookup(name)
                 if result:
                     self._cached_openings[result.name] = result
 

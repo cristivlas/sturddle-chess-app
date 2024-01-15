@@ -10,6 +10,16 @@ from kivy import Logger
 from metaphone import doublemetaphone
 
 
+digit_words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+stop_words = ['a', 'an', 'all', 'some', 'the']
+
+def preprocess_and_mark_digits(token):
+    if token.isdigit():
+        # Convert each digit in the token to its word equivalent
+        return ''.join(digit_words[int(digit)] for digit in token)
+    return doublemetaphone(token)[0]
+
+
 class Dictionary:
     def __init__(self, documents=[]):
         self.word2idx = {}
@@ -67,7 +77,16 @@ class IntentClassifier:
 
     def preprocess(self, text):
         '''Preprocesses the input text by tokenizing and normalizing.'''
-        return custom_preprocess(text)
+        # Strip punctuation
+        text = ''.join(char for char in text if char not in string.punctuation)
+
+        # Tokenize, keep digits and mark them
+        tokens = re.findall(r'\b\d+\b|\w+', text)  # Split on word boundaries, keep digits
+
+        # Remove stop words
+        tokens = [tok for tok in tokens if tok not in stop_words]
+
+        return [preprocess_and_mark_digits(token.lower()) for token in tokens]
 
     def train(self, data):
         '''Trains the classifier with the provided data.'''
@@ -155,26 +174,4 @@ class IntentClassifier:
             # Load index to intent mapping
             with open(f'{path}/index_to_intent.pkl', 'rb') as f:
                 self.index_to_intent = pickle.load(f)
-
-
-digit_words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-stop_words = ['.', ',', '-', 'a', 'an', 'all', 'some', 'the']
-
-def preprocess_and_mark_digits(token):
-    if token.isdigit():
-        # Convert each digit in the token to its word equivalent
-        return ''.join(digit_words[int(digit)] for digit in token)
-    return doublemetaphone(token)[0]
-
-def custom_preprocess(text):
-    # Strip punctuation
-    text = ''.join(char for char in text if char not in string.punctuation)
-
-    # Tokenize, keep digits and mark them
-    tokens = re.findall(r'\b\d+\b|\w+', text)  # Split on word boundaries, keep digits
-
-    # Remove stop words
-    tokens = [tok for tok in tokens if tok not in stop_words]
-
-    return [preprocess_and_mark_digits(token.lower()) for token in tokens]
 

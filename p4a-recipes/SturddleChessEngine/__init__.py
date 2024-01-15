@@ -79,15 +79,15 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
     cython_args = ['--cplus']
 
     # Do not strip symbols, for debugging crashes
-    #def strip_object_files(self, arch, env, build_dir=None):
+    # def strip_object_files(self, arch, env, build_dir=None):
     #    pass
 
     def get_project_dir(self):
         dir = self.ctx.root_dir
         return dir[:dir.index('.buildozer')]
 
-    def should_build(self, arch):
-        return True
+    # def should_build(self, arch):
+    #     return True
 
     def unpack(self, arch):
         dest_dir = path.join(self.get_build_container_dir(arch), NAME)

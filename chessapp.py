@@ -130,6 +130,28 @@ COLOR_NAMES = ['Black', 'White']
 
 SWIPE_DIST = cm(1.5)
 
+CHESS_QUOTES = [
+    'In chess, as in life, opportunity strikes but once.',
+    'A bad plan is better than none at all. Especially if it confuses your opponent.',
+    'Chess is life in miniature. And yes, it’s okay to be a drama king or queen.',
+    'Every chess master was once a beginner... and probably a coffee addict.',
+    'Checkmate happens only when you stop thinking about pizza.',
+    'In life, as in chess, forethought wins. So does coffee.',
+    'Not all artists are chess players, but all chess players are artists. With really cool hats.',
+    'The beauty of a move lies not in its appearance but in the thought behind it. And sometimes, in the bluff.',
+    'To avoid traps, keep your eye on the board, not just the pieces. Or the snacks.',
+    'Life is like a game of chess, changing with each move. And with each snack break.',
+    'A sacrifice in chess brings its own rewards. Like more room on the board for your snacks.',
+    'Chess demands total concentration and a love for the game. And for snacks.',
+    'One bad move nullifies forty good ones. But who’s counting?',
+    'The essence of chess is thinking about what chess is. And why we’re not playing checkers.',
+    'In chess, as in life, patience is a virtue. And so is a good poker face.',
+    'The king is a fighting piece. But sometimes, it just wants to chill in the corner.',
+    'Chess is a sea in which a gnat may drink and an elephant may bathe. And where your strategy drowns.',
+    'Remember, in chess, the queen rules. Just like in real life.',
+    'In chess, the best move is always the one you remember after the game.',
+    'Chess: Turning introverts into strategists since forever.'
+]
 
 def is_mobile():
     return platform in ['ios', 'android']
@@ -1263,13 +1285,7 @@ class ChessApp(App):
             self.status_label.text = '[b]Try again.[/b]'
             self.status_label.background = get_color_from_hex('#E44D2E')
             Clock.schedule_once(lambda *_: self.engine.undo(), 2)
-            self.speak(random.choice([
-                'Try again!',
-                'Take your time.',
-                'Give it another go.',
-                'Does not look right...',
-                'No rush...'
-            ]))
+            self.assistant.respond_to_user(random.choice(CHESS_QUOTES))
 
         self.engine.apply(move)  # apply the move temporarily
         self.voice_input.stop()

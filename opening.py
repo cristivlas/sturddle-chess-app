@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2021, 2022, 2023 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2021, 2022, 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -277,11 +277,9 @@ class ECO:
 
     @staticmethod
     def fuzzy_match(dict, keys, name, *, limit, min_score):
-
         name = normalize(name)
 
-        # matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
-        matches = rapidfuzz.process.extract(name, keys, limit=limit)
+        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
         if not matches:
             return []
 
