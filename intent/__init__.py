@@ -78,6 +78,9 @@ class IntentClassifier:
 
     def preprocess(self, text, phonetic=True):
         '''Preprocesses the input text by tokenizing and normalizing.'''
+
+        text = text.replace("'s", "")
+
         # Strip punctuation
         text = ''.join(char for char in text if char not in string.punctuation)
 

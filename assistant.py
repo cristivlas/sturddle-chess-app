@@ -668,9 +668,6 @@ class Assistant:
 
         def detect_intent(user_input):
             intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
-            if not intents:
-                user_input = user_input.replace("'s", "")
-                intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
             return intents
 
         def task_completed():
@@ -686,6 +683,9 @@ class Assistant:
                 intents = detect_intent(user_input)
 
                 Logger.info(f'{_assistant}: intents={intents}, user_input="{user_input}"')
+                if self._cancelled:
+                    Logger.info(f'{_assistant}: task cancelled')
+                    return task_completed()
 
                 if intents and self._resolve_intents(user_input, intents):
                     return task_completed()
@@ -1230,7 +1230,7 @@ class Assistant:
         name = normalize_search_term(name)
 
         if max_results > 1:
-            results = db.lookup_all_matches(name, eco, confidence=confidence)
+            results = db.lookup_matches(name, eco, confidence=confidence)
             if len(results) > max_results:
                 matches = [r.name for r in results]
                 results = group_by_prefix(matches, group_hint=max_results)
