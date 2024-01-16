@@ -31,6 +31,9 @@ from kivy.logger import Logger
 from os import path, walk
 from metaphone import doublemetaphone
 
+fuzz_extract_one = rapidfuzz.process.extractOne
+fuzz_extract = rapidfuzz.process.extract
+
 
 def _strip_punctuation(text):
     return ''.join(char for char in text if char not in string.punctuation)
@@ -153,16 +156,17 @@ class ECO:
         openings = self.by_phonetic_name
         phonetic_name = _phonetic(name)
 
-        result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
+        result = fuzz_extract_one(phonetic_name, openings.keys())
         Logger.debug(f'phonetic_lookup: name="{name}" phonetic_name={phonetic_name} result={result}')
 
         if result:
-            match, score, _ = result
+            match, score = result[0], result[1]
+
             if score >= confidence:
+                # Reverse match, for verification.
                 row = openings[match]
                 matched_name = row['name']
-                # reverse match for verification
-                result = rapidfuzz.process.extractOne(name, [matched_name])
+                result = fuzz_extract_one(name, [matched_name])
 
                 Logger.debug(f'phonetic_lookup: matched_name="{matched_name}" result={result}')
                 if result and result[1] >= confidence:
@@ -208,7 +212,7 @@ class ECO:
         keys = dict.keys()
         min_score = confidence
         name = _phonetic(name)
-        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
+        matches = fuzz_extract(name, keys, limit=limit, score_cutoff=min_score)
         if not matches:
             return []
         return [Opening(dict[k], match='phonetic', score=s) for k,s,_ in matches if s >= min_score]
@@ -252,7 +256,6 @@ class ECO:
         corrections = {
             "opening": "attack",
             "opening": "",
-            "'s": "",
             None: None,
         }
         best_match = None
@@ -271,12 +274,12 @@ class ECO:
             else:
                 query = name
 
-            result = rapidfuzz.process.extractOne(query, keys)
+            result = fuzz_extract_one(query, keys, score_hint=min_confidence_score)
 
             Logger.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_score}')
 
             if result:
-                match, score, _ = result
+                match, score = result[0], result[1]
 
                 if score >= min_confidence_score:
                     if score > best_score:
@@ -290,10 +293,9 @@ class ECO:
     def fuzzy_match(dict, keys, name, *, limit, min_score):
         name = normalize(name)
 
-        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
+        matches = fuzz_extract(name, keys, limit=limit, score_cutoff=min_score)
         if not matches:
             return []
-
         return [Opening(dict[k], match='name', score=s) for k,s,_ in matches if s >= min_score]
 
 
