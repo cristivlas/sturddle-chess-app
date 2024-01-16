@@ -10,14 +10,8 @@ from kivy import Logger
 from metaphone import doublemetaphone
 
 
-digit_words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-stop_words = ['a', 'an', 'all', 'some', 'the']
-
-def preprocess_and_mark_digits(token):
-    if token.isdigit():
-        # Convert each digit in the token to its word equivalent
-        return ''.join(digit_words[int(digit)] for digit in token)
-    return doublemetaphone(token)[0]
+DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+STOP_WORDS = ['a', 'an', 'all', 'some', 'the', 'this']
 
 
 class Dictionary:
@@ -75,18 +69,31 @@ class IntentClassifier:
         self.dim = 0
         self.annoy_trees = annoy_trees
 
-    def preprocess(self, text):
+    @staticmethod
+    def preprocess_digits(token):
+        ''' Convert each digit in the token to its word equivalent. '''
+        if token.isdigit():
+            return ''.join(DIGIT_WORDS[int(digit)] for digit in token)
+        return token
+
+    def preprocess(self, text, phonetic=True):
         '''Preprocesses the input text by tokenizing and normalizing.'''
         # Strip punctuation
         text = ''.join(char for char in text if char not in string.punctuation)
 
-        # Tokenize, keep digits and mark them
-        tokens = re.findall(r'\b\d+\b|\w+', text)  # Split on word boundaries, keep digits
+        # Split on word boundaries, keep digits.
+        tokens = re.findall(r'\b\d+\b|\w+', text)
 
-        # Remove stop words
-        tokens = [tok for tok in tokens if tok not in stop_words]
+        # Remove stop words.
+        tokens = [tok for tok in tokens if tok not in STOP_WORDS]
 
-        return [preprocess_and_mark_digits(token.lower()) for token in tokens]
+        # Convert digit to digit words.
+        tokens = [self.preprocess_digits(token.lower()) for token in tokens]
+
+        if phonetic:
+            tokens = [doublemetaphone(tok)[0] for tok in tokens]
+
+        return tokens
 
     def train(self, data):
         '''Trains the classifier with the provided data.'''
@@ -174,4 +181,3 @@ class IntentClassifier:
             # Load index to intent mapping
             with open(f'{path}/index_to_intent.pkl', 'rb') as f:
                 self.index_to_intent = pickle.load(f)
-

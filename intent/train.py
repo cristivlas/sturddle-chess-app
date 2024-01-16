@@ -71,6 +71,7 @@ def generate_synthetic_data(eco):
             'run analysis',
             'suggest a move',
             'recommend a move',
+            'recommend a good move',
             'what is the best move',
             'what is a good move in the current situation',
             'what is a good move in this position?',

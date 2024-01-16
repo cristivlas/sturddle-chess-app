@@ -2016,9 +2016,9 @@ class ChessApp(App):
         return False
 
 
-    def play_phonetical_match(self, name):
+    def play_phonetic_match(self, name):
         if self.eco:
-            opening = self.eco.phonetical_lookup(name)
+            opening = self.eco.phonetic_lookup(name)
             if opening:
                 return self.play_opening(opening)
 

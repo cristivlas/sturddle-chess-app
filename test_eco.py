@@ -61,7 +61,7 @@ class Tests:
             assert opening.name == expected.name, (expected.name, opening.name)
             assert opening.eco == expected.eco, (expected.eco, opening.eco)
 
-    def test_phonetical_lookup(self):
+    def test_phonetic_lookup(self):
         good_test_cases = {
             "sicilian defense": Opening({'name': 'Sicilian Defense', 'eco': 'B50'}),
             "Moon Keys Bomb": Opening({'name': "Modern Defense: Bishop Attack, Monkey's Bum", 'eco': 'B06'}),
@@ -70,7 +70,7 @@ class Tests:
             "Anti Fried Liver": Opening({'name': 'Italian Game: Anti-Fried Liver Defense', 'eco': 'C50'}),
         }
         for name, expected in good_test_cases.items():
-            opening = self.eco.phonetical_lookup(name, confidence=62)
+            opening = self.eco.phonetic_lookup(name, confidence=62)
             assert opening.name == expected.name, (expected.name, opening.name)
             assert opening.eco == expected.eco, (expected.eco, opening.eco)
 
@@ -79,22 +79,22 @@ class Tests:
             'Cecilia and The Fans',
         }
         for name in bad_test_cases:
-            opening = self.eco.phonetical_lookup(name, confidence=80)
+            opening = self.eco.phonetic_lookup(name, confidence=80)
             assert opening is None, (name, opening)
 
 
-    def test_all_matches(self):
-        results = self.eco.lookup_all_matches('Fischer')
+    def test_matches(self):
+        results = self.eco.lookup_matches('Fischer')
         results = [r.eco for r in results]
         assert results == ['B88', 'C34', 'C34', 'C34', 'E44'], results
 
-        results = self.eco.lookup_all_matches('Lasker')
+        results = self.eco.lookup_matches('Lasker')
         results = [r.eco for r in results]
         assert results == [
             'A00', 'A02', 'A02', 'A03', 'A83', 'B01',
             'B20', 'B33', 'C52', 'D18', 'D56', 'D57'], results
 
-        results = self.eco.lookup_all_matches('najdorf variation')
+        results = self.eco.lookup_matches('najdorf variation')
         results = [r.eco for r in results]
         assert results == [
             'B84', 'B98', 'B90', 'B90', 'B90', 'B90', 'B90', 'B90',
@@ -103,12 +103,38 @@ class Tests:
         ], results
 
 
+    def test_phonetic_matches(self):
+        results = self.eco.phonetic_matches('najdorf variation', confidence=82)
+        results = [r.eco for r in results]
+        assert results == [
+            'B84', 'B98', 'B90', 'B90', 'B90', 'B90', 'B90', 'B90',
+            'B91', 'B92', 'B92', 'B92', 'B93', 'B94', 'B96', 'B96',
+            'B96', 'B97', 'B97', 'B98', 'B98', 'B98', 'B99'
+        ], results
+
+        results = self.eco.phonetic_matches("Alban's countergambit", confidence=82)
+        results = [r.name for r in results]
+        assert results == [
+            'Duras Gambit',
+            'Blackmar-Diemer Gambit: Reversed Albin Countergambit',
+            "Queen's Gambit Declined: Albin Countergambit",
+        ], results
+
+        results = self.eco.phonetic_matches("Alpin counter gambit", confidence=85)
+        results = [r.name for r in results]
+        assert results == [
+            'Blackmar-Diemer Gambit: Reversed Albin Countergambit',
+            "Queen's Gambit Declined: Albin Countergambit",
+        ], results
+
+
     def run(self):
         self.test_board_lookup()
         self.test_eco_lookup()
+        self.test_matches()
         self.test_name_lookup()
-        self.test_phonetical_lookup()
-        self.test_all_matches()
+        self.test_phonetic_lookup()
+        self.test_phonetic_matches()
 
 
 if __name__ == '__main__':

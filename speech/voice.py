@@ -276,7 +276,7 @@ class Input:
             'exit': self._app.exit,
             'hints': self._app.hints,
             'new': self._app.new_game,
-            'opening': self._app.play_phonetical_match,
+            'opening': self._app.play_phonetic_match,
             'puzzle': self._app.puzzles,
             'replay': self._app.replay,
             'settings': self._app.settings,

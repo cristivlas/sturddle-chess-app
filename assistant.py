@@ -1242,9 +1242,6 @@ class Assistant:
 
             if not result:
                 result = db.lookup_best_matching_name(name, eco, confidence=confidence)
-                # if not result:
-                #     Logger.info(f'{_assistant}: failover to phonetic search: "{name}"')
-                #     result = db.phonetical_lookup(name)
                 if result:
                     self._cached_openings[result.name] = result
 

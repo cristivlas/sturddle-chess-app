@@ -149,12 +149,12 @@ class ECO:
         return row
 
 
-    def phonetical_lookup(self, name, *, confidence=75):
+    def phonetic_lookup(self, name, *, confidence=75):
         openings = self.by_phonetic_name
         phonetic_name = _phonetic(name)
 
         result = rapidfuzz.process.extractOne(phonetic_name, openings.keys())
-        Logger.debug(f'phonetical: name="{name}" phonetic_name={phonetic_name} result={result}')
+        Logger.debug(f'phonetic_lookup: name="{name}" phonetic_name={phonetic_name} result={result}')
 
         if result:
             match, score, _ = result
@@ -164,7 +164,7 @@ class ECO:
                 # reverse match for verification
                 result = rapidfuzz.process.extractOne(name, [matched_name])
 
-                Logger.debug(f'phonetical: matched_name="{matched_name}" result={result}')
+                Logger.debug(f'phonetic_lookup: matched_name="{matched_name}" result={result}')
                 if result and result[1] >= confidence:
                     return Opening(row, match='phonetic', score=result[1])
 
@@ -185,7 +185,7 @@ class ECO:
 
 
     @lru_cache(maxsize=256)
-    def lookup_all_matches(self, name, eco=None, *, confidence=90, limit=None):
+    def lookup_matches(self, name, eco=None, *, confidence=90, limit=None):
         if eco is not None:
             # Filter by ECO code.
             keys = set()
@@ -201,6 +201,17 @@ class ECO:
             limit=limit,
             min_score=confidence
         )
+
+    @lru_cache(maxsize=256)
+    def phonetic_matches(self, name, *, confidence=90, limit=None):
+        dict = self.by_phonetic_name
+        keys = dict.keys()
+        min_score = confidence
+        name = _phonetic(name)
+        matches = rapidfuzz.process.extract(name, keys, limit=limit, score_cutoff=min_score)
+        if not matches:
+            return []
+        return [Opening(dict[k], match='phonetic', score=s) for k,s,_ in matches if s >= min_score]
 
 
     @lru_cache(maxsize=256)
