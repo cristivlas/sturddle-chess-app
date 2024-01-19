@@ -1244,7 +1244,7 @@ class Assistant:
         # Make sure St. George is pronounced Saint George, not Street George
         tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
 
-        if text:
+        if text and self._app.speak_moves:
             Logger.debug(f'{_assistant}: {text}')
             speak()
 
