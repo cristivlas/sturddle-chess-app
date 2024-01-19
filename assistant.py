@@ -916,7 +916,7 @@ class Assistant:
         for name in requested_openings:
             args = {
                 _name: name,
-                _eco: inputs.get(name, None)  # TODO: query_by_eco_code
+                _eco: inputs.get(name, None)
             }
             search_result = self._search_opening(args, max_results=max_results)
 
@@ -1188,13 +1188,17 @@ class Assistant:
     def _search_opening(self, query, max_results=1):
         '''  Lookup opening(s) in the ECO database.
         Args:
-            query (dict): Must contain 'name' key.
+            query (dict): Must contain 'eco' or 'name' key.
             max_results (int): maximum number of matches to be returned.
 
         Returns:
             Opening or list: best match or list of matches.
         '''
-        results = self._app.eco.query_by_name(query[_name], top_n=max_results)
+        eco = query.get(_eco)
+        if eco:
+            results = self._app.eco.query_by_eco_code(eco, top_n=max_results)
+        else:
+            results = self._app.eco.query_by_name(query[_name], top_n=max_results)
         return results[0] if len(results) == 1 else results
 
 

@@ -23,7 +23,7 @@ source.include_patterns = intent-model/*,openings.idx/*
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = __pycache__,annembed,bin,build,docs,sturddle_chess_engine,p4a-recipes,screenshots,tests,tools,venv
+source.exclude_dirs = __pycache__,bin,build,docs,sturddle_chess_engine,p4a-recipes,screenshots,tests,tools,venv
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
@@ -39,8 +39,7 @@ version.filename = %(source.dir)s/main.py
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
 
-requirements = annoy,chess,kivy,metaphone,numpy,num2words,python3,plyer,pyparsing,rapidfuzz,setuptools,SturddleChessEngine,word2number
-#requirements = chess,kivy,metaphone,num2words,python3,plyer,pyparsing,rapidfuzz,setuptools,SturddleChessEngine,word2number
+requirements = annoy,chess,kivy,metaphone,numpy,num2words,python3,plyer,pyparsing,setuptools,SturddleChessEngine,word2number
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

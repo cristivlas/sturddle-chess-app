@@ -24,15 +24,16 @@ import string
 import chess
 import chess.pgn
 
+from collections import defaultdict
 from functools import lru_cache
 from os import path, walk
 from annembed.search import Index
 
 
-'''
-Representation of a chess opening.
-'''
 class Opening:
+    '''
+    Representation of a chess opening.
+    '''
     def __init__(self, row):
         '''
         Construct Opening object for ECO database row.
@@ -84,6 +85,7 @@ class ECO:
     '''
 
     def __init__(self, index_dir=None):
+        self.by_eco = defaultdict(list)
         self.by_fen = {}
         self.data = []  # All openings
         for fname in self.tsv_files():
@@ -102,6 +104,7 @@ class ECO:
             for row in reader:
                 self.by_fen[row['epd']] = row
                 self.data.append(row)
+                self.by_eco[row['eco']].append(row)
 
     def lookup(self, board, transpose=False):
         ''' Lookup by board position (FEN). '''
@@ -120,7 +123,7 @@ class ECO:
 
     @staticmethod
     def get_codes(eco):
-        codes = eco.lower().split('-')  # support ranges (e.g. B20-B99)
+        codes = eco.upper().split('-')  # support ranges (e.g. B20-B99)
         if codes[0]:
             alpha = codes[0][0]
             if len(codes) == 2 and alpha == codes[1][0]:
@@ -129,7 +132,6 @@ class ECO:
                     codes = [f'{alpha}{i:02d}' for i in range(start, end + 1)]
                 except:
                     pass
-
         return codes
 
     @lru_cache(maxsize=256)
@@ -138,3 +140,11 @@ class ECO:
             idx = self.index.search(query, max_distance=max_distance, top_n=top_n)
             return [Opening(self.data[i]) for i,_ in idx]
         return []
+
+    @lru_cache(maxsize=256)
+    def query_by_eco_code(self, code, *, top_n=5):
+        """ Lookup openings by ECO code or range of codes. """
+        results = []
+        for eco in self.get_codes(code):
+            results += self.by_eco.get(eco, [])
+        return [Opening(row) for row in results[:top_n]]

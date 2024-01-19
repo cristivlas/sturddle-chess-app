@@ -10,7 +10,6 @@ pyautogui
 plyer
 pyparsing
 pyaudio
-rapidfuzz
 soundfile
 SpeechRecognition
 #deepspeech-tflite==0.9.3

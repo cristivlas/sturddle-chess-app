@@ -188,7 +188,7 @@ class AndroidSTT(STT):
 
         # Results settings.
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1000)
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, False)
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, True)
 
         if self.is_offline_supported():
             intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, self.prefer_offline)
