@@ -1198,7 +1198,11 @@ class Assistant:
         if eco:
             results = self._app.eco.query_by_eco_code(eco, top_n=max_results)
         else:
-            results = self._app.eco.query_by_name(query[_name], top_n=max_results)
+            name = query[_name]
+            Logger.info(f'query: "{name}"')
+            results = self._app.eco.query_by_name(name, top_n=max_results)
+            Logger.info(f'query: "{[(r.eco, r.name) for r in results]}"')
+
         return results[0] if len(results) == 1 else results
 
 

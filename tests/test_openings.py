@@ -22,7 +22,7 @@ class TestOpenings(unittest.TestCase):
             "LiverFried attack": "Fried Liver Attack",
             "Fried Liver Attak": "Fried Liver Attack",
             "hyper-accelerated dragon": "Hyperaccelerated Dragon",
-            "court defense": "Agincourt Defense",
+            "ageincourt de-fence": "Agincourt Defense",
         }
         for query, expected in queries.items():
             results = self.eco.query_by_name(query, top_n=1)

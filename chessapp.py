@@ -540,7 +540,7 @@ class ChessApp(App):
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
-        self.use_intent_recognizer = True
+        self.use_intent_recognizer = False
 
 
     def about(self, *_):

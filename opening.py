@@ -135,9 +135,9 @@ class ECO:
         return codes
 
     @lru_cache(maxsize=256)
-    def query_by_name(self, query, *, max_distance=1.5, top_n=5):
+    def query_by_name(self, query, *, max_distance=None, top_n=5):
         if self.index:
-            idx = self.index.search(query, max_distance=max_distance, top_n=top_n)
+            idx = self.index.search(query, max_distance=max_distance, top_n=top_n, min_nodes=len(self.data))
             return [Opening(self.data[i]) for i,_ in idx]
         return []
 
