@@ -25,8 +25,8 @@ def alternative_words(word):
     variations = [word]
     if word == 'search':
         variations += ['what is', 'look up']
-    elif word == 'variation':
-        variations += ['variations', 'line']
+    # elif word == 'variation':
+    #     variations += ['variations', 'line']
     return variations
 
 
@@ -78,6 +78,30 @@ def generate_synthetic_data(eco):
             'move recommendation?',
             'recommendation',
             'make a recommendation',
+            'find the best move',
+            'find me a good move',
+            'help me find a move',
+            'move suggestion',
+            'good move suggestion',
+            'good move recommendation',
+            'good move ideas',
+            'suggest a good move',
+            'suggest the best move',
+            'suggest an idea',
+            'make a move suggestion',
+            'recommendations, please',
+            'suggestions?',
+            'any suggestions?',
+            'any ideas?',
+            'suggestion please',
+            'what would Bobby do',
+            'what would Magnus do',
+            'ideas, please',
+            'have any ideas?',
+            'do you have any good ideas',
+            'give me an idea',
+            'give me some ideas',
+            'do you have any idea for what to do',
         ],
         # Examples of unhandled / unknown intents:
         'other':[
@@ -89,11 +113,14 @@ def generate_synthetic_data(eco):
             'anything else',
             'anywhere',
             'anywho',
+            'greetings and salutations',
             'good bye',
             'bye',
             'buy me a coffee and a sandwich',
             'hello',
             'hello hello',
+            'hello world',
+            'hell of a move',
             'hello world',
             'like that',
             'like to see',
@@ -123,13 +150,19 @@ def generate_synthetic_data(eco):
             'why are',
             'who are',
             'recommend a puzzle',
+            'recommend what to practice',
+            'recommend a good puzzle',
+            'any fun puzzle',
+            'suggest a fun puzzle',
+            'give me a problem',
+            'show me a problem or a puzzle',
             'load it up',
             'let us see that',
             'I would like to see',
         ],
         'play':[
             'make the move',
-            'move',
+            'make that move',
             'move it',
             'play',
             'play it',
@@ -177,10 +210,14 @@ def generate_synthetic_data(eco):
                 unique_names[part.strip().lower()] = eco
 
     for name, eco in unique_names.items():
-        sample_phrases[f'search:{name}:{eco}'] = (
+        key = f'search:{name}:{eco}'
+        sample_phrases[key] = (
             generate_combinatorial_variations(name) +
             generate_combinatorial_variations('search ' + name)
         )
+        if not 'variations' in name:
+            sample_phrases[key] += generate_combinatorial_variations('variations of ' + name)
+
     synthetic_data = []
     for intent, phrases in sample_phrases.items():
         for phrase in phrases:
@@ -198,7 +235,7 @@ def main():
     Logger.setLevel(LOG_LEVELS['debug'])
     data = generate_synthetic_data(ECO())
 
-    classifier = IntentClassifier()
+    classifier = IntentClassifier(annoy_trees=8, min_word_freq=3)
     classifier.train(sorted(set(data)))
     classifier.save(args.model_name)
 

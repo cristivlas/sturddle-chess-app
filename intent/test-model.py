@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import os
+os.environ['KIVY_NO_ARGS'] = '1'
 import jstyleson as json
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from intent import IntentClassifier
+
 
 def load_test_data(file_path):
     with open(file_path, 'r') as file:

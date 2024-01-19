@@ -15,18 +15,23 @@ STOP_WORDS = ['a', 'an', 'all', 'some', 'the', 'this']
 
 
 class Dictionary:
-    def __init__(self, documents=[]):
+    def __init__(self, documents=[], min_word_freq=1):
         self.word2idx = {}
         self.idx2word = []
+        self.word_freq = {}
+        self.min_word_freq = min_word_freq
         if documents:
             self.add_documents(documents)
 
     def add_documents(self, documents):
         for doc in documents:
             for word in doc:
-                if word not in self.word2idx:
-                    self.idx2word.append(word)
-                    self.word2idx[word] = len(self.idx2word) - 1
+                self.word_freq[word] = self.word_freq.get(word, 0) + 1
+
+        for word, freq in self.word_freq.items():
+            if freq >= self.min_word_freq:
+                self.idx2word.append(word)
+                self.word2idx[word] = len(self.idx2word) - 1
 
     def doc2bow(self, document):
         return [self.word2idx[word] for word in document if word in self.word2idx]
@@ -49,25 +54,28 @@ class TfidfModel:
             idf[word_idx] = np.log(num_docs / (1 + df)) if df else 0
         return idf
 
-    def transform(self, bow_doc):
+    def transform(self, bow_doc, min_tfidf=0.01):
         tfidf = np.zeros(len(self.dictionary.idx2word))
-        word_counts = np.bincount(bow_doc)
+        word_counts = np.bincount(bow_doc, minlength=len(self.dictionary.idx2word))
         for word_idx in range(len(word_counts)):
             tf = word_counts[word_idx]
-            tfidf[word_idx] = tf * self.idf[word_idx]
+            tfidf_val = tf * self.idf[word_idx]
+            if tfidf_val >= min_tfidf:
+                tfidf[word_idx] = tfidf_val
         return tfidf
 
 
 class IntentClassifier:
     SEED = 4013
 
-    def __init__(self, annoy_trees=32):
+    def __init__(self, annoy_trees=32, min_word_freq=1):
         self.dictionary = None
         self.tfidf_model = None
         self.annoy_index = None
         self.index_to_intent = None
         self.dim = 0
         self.annoy_trees = annoy_trees
+        self.min_word_freq = min_word_freq
 
     @staticmethod
     def preprocess_digits(token):
@@ -103,7 +111,7 @@ class IntentClassifier:
         processed_data = [(self.preprocess(text), label) for text, label in data]
 
         # Feature Extraction
-        self.dictionary = Dictionary([text for text, label in processed_data])
+        self.dictionary = Dictionary([text for text, label in processed_data], min_word_freq=self.min_word_freq)
         bow_corpus = [self.dictionary.doc2bow(text) for text, label in processed_data]
 
         # Create a TF-IDF model
@@ -133,9 +141,11 @@ class IntentClassifier:
             query_tfidf = self.tfidf_model.transform(query_bow)
 
             # Get the nearest neighbor and its distance
-            results = self.annoy_index.get_nns_by_vector(query_tfidf, top_n, include_distances=True)
+            k = max(100, top_n * self.annoy_index.get_n_trees())
+            results = self.annoy_index.get_nns_by_vector(query_tfidf, top_n, search_k=k, include_distances=True)
             if results:
                 return [(self.index_to_intent[i], d) for i,d in zip(*results) if d < threshold]
+        return []
 
     def save(self, path):
         '''Saves the model components to the specified path.'''

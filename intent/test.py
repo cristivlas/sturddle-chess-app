@@ -53,11 +53,16 @@ class TestIntentClassifier(unittest.TestCase):
         self.assertIsNotNone(new_classifier.annoy_index)
 
     def test_classify_intent(self):
-        # Test with a known query
+        self.assertIsNotNone(self.classifier.dictionary)
+
         self.classifier.save(self.model_path)
         self.classifier = IntentClassifier()
         self.classifier.load(self.model_path)
-        intent, distance = self.classifier.classify_intent('find a good move')[0]
+
+        # Test with a known query
+        scored_intent = self.classifier.classify_intent('find a good move')
+        self.assertIsNotNone(scored_intent)
+        intent, distance = scored_intent[0]
         self.assertIsNotNone(intent)
         self.assertLess(distance, 0.8)  # Assuming the threshold is 0.8
         self.assertEqual(intent, 'analyze')
