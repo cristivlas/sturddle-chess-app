@@ -13,3 +13,6 @@
 [submodule "sturddle_chess_engine"]
 	path = sturddle_chess_engine
 	url = https://github.com/cristivlas/sturddle-2.git
+[submodule "annembed"]
+	path = annembed
+	url = https://github.com/cristivlas/annembed

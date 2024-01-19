@@ -17,13 +17,13 @@ source.include_exts = py,png,jpg,kv,atlas,bin,tsv,ttf,ann,json,pkl,npy
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
-source.include_patterns = intent-model/*
+source.include_patterns = intent-model/*,openings.idx/*
 
 # (list) Source files to exclude (let empty to not exclude anything)
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = __pycache__,bin,build,docs,sturddle_chess_engine,p4a-recipes,screenshots,tests,tools,venv
+source.exclude_dirs = __pycache__,annembed,bin,build,docs,sturddle_chess_engine,p4a-recipes,screenshots,tests,tools,venv
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it

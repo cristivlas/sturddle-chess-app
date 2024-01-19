@@ -23,41 +23,21 @@ import string
 
 import chess
 import chess.pgn
-import rapidfuzz
 
-from collections import defaultdict
 from functools import lru_cache
-from kivy.logger import Logger
 from os import path, walk
-from metaphone import doublemetaphone
-
-fuzz_extract_one = rapidfuzz.process.extractOne
-fuzz_extract = rapidfuzz.process.extract
-
-
-def _strip_punctuation(text):
-    return ''.join(char for char in text if char not in string.punctuation)
-
-
-def _phonetic(input):
-    return doublemetaphone(_strip_punctuation(input))[0]
-
-
-def normalize(input):
-    return _strip_punctuation(input.lower())
+from annembed.search import Index
 
 
 '''
 Representation of a chess opening.
 '''
 class Opening:
-    def __init__(self, row, match=None, score=None):
+    def __init__(self, row):
         '''
         Construct Opening object for ECO database row.
         '''
         self.row = row
-        self.match = match
-        self.score = score
 
     @property
     def name(self):
@@ -103,18 +83,12 @@ class ECO:
     https://en.wikipedia.org/wiki/Encyclopaedia_of_Chess_Openings
     '''
 
-    def __init__(self):
-        '''
-        Read TSV files and index by ECO, FEN and phonetic name.
-        '''
-        self.by_eco = defaultdict(list)
+    def __init__(self, index_dir=None):
         self.by_fen = {}
-        self.by_phonetic_name = {}
-        self.by_name = {}
-
+        self.data = []  # All openings
         for fname in self.tsv_files():
             self.read_tsv_file(fname)
-
+        self.index = Index(index_dir) if index_dir else None
 
     def tsv_files(self):
         for dir, _subdirs, files in walk(f'{os.path.dirname(__file__)}/eco/dist'):
@@ -122,22 +96,15 @@ class ECO:
                 if f.endswith('.tsv'):
                     yield path.join(dir, f)
 
-
     def read_tsv_file(self, fname):
         with open(fname) as f:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
-                self.by_eco[row['eco'].lower()].append(row)
                 self.by_fen[row['epd']] = row
-                name = row['name']
-                self.by_name[normalize(name)] = row
-                self.by_phonetic_name[_phonetic(name)] = row
-
+                self.data.append(row)
 
     def lookup(self, board, transpose=False):
-        '''
-        Lookup by board position (FEN)
-        '''
+        ''' Lookup by board position (FEN). '''
         row = self.by_fen.get(board.epd(), None)
         if row is None and board._stack:
             prev = chess.Board()
@@ -150,28 +117,6 @@ class ECO:
                 if i >= len(board.move_stack) or move != board.move_stack[i]:
                     return None
         return row
-
-
-    def phonetic_lookup(self, name, *, confidence=75):
-        openings = self.by_phonetic_name
-        phonetic_name = _phonetic(name)
-
-        result = fuzz_extract_one(phonetic_name, openings.keys())
-        Logger.debug(f'phonetic_lookup: name="{name}" phonetic_name={phonetic_name} result={result}')
-
-        if result:
-            match, score = result[0], result[1]
-
-            if score >= confidence:
-                # Reverse match, for verification.
-                row = openings[match]
-                matched_name = row['name']
-                result = fuzz_extract_one(name, [matched_name])
-
-                Logger.debug(f'phonetic_lookup: matched_name="{matched_name}" result={result}')
-                if result and result[1] >= confidence:
-                    return Opening(row, match='phonetic', score=result[1])
-
 
     @staticmethod
     def get_codes(eco):
@@ -187,118 +132,9 @@ class ECO:
 
         return codes
 
-
     @lru_cache(maxsize=256)
-    def lookup_matches(self, name, eco=None, *, confidence=90, limit=None):
-        if eco is not None:
-            # Filter by ECO code.
-            keys = set()
-            for eco in self.get_codes(eco):
-                keys.update({normalize(r['name']) for r in self.by_eco.get(eco, [])})
-        else:
-            keys = self.by_name.keys()
-
-        return self.fuzzy_match(
-            self.by_name,
-            keys,
-            name,
-            limit=limit,
-            min_score=confidence
-        )
-
-    @lru_cache(maxsize=256)
-    def phonetic_matches(self, name, *, confidence=90, limit=None):
-        dict = self.by_phonetic_name
-        keys = dict.keys()
-        min_score = confidence
-        name = _phonetic(name)
-        matches = fuzz_extract(name, keys, limit=limit, score_cutoff=min_score)
-        if not matches:
-            return []
-        return [Opening(dict[k], match='phonetic', score=s) for k,s,_ in matches if s >= min_score]
-
-
-    @lru_cache(maxsize=256)
-    def lookup_best_matching_name(self, name, eco=None, *, confidence=90):
-        '''
-        Lookup chess opening by name and classification code using fuzzy name matching.
-        Return best match or None.
-        '''
-        if eco is not None:
-            keys = set()
-            for eco in self.get_codes(eco):
-                keys.update({normalize(r['name']) for r in self.by_eco.get(eco, [])})
-        else:
-            keys = self.by_name.keys()
-
-        return self.fuzzy_lookup(
-            self.by_name,
-            keys,
-            name,
-            min_confidence_score=confidence
-        )
-
-
-    @staticmethod
-    def fuzzy_lookup(dict, keys, name, *, min_confidence_score):
-        '''
-        Lookup the given name by fuzzy matching against a subset of dictionary keys.
-
-        Params:
-            dict: a dictionary-like collection of opening "data rows", indexed by lowercase name;
-            keys: a subset of keys (can be same as dict.keys());
-            name: the name to lookup by;
-            min_confidence_level: the minimum acceptable fuzzy matching score.
-
-        Return just one Opening object if successful, otherwise None.
-
-        '''
-        corrections = {
-            "opening": "attack",
-            "opening": "",
-            None: None,
-        }
-        best_match = None
-        best_score = 0
-
-        name = normalize(name)
-
-        # Sort keys by length, so that the shortest matching name is returned.
-        keys = sorted(list(keys), key=lambda k: len(k))
-
-        for k, v in corrections.items():
-            if k:
-                query = name.replace(k, v).strip()
-                if query == name:
-                    continue
-            else:
-                query = name
-
-            result = fuzz_extract_one(query, keys, score_hint=min_confidence_score)
-
-            Logger.debug(f'fuzzy_lookup: query="{query}" result={result} mcl={min_confidence_score}')
-
-            if result:
-                match, score = result[0], result[1]
-
-                if score >= min_confidence_score:
-                    if score > best_score:
-                        best_match, best_score = match, score
-
-        if best_match:
-            return Opening(dict[best_match], match='name', score=best_score)
-
-
-    @staticmethod
-    def fuzzy_match(dict, keys, name, *, limit, min_score):
-        name = normalize(name)
-
-        matches = fuzz_extract(name, keys, limit=limit, score_cutoff=min_score)
-        if not matches:
-            return []
-        return [Opening(dict[k], match='name', score=s) for k,s,_ in matches if s >= min_score]
-
-
-    def openings(self):
-        for _, v in self.by_fen.items():
-            yield v
+    def query_by_name(self, query, *, max_distance=1.5, top_n=5):
+        if self.index:
+            idx = self.index.search(query, max_distance=max_distance, top_n=top_n)
+            return [Opening(self.data[i]) for i,_ in idx]
+        return []

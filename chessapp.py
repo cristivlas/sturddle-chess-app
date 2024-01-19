@@ -2016,11 +2016,11 @@ class ChessApp(App):
         return False
 
 
-    def play_phonetic_match(self, name):
+    def lookup_and_play_opening(self, name):
         if self.eco:
-            opening = self.eco.phonetic_lookup(name)
+            opening = self.eco.query_by_name(name, top_n=1)
             if opening:
-                return self.play_opening(opening)
+                return self.play_opening(opening[0])
 
         return self.chat_assist()
 
@@ -2091,7 +2091,7 @@ class ChessApp(App):
 
     def use_eco(self, use):
         """ Use Encyclopedia of Chess Openings to identify opening """
-        self.eco = ECO() if use else None
+        self.eco = ECO('openings.idx') if use else None
         if getattr(self, 'opening', None):
             self.identify_opening()
 

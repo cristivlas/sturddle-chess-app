@@ -37,7 +37,7 @@ from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves
-from opening import Opening, normalize as normalize_search_term
+from opening import Opening
 from puzzleview import PuzzleCollection, puzzle_description
 from puzzleview import themes_dict as puzzle_themes
 from speech import tts
@@ -158,10 +158,6 @@ _FUNCTIONS = [
                     _type: _string,
                     _description: 'The name of the opening. Always use complete opening names when available.',
                 },
-                # _eco: {
-                #     _type: _string,
-                #     _description: 'ECO code.'
-                # },
                 _user: {
                     _type: _string,
                     _description: 'The side the user wants to play.'
@@ -232,12 +228,6 @@ _SYSTEM_PROMPT = (
     f"to the colon delimiter. You must always run fresh analysis when the position "
     f"changes. "
 ) + _BASIC_PROMPT
-
-
-_SEARCH_RETRY_HINTS = (
-    'Use your knowledge of alternative spellings and synonyms, or swap '
-    'query terms with the closest matches from previous search results. '
-)
 
 
 class AppLogic(Enum):
@@ -468,7 +458,6 @@ class Assistant:
         self._ctxt = Context()
         self._enabled = True
         self._handlers = {}
-        self._cached_openings = {}
         self._register_funcs()
         self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
@@ -737,13 +726,6 @@ class Assistant:
             }
             funcs = _FUNCTIONS
 
-            # If a search: intent has not been identified, avoid searching again.
-            # The worst case scenario of looking for an opening name that is not
-            # in the "database" is expensive, b/c rapidfuzz does not build the C++
-            # speedups on all platforms (particulary on Android via p4a/buildozer).
-            if intents is not None and 'search:' not in intents:
-                funcs = remove_func(funcs, _lookup_openings)
-
         token_limit = int(get_token_limit(self.model) * 0.85)
 
         for retry_count in range(self.retry_count):
@@ -925,8 +907,6 @@ class Assistant:
             if isinstance(search_result, Opening):
                 return {
                     _name: search_result.name,
-                    'matched_by': search_result.match,
-                    'search_score': search_result.score,
                 }
             else:
                 return search_result
@@ -936,7 +916,7 @@ class Assistant:
         for name in requested_openings:
             args = {
                 _name: name,
-                _eco: inputs.get(name, None)
+                _eco: inputs.get(name, None)  # TODO: query_by_eco_code
             }
             search_result = self._search_opening(args, max_results=max_results)
 
@@ -956,9 +936,6 @@ class Assistant:
                     best_match[_pgn] = search_result.pgn
 
                 results.append(best_match)
-
-        # if not results:
-        #     return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
 
         results = {
             _result: 'ok' if results else 'no match',
@@ -987,7 +964,6 @@ class Assistant:
 
         if not opening:
             Logger.warning(f'{_assistant}: opening not found: {inputs}')
-            # return FunctionResult(AppLogic.RETRY, _SEARCH_RETRY_HINTS)
             return self._complete_on_same_thread(user_request, _play_opening, 'Opening not found.')
 
         else:
@@ -1006,9 +982,7 @@ class Assistant:
                         _play_opening,
                         result=f'{_error}: opening may already be in play'
                     )
-
             self._schedule_action(play_opening)
-
             return FunctionResult(AppLogic.OK)
 
 
@@ -1211,41 +1185,17 @@ class Assistant:
         self._speak_response(tts_text)
 
 
-    def _search_opening(self, query, confidence=90, max_results=1):
-        '''  Lookup opening(s) in the ECO database using fuzzy name matching.
+    def _search_opening(self, query, max_results=1):
+        '''  Lookup opening(s) in the ECO database.
         Args:
-            query (dict): Must contain 'name' key. May optionally contain 'eco' key.
-                If 'eco' key is present, the search is filtered by eco code.
-            confidence (int, optional): The minimum score for the fuzzy match. Defaults to 90.
-
-            max_results (int):
+            query (dict): Must contain 'name' key.
+            max_results (int): maximum number of matches to be returned.
 
         Returns:
             Opening or list: best match or list of matches.
         '''
-        assert self._app.eco
-        db = self._app.eco
-
-        name, eco = query[_name], query.get(_eco)
-        name = normalize_search_term(name)
-
-        if max_results > 1:
-            results = db.lookup_matches(name, eco, confidence=confidence)
-            if len(results) > max_results:
-                matches = [r.name for r in results]
-                results = group_by_prefix(matches, group_hint=max_results)
-            return results
-
-        else:
-            result = self._cached_openings.get(name)
-            assert result is None or isinstance(result, Opening)
-
-            if not result:
-                result = db.lookup_best_matching_name(name, eco, confidence=confidence)
-                if result:
-                    self._cached_openings[result.name] = result
-
-        return result
+        results = self._app.eco.query_by_name(query[_name], top_n=max_results)
+        return results[0] if len(results) == 1 else results
 
 
     def _schedule_action(self, action, *_):
