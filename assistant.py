@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2021, 2022, 2023, 2024 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -54,7 +54,7 @@ _valid_puzzle_themes = { k for k in puzzle_themes if PuzzleCollection().filter(k
 _analyze_position = 'analyze_position'
 _load_puzzle = 'load_chess_puzzle'
 _lookup_openings = 'lookup_openings'
-_make_one_move = 'make_one_move'
+_make_one_move = 'make_move_or_validate_legality'
 _make_moves = 'make_moves'
 _play_opening = 'play_opening'
 
@@ -63,6 +63,7 @@ _animate = 'animate'
 _arguments = 'arguments'
 _assistant = 'assistant'
 _array = 'array'
+_bool = 'boolean'
 _content = 'content'
 _center_control = 'center_control'
 _description = 'description'
@@ -94,6 +95,7 @@ _theme = 'theme'
 _type = 'type'
 _turn = 'turn'
 _user = 'user'
+_validate = 'validate'
 
 ''' Functions.
 https://platform.openai.com/docs/guides/function-calling
@@ -196,13 +198,17 @@ _FUNCTIONS = [
     },
     {
         _name: _make_one_move,
-        _description: 'Make one single move on the board.',
+        _description: 'Make a single move on the board, or validate the move legality.',
         _parameters: {
             _type: _object,
             _properties: {
                 _move: {
                     _type: _string,
                     _description: 'The move to make, in Standard Algebraic Notation (SAN).'
+                },
+                _validate: {
+                    _type: _bool,
+                    _description: 'Do not make a move, just verify if the move is legal.'
                 }
             },
             _required: [_move]
@@ -226,7 +232,8 @@ _SYSTEM_PROMPT = (
     f"the latter to play out PVs returned by {_analyze_position}. When calling "
     f"{_lookup_openings}, prefix variations by the base name of the opening, up "
     f"to the colon delimiter. You must always run fresh analysis when the position "
-    f"changes. "
+    f"changes. Use {_make_one_move} to make a move, or to check the legality of "
+    f"a move. "
 ) + _BASIC_PROMPT
 
 
@@ -680,7 +687,7 @@ class Assistant:
                     return task_completed()
 
             # Call the remote service.
-            status = self._call_on_same_thread(user_input, callback_result, intents)
+            status = self._call_on_same_thread(user_input, callback_result)
             task_completed()
             if status is None:
                 self.respond_to_user('Sorry, I cannot complete your request at this time.')
@@ -689,7 +696,7 @@ class Assistant:
         return True
 
 
-    def _call_on_same_thread(self, user_request, callback_result=None, intents=None):
+    def _call_on_same_thread(self, user_request, callback_result=None):
         '''
         Calls the OpenAI model in the background and handles the response.
 
@@ -1077,11 +1084,17 @@ class Assistant:
         san = inputs.get(_move)
         if not san:
             return FunctionResult(AppLogic.INVALID)
-
+        validate = inputs.get(_validate)
         try:
             move = self._app.engine.board.parse_san(san)
+        except chess.IllegalMoveError:
+            move = None
         except ValueError:
             return FunctionResult(AppLogic.INVALID)
+
+        if validate or move is None:
+            result = f'{san} is_valid={move is not None}'
+            return self._complete_on_same_thread(user_request, _make_one_move, result)
 
         self._app.speak_move_description(move)
 
