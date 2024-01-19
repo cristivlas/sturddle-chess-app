@@ -2665,6 +2665,7 @@ class ChessApp(App):
             pv = self.engine.pv
             distance_to_mate = None
             winning_side = color if score > 0 else not color
+            is_large_diff = abs(score) > 250
             if score > chess_engine.SCORE_MATE_HIGH:
                 distance_to_mate = (max(chess_engine.SCORE_CHECKMATE - score, len(pv)) + 1) // 2
                 score = f'+M{distance_to_mate}'
@@ -2697,7 +2698,7 @@ class ChessApp(App):
 
             else:
                 text = f"{COLOR_NAMES[color]}'s evaluation: {score} ({format_pv(pv, start=0)})"
-                if full:
+                if full and not is_large_diff:
                     center = CenterControl(self.board_widget.model)
                     if center.status != None:
                         text = f'{center.status.capitalize()} controls the center, see diagram. {text}.'
