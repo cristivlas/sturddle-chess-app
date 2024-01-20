@@ -36,7 +36,7 @@ from io import StringIO
 from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
-from normalize import substitute_chess_moves
+from normalize import substitute_chess_moves, remove_san_notation
 from opening import Opening
 from puzzleview import PuzzleCollection, puzzle_description
 from puzzleview import themes_dict as puzzle_themes
@@ -1176,6 +1176,9 @@ class Assistant:
         Args:
             text (str): The message to be presented to the user.
         '''
+        # Remove single SANs, so that the subsequent transformation does not double up the move.
+        response = remove_san_notation(response)
+
         # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
         tts_text = substitute_chess_moves(response, ';')
 
