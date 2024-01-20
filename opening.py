@@ -142,9 +142,12 @@ class ECO:
         return []
 
     @lru_cache(maxsize=256)
-    def query_by_eco_code(self, code, *, top_n=5):
+    def query_by_eco_code(self, code, *, name='', top_n=5):
         """ Lookup openings by ECO code or range of codes. """
         results = []
         for eco in self.get_codes(code):
-            results += self.by_eco.get(eco, [])
-        return [Opening(row) for row in results]
+            # The only use case for looking up by code is to support the IntentClassifier,
+            # filter by name to avoid sending too much data out with the response.
+            results += [row for row in self.by_eco.get(eco, []) if name in row['name'].lower()]
+
+        return [Opening(row) for row in results[:top_n]]

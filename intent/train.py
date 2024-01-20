@@ -21,23 +21,24 @@ from puzzleview import themes_dict as puzzle_themes, PuzzleCollection
 all_puzzle_themes =  { k for k in puzzle_themes if PuzzleCollection().filter(k) }
 
 
+alt_word_forms = {
+    "search": ["what is", "lookup" ],
+}
+
 def alternative_words(word):
-    variations = [word]
-    if word == 'search':
-        variations += ['what is', 'lookup']
-    # elif word == 'variation':
-    #     variations += ['variations', 'line']
+    variations = []
+    if word in alt_word_forms:
+        variations += alt_word_forms[word]
+
     return variations
 
 
-def generate_combinatorial_variations(sentence, *, exceptions=[]):
-    # sentence = sentence.translate(str.maketrans('', '', string.punctuation))
+def generate_combinatorial_variations(sentence):
+
     words = sentence.split()
-    word_variations = [
-        [word] + alternative_words(word) if word.lower() not in exceptions else [word]
-        for word in words
-    ]
-    # Generate all combinatorial variations of the sentence
+    word_variations = [[word] + alternative_words(word) for word in words]
+
+    # Generate combinatorial variations of the sentence
     sentence_variations = set(
         ' '.join(combination) for combination in itertools.product(*word_variations)
     )

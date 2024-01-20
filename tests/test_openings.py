@@ -90,8 +90,8 @@ class TestOpenings(unittest.TestCase):
         }
         for query, expected in queries.items():
             results = self.eco.query_by_eco_code(query, top_n=3)
-            #self.assertTrue(len(results) <= 3)
-            for opening in results[:3]:
+            self.assertTrue(len(results) <= 3)
+            for opening in results:
                 # print(opening.eco, opening.name)
                 self.assertIn(opening.eco, query.upper())
                 self.assertIn(expected, opening.name)

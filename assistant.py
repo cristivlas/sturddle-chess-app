@@ -21,7 +21,7 @@ import chess
 import chess.pgn
 import json
 import logging
-import os
+import math
 import random
 import re
 import requests
@@ -918,40 +918,35 @@ class Assistant:
         if not requested_openings:
             return FunctionResult(AppLogic.INVALID)
 
-        # Return a list of matches, or just the best one?
-        max_results = inputs.get(_limit, 1)
-
-        def annotate_search_result(search_result):
-            if isinstance(search_result, Opening):
-                return {
-                    _name: search_result.name,
-                }
-            else:
-                return search_result
-
+        max_results = max(inputs.get(_limit, 1), len(requested_openings))
+        search_limit = int(math.ceil(max_results / len(requested_openings)))
         results = []
+
+        def filter_fields(opening):
+            assert isinstance(opening, Opening), opening
+            return { _name: opening.name }
 
         for name in requested_openings:
             args = {
                 _name: name,
                 _eco: inputs.get(name, None)
             }
-            search_result = self._search_opening(args, max_results=max_results)
+            search_results = self._search_opening(args, max_results=search_limit)
 
-            if not search_result:
+            if not search_results:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
 
-            elif isinstance(search_result, list):
-                results += [annotate_search_result(match) for match in search_result]
+            elif isinstance(search_results, list):
+                results += [filter_fields(match) for match in search_results]
 
             else:
-                assert isinstance(search_result, Opening)
-                best_match = annotate_search_result(search_result)
+                assert isinstance(search_results, Opening)
+                best_match = filter_fields(search_results)
 
                 # Include more details if a single opening was requested.
                 if len(requested_openings) == 1:
-                    best_match[_eco] = search_result.eco
-                    best_match[_pgn] = search_result.pgn
+                    best_match[_eco] = search_results.eco
+                    best_match[_pgn] = search_results.pgn
 
                 results.append(best_match)
 
@@ -1214,17 +1209,19 @@ class Assistant:
     def _search_opening(self, query, max_results=1):
         '''  Lookup opening(s) in the ECO database.
         Args:
-            query (dict): Must contain 'eco' or 'name' key.
+            query (dict): Must contain 'name' key.
             max_results (int): maximum number of matches to be returned.
 
         Returns:
             Opening or list: best match or list of matches.
         '''
         eco = query.get(_eco)
+        name = query[_name]
+
         if eco:
-            results = self._app.eco.query_by_eco_code(eco, top_n=max_results)
+            results = self._app.eco.query_by_eco_code(eco, name=name, top_n=max_results)
+
         else:
-            name = query[_name]
             Logger.info(f'query: "{name}"')
             results = self._app.eco.query_by_name(name, top_n=max_results)
             Logger.info(f'query: "{[(r.eco, r.name) for r in results]}"')
@@ -1261,7 +1258,7 @@ class Assistant:
             Logger.debug(f'{_assistant}: {text}')
             speak()
 
-
+"""
 def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
     '''
     Group search results (for openings) by prefix, sort descending by frequency.
@@ -1298,7 +1295,7 @@ def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
         result = sorted(result, key=lambda kv: kv[1], reverse=True)
 
     return result
-
+"""
 
 _epd_regex = (
     r'([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+'  # Piece placement
