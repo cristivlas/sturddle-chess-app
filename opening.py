@@ -147,4 +147,4 @@ class ECO:
         results = []
         for eco in self.get_codes(code):
             results += self.by_eco.get(eco, [])
-        return [Opening(row) for row in results[:top_n]]
+        return [Opening(row) for row in results]

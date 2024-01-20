@@ -326,6 +326,7 @@ class Context:
 
 
     def add_message(self, message):
+        assert message[_content] is None or isinstance(message[_content], str)
         self.history.append(message)
 
 
@@ -468,7 +469,8 @@ class Assistant:
         self._register_funcs()
         self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
-        self.model = 'gpt-3.5-turbo-1106'
+        #self.model = 'gpt-3.5-turbo-1106'
+        self.model = 'gpt-4'
         self.retry_count = 5
         self.requests_timeout = 5.0
         self.temperature = 0.01
@@ -514,6 +516,8 @@ class Assistant:
         Post request to the OpenAI completions endpoint.
         Return tuple containing the name of the handler and a FunctionResult.
         '''
+        assert isinstance(user_request, str), user_request
+
         response = None
         headers = {
             'Content-Type': 'application/json',
@@ -657,10 +661,13 @@ class Assistant:
         if not user_input:
             return False
 
+        if not isinstance(user_input, str):
+            user_input = '\n'.join(user_input)
+
         self._busy = True
         self._app.start_spinner()
 
-        Logger.debug(f'{_assistant}: {user_input}')
+        Logger.info(f'{_assistant}: {user_input} callback_result={callback_result}')
 
         def detect_intent(user_input):
             intents = self.intent_recognizer.classify_intent(user_input, top_n=10)
@@ -671,8 +678,9 @@ class Assistant:
             self._cancelled = False
             self._app.update(self._app.engine.last_moves()[-1], save_state=False)
 
-        def background_task():
+        def background_task(user_input):
             intents = None
+
             if not callback_result and self._app.use_intent_recognizer:
                 # Attempt to detect user's intent locally, to save a roundtrip.
                 Logger.info(f'{_assistant}: calling intent recognizer')
@@ -692,7 +700,7 @@ class Assistant:
             if status is None:
                 self.respond_to_user('Sorry, I cannot complete your request at this time.')
 
-        self._worker.send_message(background_task)
+        self._worker.send_message(partial(background_task, user_input))
         return True
 
 
@@ -714,6 +722,8 @@ class Assistant:
         Returns:
             True on success, False if cancelled, None if failed.
         '''
+        assert isinstance(user_request, str), user_request
+
         timeout = self.requests_timeout
 
         # Construct the message to send out.
@@ -818,6 +828,8 @@ class Assistant:
             result (any): The result of the function call.
             resume (bool): True if the engine needs to be resumed.
         '''
+        assert isinstance(user_request, str), user_request
+
         def callback(*_):
             if resume:
                 self._app.set_study_mode(False)  # Start the engine.
@@ -946,8 +958,7 @@ class Assistant:
 
         results = {
             _result: 'ok' if results else 'no match',
-            _limit: len(results[:max_results]),
-            _return: results[:max_results]
+            _return: results
         }
         return self._complete_on_same_thread(user_request, _lookup_openings, results)
 

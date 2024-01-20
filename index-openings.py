@@ -26,7 +26,7 @@ def change_directory(new_dir):
         os.chdir(original_dir)
 
 logging.info(f'Creating: "{INDEX_DIR}"')
-os.makedirs(INDEX_DIR)
+os.makedirs(INDEX_DIR, exist_ok=True)
 
 def run(tool, *args):
     def output(line):
@@ -41,9 +41,6 @@ with change_directory(INDEX_DIR):
         for row in eco.data:
             f.write(f"{row['name']}\n")
 
-    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '100', '--win', '5')
-    run('index.py', '--text', TEXT_FILE, '--num-trees', 16)
+    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '16', '--win', '5')
+    run('index.py', '--text', TEXT_FILE, '--num-trees', 8)
 
-    # cleanup
-    sh.rm('-rf', 'models')
-    sh.rm('-rf', 'log.txt')

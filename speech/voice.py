@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2022, 2023 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2022, 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -160,6 +160,8 @@ class Input:
 
 
     def stop(self):
+        self._results = []
+
         if self._popup and not self._ask_mode:
             self._popup.dismiss()
         else:
@@ -248,6 +250,7 @@ class Input:
 
         # NLP.run takes a fen string parameter instead of a chess.Board;
         # slightly inefficient perhaps but more abstract and standalone testable.
+
         fen = self._app.engine.board.fen()
 
         # Use stricter parsing when the Assistant is available.
@@ -291,6 +294,7 @@ class Input:
                 if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
             ]
             if params:
+                Logger.info(f'{func.__name__} expects args, args=\"{args}\"')
                 if not args:
                     return False
                 cmd = lambda *_: func(args)

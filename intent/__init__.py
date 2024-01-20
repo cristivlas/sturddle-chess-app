@@ -88,10 +88,15 @@ class IntentClassifier:
         '''Preprocesses the input text by tokenizing and normalizing.'''
 
         normalizations = {
+            # Compounded words and corrections
             r'counter[-\s]?gambit': 'countergambit',
             r'hyper[-\s]?accelerated': 'hyperaccelerated',
             r'end[-\s]?games?': 'endgame',
+            r'ortho[ -](\w+)': r'ortho\1',
+            r'orto[ -](\w+)': r'ortho\1',
             r'look[-\s]?up': 'lookup',
+
+            # Contractions
             r"what's": "what is",
             r"who's": "who is",
             r"where's": "where is",
@@ -104,7 +109,6 @@ class IntentClassifier:
             r"that's": "that is",
             r"I'd": "I would",
             r"let's": "let us",
-            # Add more mappings as needed
         }
         for pattern, replacement in normalizations.items():
             text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)

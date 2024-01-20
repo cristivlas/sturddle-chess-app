@@ -68,7 +68,7 @@ class NLP:
         self._board = None
         self.command = None  # recognized command (other than a move)
         self.args = None  # (optional) command args
-        self.input = ''
+        self.input = []
 
 
     def _init_grammar(self):
@@ -223,13 +223,11 @@ class NLP:
 
         # Hold on to the results in case we need to fail over to
         # the chat assistant. Not sure if to auto-correct or not...
-        self.input = ' '.join(results)
+        self.input = results
 
         for text in results:
             if text:
                 text = on_autocorrect(self._autocorrect(text))
-
-                self.args = text
 
                 if text in parsed:
                     # auto-correction may lead to duplicates
@@ -239,7 +237,6 @@ class NLP:
                     parsed.add(text)
                     if moves:
                         self.args = None
-
         return moves
 
 
