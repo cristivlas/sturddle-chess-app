@@ -24,7 +24,7 @@ all_puzzle_themes =  { k for k in puzzle_themes if PuzzleCollection().filter(k) 
 def alternative_words(word):
     variations = [word]
     if word == 'search':
-        variations += ['what is', 'look up']
+        variations += ['what is', 'lookup']
     # elif word == 'variation':
     #     variations += ['variations', 'line']
     return variations
@@ -73,8 +73,10 @@ def generate_synthetic_data(eco):
             'recommend a move',
             'recommend a good move',
             'what is the best move',
+            'what is a good move',
             'what is a good move in the current situation',
             'what is a good move in this position?',
+            'what is the danger',
             'move recommendation?',
             'recommendation',
             'make a recommendation',
@@ -117,6 +119,11 @@ def generate_synthetic_data(eco):
             'good bye',
             'bye',
             'buy me a coffee and a sandwich',
+            'hold that thought',
+            "Albert's Hall",
+            #'Carnegie hall',
+            'halloween',
+            'hall of fame',
             'hello',
             'hello hello',
             'hello world',
@@ -159,6 +166,9 @@ def generate_synthetic_data(eco):
             'load it up',
             'let us see that',
             'I would like to see',
+            'shebang',
+            'she is a Lady',
+            'lucky move',
         ],
         'play':[
             'make the move',
@@ -190,10 +200,10 @@ def generate_synthetic_data(eco):
             f"study {description}",
             f"I want to practice {theme}",
             f"I would like to practice {theme}",
-            f"I'd like to practice {theme}",
+            #f"I'd like to practice {theme}",
             f"practice {theme}",
             f"study {theme}",
-            f"let's solve {theme}",
+            #f"let's solve {theme}",
             f"let us solve {theme}",
             f"let us practice {theme}",
         ]

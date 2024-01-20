@@ -87,6 +87,28 @@ class IntentClassifier:
     def preprocess(self, text, phonetic=True):
         '''Preprocesses the input text by tokenizing and normalizing.'''
 
+        normalizations = {
+            r'counter[-\s]?gambit': 'countergambit',
+            r'hyper[-\s]?accelerated': 'hyperaccelerated',
+            r'end[-\s]?games?': 'endgame',
+            r'look[-\s]?up': 'lookup',
+            r"what's": "what is",
+            r"who's": "who is",
+            r"where's": "where is",
+            r"when's": "when is",
+            r"how's": "how is",
+            r"there's": "there is",
+            r"it's": "it is",
+            r"he's": "he is",
+            r"she's": "she is",
+            r"that's": "that is",
+            r"I'd": "I would",
+            r"let's": "let us",
+            # Add more mappings as needed
+        }
+        for pattern, replacement in normalizations.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
         text = text.replace("'s", "")
 
         # Strip punctuation
@@ -102,7 +124,7 @@ class IntentClassifier:
         tokens = [self.preprocess_digits(token.lower()) for token in tokens]
 
         if phonetic:
-            tokens = [doublemetaphone(tok)[0] for tok in tokens]
+            tokens = [m for tok in tokens for m in doublemetaphone(tok)]
 
         return tokens
 
