@@ -522,8 +522,8 @@ class ChessApp(App):
         self.moves_record = MovesTree()
         self.voice_input = voice.Input(self)
         self.auto_voice = False
-        self.__speak_moves = False
-        self.__study_mode = False
+        self._use_voice = False
+        self._study_mode = False
         self.edit = None
         self.puzzle = None
         self.puzzle_play = False
@@ -975,7 +975,7 @@ class ChessApp(App):
                 assert self.selected_puzzle
                 self.load_puzzle(PuzzleCollection().get(self.selected_puzzle - 1, 1)[0])
 
-            self.speak_moves = store.get('speak', False)
+            self.use_voice = store.get('speak', False)
             stt.stt.prefer_offline = store.get('prefer_offline', True)
 
             # Time for 'analyze' vocal command
@@ -1014,7 +1014,7 @@ class ChessApp(App):
             clear_hash=self.engine.clear_hash_on_move,
             puzzle=self.selected_puzzle,
             puzzle_mode=bool(self.puzzle),
-            speak=self.speak_moves,
+            speak=self.use_voice,
             prefer_offline=stt.stt.prefer_offline,
             analysis_time=self.analysis_time,
             openai_api_key=self.openai_api_key,
@@ -1142,7 +1142,7 @@ class ChessApp(App):
     def speech_input(self, modal=True):
 
         if all((
-            self.speak_moves,
+            self.use_voice,
             not self.assistant.busy,
             not self.engine.busy,
             not self.in_game_animation,
@@ -1236,7 +1236,7 @@ class ChessApp(App):
 
         if not self.study_mode:
             result = self.engine.input(move)
-            if self.speak_moves and self.engine.board.is_checkmate():
+            if self.use_voice and self.engine.board.is_checkmate():
                 delay_speak = partial(self.speak, random.choice([
                     'Congratulations',
                     'Nicely done!',
@@ -1780,7 +1780,7 @@ class ChessApp(App):
         text += '?'
         self.message_box(title='Confirm', text=text, on_close=callback)
 
-        if self.speak_moves:
+        if self.use_voice:
             self.speak(spoken_message or text)
             self.speech_input(modal=False)  # Listen to the user without showing the dialog
 
@@ -1874,7 +1874,7 @@ class ChessApp(App):
         Run the main application settings dialog.
         '''
         # Memorize the current voice setting (before running the dialog).
-        speak_moves = [self.speak_moves]
+        use_voice = [self.use_voice]
 
         # Make a temporary copy of the key that will be committed on close.
         self.assistant.temp_key = self.get_openai_key(obfuscate=False) or ''
@@ -1887,11 +1887,11 @@ class ChessApp(App):
                 # another modal window is active.
                 Clock.schedule_once(speak_voice_setting)
 
-            elif speak_moves[0] != self.speak_moves:
-                speak_moves[0] = self.speak_moves
-                self.speak('Voice on' if self.speak_moves else 'Voice off', True)
+            elif use_voice[0] != self.use_voice:
+                use_voice[0] = self.use_voice
+                self.speak('Voice on' if self.use_voice else 'Voice off', True)
 
-                if self.speak_moves:
+                if self.use_voice:
                     self.touch_hint('anywhere outside the board and hold to speak.')
 
         def commit_settings(*_):
@@ -1920,10 +1920,7 @@ class ChessApp(App):
             assert len(Window.children) == 4  # three setting pages, plus the root App
             advanced_settings = Window.children[1]
             assert isinstance(advanced_settings, ModalView)
-            assert hasattr(advanced_settings, 'content')
-            assert hasattr(advanced_settings.content, 'ids')
-            assert hasattr(advanced_settings.content.ids, 'speak_moves')
-            advanced_settings.content.ids.speak_moves.active = self.speak_moves
+            advanced_settings.content.ids.use_voice.active = self.use_voice
 
         self._modal_box('Assistant', ExtraSettings(), close='\uF100', on_close=update_controls)
 
@@ -2036,22 +2033,22 @@ class ChessApp(App):
 
 
     @property
-    def speak_moves(self):
-        return self.__speak_moves
+    def use_voice(self):
+        return self._use_voice
 
 
-    @speak_moves.setter
-    def speak_moves(self, speak):
+    @use_voice.setter
+    def use_voice(self, speak):
         if speak and platform == 'android':
             from android.permissions import Permission, request_permissions
             request_permissions([Permission.RECORD_AUDIO])
 
-        self.__speak_moves = speak
+        self._use_voice = speak
 
 
     @property
     def study_mode(self):
-        return self.__study_mode
+        return self._study_mode
 
 
     def set_study_mode(self, value, controls=[]):
@@ -2062,7 +2059,7 @@ class ChessApp(App):
         the app. Copy-paste functionality is activated by long-presses (anywhere on the
         chessboard) and with the usual ctrl-c/ctrl-v key combos when running on desktop.
         '''
-        if self.__study_mode != value:
+        if self._study_mode != value:
             self._set_study_mode(value)
 
         for widget in controls:
@@ -2070,7 +2067,7 @@ class ChessApp(App):
 
 
     def _set_study_mode(self, value, auto_move=True):
-        self.__study_mode = value
+        self._study_mode = value
         self.update(self.engine.last_moves()[-1], show_comment=False)
         if value:
             self.undo_button.text = ' \uf053 '
@@ -2264,7 +2261,7 @@ class ChessApp(App):
 
 
     def speak(self, message, always=False):
-        if always or self.speak_moves:
+        if always or self.use_voice:
             tts.speak(message, stt.stt)
 
 
@@ -2712,7 +2709,7 @@ class ChessApp(App):
 
                 def show_eval_on_main_thread(text, *_):
                     self.show_comment(text)
-                    if self.speak_moves:
+                    if self.use_voice:
                         if distance_to_mate:
                             moves = 'moves' if distance_to_mate > 1 else 'move'
                             text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'

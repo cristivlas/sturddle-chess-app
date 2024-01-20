@@ -127,7 +127,7 @@
 
         Slider:
             id: analysis_time
-            disabled: not app.speak_moves
+            disabled: not app.use_voice
             min: 3
             max: 60
             step: 1
@@ -199,9 +199,9 @@
         OptLabel:
             text: 'Voice User Interface'
         Switch:
-            id: speak_moves
-            active: app.speak_moves
-            on_active: app.speak_moves = self.active
+            id: use_voice
+            active: app.use_voice
+            on_active: app.use_voice = self.active
             disabled: not app.tts_supported
 
         OptLabel:
@@ -210,7 +210,7 @@
         Switch:
             active: not stt.prefer_offline
             on_active: stt.prefer_offline = not self.active
-            disabled: not stt.is_offline_supported() or not speak_moves.active
+            disabled: not stt.is_offline_supported() or not use_voice.active
 
 
     OptGrid:

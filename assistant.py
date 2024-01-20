@@ -497,7 +497,7 @@ class Assistant:
     @property
     def enabled(self):
         return (
-            self._app.speak_moves  # requires the voice interface, for now
+            self._app.use_voice  # requires the voice interface, for now
             and self._app.use_assistant
             and not self._cancelled  # wait for the cancelled task to finish
         )
@@ -506,8 +506,8 @@ class Assistant:
     @enabled.setter
     def enabled(self, enable):
         self._app.use_assistant = enable
-        if enable and not self._app.speak_moves:
-            self._app.speak_moves = True
+        if enable and not self._app.use_voice:
+            self._app.use_voice = True
 
 
     def _completion_request(self, user_request, messages, *, functions, timeout):
@@ -1257,7 +1257,7 @@ class Assistant:
         # Make sure St. George is pronounced Saint George, not Street George
         tts_text = re.sub(r'\bSt\.\b|\bst\.\b', 'Saint', text, flags=re.IGNORECASE)
 
-        if text and self._app.speak_moves:
+        if text and self._app.use_voice:
             Logger.debug(f'{_assistant}: {text}')
             speak()
 
