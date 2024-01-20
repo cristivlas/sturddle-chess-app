@@ -464,7 +464,6 @@ class Assistant:
         self._busy = False
         self._cancelled = False
         self._ctxt = Context()
-        self._enabled = True
         self._handlers = {}
         self._register_funcs()
         self._register_handlers()
@@ -499,14 +498,14 @@ class Assistant:
     def enabled(self):
         return (
             self._app.speak_moves  # requires the voice interface, for now
-            and self._enabled
+            and self._app.use_assistant
             and not self._cancelled  # wait for the cancelled task to finish
         )
 
 
     @enabled.setter
     def enabled(self, enable):
-        self._enabled = enable
+        self._app.use_assistant = enable
         if enable and not self._app.speak_moves:
             self._app.speak_moves = True
 

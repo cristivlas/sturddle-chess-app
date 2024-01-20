@@ -540,7 +540,8 @@ class ChessApp(App):
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
-        self.use_intent_recognizer = True
+        self.use_assistant = False
+        self.use_intent_recognizer = False
 
 
     def about(self, *_):
@@ -982,6 +983,8 @@ class ChessApp(App):
 
             if not self.openai_api_key:
                 self.openai_api_key = store.get('openai_api_key', '')
+
+            self.use_assistant = store.get('use_assistant', False)
             self.use_intent_recognizer = store.get('use_intent_recognizer', False)
 
 
@@ -1015,6 +1018,7 @@ class ChessApp(App):
             prefer_offline=stt.stt.prefer_offline,
             analysis_time=self.analysis_time,
             openai_api_key=self.openai_api_key,
+            use_assistant=self.use_assistant,
             use_intent_recognizer=self.use_intent_recognizer,
         )
 
