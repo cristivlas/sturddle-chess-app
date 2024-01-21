@@ -26,9 +26,17 @@ python3 -m pip install -r requirements.txt
 # build the engine (requires C++ compiler on the machine)
 cd sturddle_chess_engine                                               
 python3 setup.py build_ext --inplace 
+cd ..
+
+# Build the openings:
+cd eco/
+make
+cd ..
+
+# Index the ECO data:
+python3 index-openings.py 
 
 # now run it
-cd ..
 python3 main.py
 ```
 
