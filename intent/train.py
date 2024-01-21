@@ -122,7 +122,6 @@ def generate_synthetic_data(eco):
             'buy me a coffee and a sandwich',
             'hold that thought',
             "Albert's Hall",
-            #'Carnegie hall',
             'halloween',
             'hall of fame',
             'hello',
@@ -201,10 +200,8 @@ def generate_synthetic_data(eco):
             f"study {description}",
             f"I want to practice {theme}",
             f"I would like to practice {theme}",
-            #f"I'd like to practice {theme}",
             f"practice {theme}",
             f"study {theme}",
-            #f"let's solve {theme}",
             f"let us solve {theme}",
             f"let us practice {theme}",
         ]

@@ -468,8 +468,9 @@ class Assistant:
         self._register_funcs()
         self._register_handlers()
         self.endpoint = 'https://api.openai.com/v1/chat/completions'
+        self.model = 'gpt-4-1106-preview'
         #self.model = 'gpt-3.5-turbo-1106'
-        self.model = 'gpt-4'
+        #self.model = 'gpt-4'
         self.retry_count = 5
         self.requests_timeout = 5.0
         self.temperature = 0.01
