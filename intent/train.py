@@ -2,7 +2,9 @@
 """
 Generate syntehtic data and train an IntentClassifier.
 Data is specific to the Chess App.
-Save the model to a specified folder (default is 'intent-model')
+Save the model to a specified folder (default is 'intent-model').
+
+TODO: Compress the model by using embeddings.
 """
 import argparse
 import itertools
@@ -65,6 +67,13 @@ def camel_case_tokenize(string):
     return [t.lower() for t in tokens]
 
 
+def check_capitalized_words(s, except_words):
+    for word in s.split():
+        if word[0].isupper() and word not in except_words:
+            return True
+    return False
+
+
 def generate_synthetic_data(eco):
     sample_phrases = {
         'analyze': [
@@ -107,7 +116,7 @@ def generate_synthetic_data(eco):
             'do you have any idea for what to do',
         ],
         # Examples of unhandled / unknown intents:
-        'other':[
+        'None':[
             'any other idea',
             'any more ideas',
             'anyhow',
@@ -165,12 +174,9 @@ def generate_synthetic_data(eco):
             'show me a problem or a puzzle',
             'load it up',
             'let us see that',
-            'I would like to see',
-            'shebang',
-            'she is a Lady',
+            #'I would like to see',
             'lucky move',
-        ],
-        'play':[
+            'recommend to study',
             'make the move',
             'make that move',
             'move it',
@@ -178,12 +184,6 @@ def generate_synthetic_data(eco):
             'play it',
             'play move',
             'play opening',
-        ],
-        'setup': [
-            'setup',
-            'set it up',
-            'set up the board',
-            'set position',
         ],
     }
 
@@ -212,9 +212,25 @@ def generate_synthetic_data(eco):
 
     # Add phrases for openings.
     unique_names = {}
+    except_words = {
+        'Classical',
+        'Closed',
+        'Line',
+        'Neo-Classical',
+        'Orthodox',
+        'System',
+        'Traditional',
+        'Variation',
+    }
+    def split_and_flatten(s):
+        return [item.strip() for part in s.split(':') for item in part.split(',')]
+
     for eco, rows in eco.by_eco.items():
         for r in rows:
-            for part in r['name'].split(':'):
+            # for part in r['name'].split(':'):
+            for part in split_and_flatten(r['name']):
+                if not check_capitalized_words(part, except_words):
+                    continue
                 unique_names[part.strip().lower()] = eco
 
     for name, eco in unique_names.items():
@@ -225,6 +241,13 @@ def generate_synthetic_data(eco):
         )
         if not 'variations' in name:
             sample_phrases[key] += generate_combinatorial_variations('variations of ' + name)
+
+        key = f'open:{name}:{eco}'
+        sample_phrases[key] = (
+            generate_combinatorial_variations("let's play " + name) +
+            generate_combinatorial_variations("I'd like to play " + name) +
+            generate_combinatorial_variations("Set up the " + name)
+        )
 
     synthetic_data = []
     for intent, phrases in sample_phrases.items():

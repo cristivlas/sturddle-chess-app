@@ -290,18 +290,21 @@
 
     OptGrid:
         OptLabel:
-            text: 'Assistant'
+            text: 'Remote Assistant'
         Switch:
             active: app.assistant.enabled
             on_active: app.assistant.enabled = self.active
             id: enabled
         OptLabel:
-            text: 'RAG'
+            text: 'Local Assistant'
+            disabled: not app.assistant.can_use_local_hack()
         Switch:
             active: app.use_intent_recognizer
             on_active: app.use_intent_recognizer = self.active
+            disabled: not app.assistant.can_use_local_hack()
         OptLabel:
             text: 'Model'
+            disabled: not enabled.active
         BoxLayout:
             padding: [0, dp(10), 0, dp(10)]
             TextInput:
@@ -314,6 +317,7 @@
                 on_text: app.assistant.model = self.text
         OptLabel:
             text: 'Endpoint URL'
+            disabled: not enabled.active
         BoxLayout:
             padding: [0, dp(10), 0, dp(10)]
             TextInput:
@@ -326,6 +330,7 @@
                 on_text: app.assistant.endpoint = self.text
         OptLabel:
             text: 'Max Retry Count: {}'.format(int(retry_count.value))
+            disabled: not enabled.active
         OptSlider:
             disabled: not enabled.active
             id: retry_count
@@ -336,6 +341,7 @@
             on_touch_up: app.assistant.retry_count = int(self.value)
         OptLabel:
             text: 'Temperature: {:.3f}'.format(init_temp.value)
+            disabled: not enabled.active
         OptSlider:
             disabled: not enabled.active
             id: init_temp
@@ -346,6 +352,7 @@
             on_touch_up: app.assistant.temperature = self.value
         OptLabel:
             text: 'Initial Timeout: {:.2f}'.format(int(req_timeout.value))
+            disabled: not enabled.active
         OptSlider:
             disabled: not enabled.active
             id: req_timeout

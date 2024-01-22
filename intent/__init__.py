@@ -95,6 +95,7 @@ class IntentClassifier:
             r'ortho[ -](\w+)': r'ortho\1',
             r'orto[ -](\w+)': r'ortho\1',
             r'look[-\s]?up': 'lookup',
+            r'set[-\s]?up': 'setup',
 
             # Contractions
             r"what's": "what is",

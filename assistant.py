@@ -495,6 +495,15 @@ class Assistant:
             self.session = requests.Session()
 
 
+    def can_use_local_hack(self):
+        """ Can use the local IntentClassifier hacks? """
+        return bool(self.intent_recognizer.dictionary)
+
+
+    def can_use_remote(self):
+        return self.enabled and bool(self._app.openai_api_key)
+
+
     @property
     def enabled(self):
         return (
@@ -694,11 +703,18 @@ class Assistant:
                 if intents and self._resolve_intents(user_input, intents):
                     return task_completed()
 
-            # Call the remote service.
-            status = self._call_on_same_thread(user_input, callback_result)
+            status = None
+            if self.can_use_remote():
+                status = self._call_on_same_thread(user_input, callback_result)  # Call the remote service.
+
             task_completed()
+
             if status is None:
-                self.respond_to_user('Sorry, I cannot complete your request at this time.')
+                msg = [
+                    'I did not understand your request.',
+                    'I cannot complete your request at this time.'
+                ]
+                self.respond_to_user('Sorry, ' + msg[self.can_use_remote()])
 
         self._worker.send_message(partial(background_task, user_input))
         return True
@@ -907,7 +923,6 @@ class Assistant:
 
     def _handle_lookup_openings(self, user_request, inputs):
         ''' Lookup a list of chess openings in the ECO.
-
         Args:
             user_request (str): The user input associated with this function.
             inputs (dict): function inputs as per the _FUNCTIONS schema.
@@ -923,9 +938,13 @@ class Assistant:
         search_limit = int(math.ceil(max_results / len(requested_openings)))
         results = []
 
-        def filter_fields(opening):
+        def filter_fields(opening, name_only):
             assert isinstance(opening, Opening), opening
-            return { _name: opening.name }
+            result = { _name: opening.name }
+            if not name_only:
+                result[_eco] = opening.eco
+                result[_pgn] = opening.pgn
+            return result
 
         for name in requested_openings:
             args = {
@@ -936,26 +955,22 @@ class Assistant:
 
             if not search_results:
                 Logger.warning(f'{_assistant}: Not found: {str(inputs)}')
-
             elif isinstance(search_results, list):
-                results += [filter_fields(match) for match in search_results]
-
+                results += search_results
             else:
                 assert isinstance(search_results, Opening)
-                best_match = filter_fields(search_results)
+                results.append(search_results)
 
-                # Include more details if a single opening was requested.
-                if len(requested_openings) == 1:
-                    best_match[_eco] = search_results.eco
-                    best_match[_pgn] = search_results.pgn
+        if self.can_use_remote():
+            results = {
+                _result: 'ok' if results else 'no match',
+                _return: [filter_fields(r, len(results) > 1) for r in results]
+            }
+            return self._complete_on_same_thread(user_request, _lookup_openings, results)
 
-                results.append(best_match)
-
-        results = {
-            _result: 'ok' if results else 'no match',
-            _return: results
-        }
-        return self._complete_on_same_thread(user_request, _lookup_openings, results)
+        elif results:
+            self._schedule_action(partial(self._app.play_opening, results[0]))
+            return FunctionResult(AppLogic.OK)
 
 
     def _handle_play_opening(self, user_request, inputs):
@@ -1021,7 +1036,8 @@ class Assistant:
             self._app.load_puzzle(puzzle)
 
             msg = f'Loaded puzzle with theme: {Context.describe_theme(theme)}'
-            self.complete_on_main_thread(user_request, _load_puzzle, result=msg)
+            if self.can_use_remote():
+                self.complete_on_main_thread(user_request, _load_puzzle, result=msg)
 
         # Schedule running the puzzle (may ask the user for confirmation).
         self._schedule_action(
@@ -1141,8 +1157,13 @@ class Assistant:
     # -------------------------------------------------------------------
 
     def _resolve_intents(self, user_input, intents):
-        """ Execute functions associated with the recognized intents, if any. """
+        """
+        Execute functions associated with the recognized intents.
 
+        If the remote Assistant is enabled (i.e. we can call the LLM API),
+        then include the results of the local function call into the prompt
+        and call the API endpoint. Otherwise just execute the local call.
+        """
         # Add this message into the conversation history if the intent is recognized, for context.
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
 
@@ -1151,17 +1172,33 @@ class Assistant:
         for i, _ in intents:
             action = i.split(':')
             verb = action[0].strip()
+
             if verb == 'analyze':
+                if not self.can_use_remote():
+                    self._app.analyze()
+                    return True
                 self._ctxt.add_message(user_msg)
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
+
+            elif verb == 'open':
+                if len(action) > 1:
+                    param = action[1].strip()
+                    if not self.can_use_remote():
+                        self._schedule_action(partial(self._app.lookup_and_play_opening, param))
+                        return True
+                    self._ctxt.add_message(user_msg)
+                    return self._handle_play_opening(user_input, {_name: param}).response == AppLogic.OK
+
+            elif verb == 'puzzle':
+                if len(action) > 1:
+                    param = action[1].strip()
+                    if self.can_use_remote():
+                        self._ctxt.add_message(user_msg)
+                    return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
+
             elif verb == 'search':
                 if len(action) > 1:
                     search_param.add(tuple(action[1:]))
-            elif verb == 'puzzle':
-                if len(action) > 1:
-                    self._ctxt.add_message(user_msg)
-                    param = action[1].strip()
-                    return self._handle_puzzle_request(user_input, {_theme: param}).response == AppLogic.OK
             else:
                 break
 

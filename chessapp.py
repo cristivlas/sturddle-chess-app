@@ -803,12 +803,13 @@ class ChessApp(App):
 
 
     def can_use_assistant(self):
-        return (
-            self.openai_api_key
-            and self.assistant.enabled
-            and not self.assistant.busy
-            and self.eco  # required for looking up openings
-        )
+        # return (
+        #     self.openai_api_key
+        #     and self.assistant.enabled
+        #     and not self.assistant.busy
+        #     and self.eco  # required for looking up openings
+        # )
+        return self.eco and not self.assistant.busy
 
 
     def can_undo(self):
@@ -2715,6 +2716,8 @@ class ChessApp(App):
                             text = f'{COLOR_NAMES[winning_side]} mates in {distance_to_mate} {moves}'
                         else:
                             text = text.split('(')[0]  # strip the PV
+                            if move:
+                                text += f'. The best move is {self.describe_move(move)}.'
 
                         self.speak(text, True)
 
