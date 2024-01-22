@@ -1167,7 +1167,7 @@ class Assistant:
         # Add this message into the conversation history if the intent is recognized, for context.
         user_msg = self._ctxt.annotate_user_message(self._app, {_role: _user, _content: user_input})
 
-        search_param = set()
+        search_param = []
 
         for i, _ in intents:
             action = i.split(':')
@@ -1198,7 +1198,9 @@ class Assistant:
 
             elif verb == 'search':
                 if len(action) > 1:
-                    search_param.add(tuple(action[1:]))
+                    param = tuple(action[1:])
+                    if param not in search_param:
+                        search_param.append(param)
             else:
                 break
 
