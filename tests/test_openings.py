@@ -12,7 +12,8 @@ class TestOpenings(unittest.TestCase):
         queries = {
             "alban's counter-gambit": [
                 "Queen's Gambit Declined: Albin Countergambit",
-                "Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation"
+                "Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation",
+                "Queen's Gambit Declined: Albin Countergambit, Lasker Trap"
             ],
             "kasparov attack": [
                 "Queen's Indian Defense: Kasparov-Petrosian Variation, Kasparov Attack",
@@ -55,7 +56,8 @@ class TestOpenings(unittest.TestCase):
             "ageincourt de-fence": [
                 "English Opening: Agincourt Defense, Catalan Defense",
                 "English Opening: Agincourt Defense, Keres Defense",
-                "English Opening: Agincourt Defense, Wimpy System"
+                "English Opening: Agincourt Defense, Wimpy System",
+                "English Opening: Agincourt Defense, Kurajica Defense",
             ],
             "orthoshnapp gambit": [
                 "French Defense: Orthoschnapp Gambit",
@@ -73,6 +75,16 @@ class TestOpenings(unittest.TestCase):
             ],
             "fiancheto variant": [
                 "King's Indian Defense: Fianchetto Variation, Classical Fianchetto",
+                "King's Indian Defense: Fianchetto Variation, Immediate Fianchetto"
+            ],
+            "yugoslav attack": [
+                "King's Indian Attack: Yugoslav Variation"
+            ],
+            "sicilian iugoslav attack": [
+                "Sicilian Defense: Dragon Variation, Yugoslav Attack",
+            ],
+            "sicilian defence yugoslav attack": [
+                "Sicilian Defense: Dragon Variation, Yugoslav Attack",
             ]
         }
         for query, expected in queries.items():

@@ -212,7 +212,6 @@
             on_active: stt.prefer_offline = not self.active
             disabled: not stt.is_offline_supported() or not use_voice.active
 
-
     OptGrid:
         size_hint_y: 0.6
         FontScalingLabel:
@@ -260,6 +259,7 @@
             text: '[font=Roboto]Assistant  [/font]\uF101'
             on_release: app.assistant_settings()
             pos_hint: { 'right': 1, 'center_y': 0.5 }
+            disabled: not use_voice.active
 
 
 <ExtraSettings>:

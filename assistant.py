@@ -710,11 +710,20 @@ class Assistant:
             task_completed()
 
             if status is None:
-                msg = [
+                messages = [
                     'I did not understand your request.',
                     'I cannot complete your request at this time.'
                 ]
-                self.respond_to_user('Sorry, ' + msg[self.can_use_remote()])
+                msg = messages[self.can_use_remote()]
+                if self._app.uses_assistant():
+                    self.respond_to_user('Sorry, ' + msg)
+                else:
+                    self._schedule_action(
+                        partial(
+                            self._app.confirm,
+                            msg + ' Do you want to enable the Assistant feature',
+                            self._app.enable_assistants
+                        ))
 
         self._worker.send_message(partial(background_task, user_input))
         return True
@@ -1206,7 +1215,8 @@ class Assistant:
                 break
 
         if search_param:
-            self._ctxt.add_message(user_msg)  # Add to conversation.
+            if self.can_use_remote():
+                self._ctxt.add_message(user_msg)  # Add to conversation.
 
             args = {_openings: [], _limit: len(search_param)}
             for name, eco in search_param:
@@ -1348,4 +1358,3 @@ _epd_regex = (
 
 def contains_epd(text):
     return re.search(_epd_regex, text) is not None
-

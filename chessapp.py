@@ -540,8 +540,8 @@ class ChessApp(App):
         self.touch = None  # for swipe left / right
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
-        self.use_assistant = False
-        self.use_intent_recognizer = True
+        self.use_assistant = False  # "Remote Assistant"
+        self.use_intent_recognizer = True  # "Local Assistant"
 
 
     def about(self, *_):
@@ -1915,15 +1915,7 @@ class ChessApp(App):
         Show the settings for the ChatGPT powered Assistant.
         '''
         assert self.assistant.temp_key is not None
-
-        def update_controls(*_):
-            ''' Update controls upon closing the dialog '''
-            assert len(Window.children) == 4  # three setting pages, plus the root App
-            advanced_settings = Window.children[1]
-            assert isinstance(advanced_settings, ModalView)
-            advanced_settings.content.ids.use_voice.active = self.use_voice
-
-        self._modal_box('Assistant', ExtraSettings(), close='\uF100', on_close=update_controls)
+        self._modal_box('Assistant', ExtraSettings(), close='\uF100')
 
 
     def select_opening_book(self, *_):
@@ -2785,3 +2777,11 @@ class ChessApp(App):
     def cpu_cores_max(self):
         return chess_engine.get_param_info()['Threads'][2]
 
+
+    def uses_assistant(self):
+        return self.use_assistant or self.use_intent_recognizer
+
+
+    def enable_assistants(self):
+        self.use_assistant = True
+        self.use_intent_recognizer = True

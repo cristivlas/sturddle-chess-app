@@ -41,6 +41,6 @@ with change_directory(INDEX_DIR):
         for row in eco.data:
             f.write(f"{row['name']}\n")
 
-    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '16', '--win', '5')
+    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '32', '--win', '3')
     run('index.py', '--text', TEXT_FILE, '--num-trees', 8)
 
