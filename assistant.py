@@ -1173,6 +1173,9 @@ class Assistant:
             action = i.split(':')
             verb = action[0].strip()
 
+            if verb == 'open' and not self.can_use_remote():
+                verb = 'search'
+
             if verb == 'analyze':
                 if not self.can_use_remote():
                     self._app.analyze()
@@ -1181,11 +1184,9 @@ class Assistant:
                 return self._handle_analysis(user_input, {}).response == AppLogic.OK
 
             elif verb == 'open':
+                assert self.can_use_remote()
                 if len(action) > 1:
                     param = action[1].strip()
-                    if not self.can_use_remote():
-                        self._schedule_action(partial(self._app.lookup_and_play_opening, param))
-                        return True
                     self._ctxt.add_message(user_msg)
                     return self._handle_play_opening(user_input, {_name: param}).response == AppLogic.OK
 
