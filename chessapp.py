@@ -541,7 +541,7 @@ class ChessApp(App):
         self.analysis_time = 3  # in seconds, see analyze
         Logger.setLevel(LOG_LEVELS[os.environ.get('KIVY_LOG_LEVEL', 'info')])
         self.use_assistant = False
-        self.use_intent_recognizer = False
+        self.use_intent_recognizer = True
 
 
     def about(self, *_):
