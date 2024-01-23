@@ -9,7 +9,7 @@ from contextlib import contextmanager
 INDEX_DIR = 'openings.idx'
 TOOLS_DIR = os.path.join(os.getcwd(), 'annembed')
 
-EPOCHS = 500  # For training.
+EPOCHS = 150  # For training.
 TEXT_FILE = 'names.txt'
 
 logging.basicConfig(level=logging.INFO)
@@ -39,8 +39,13 @@ with change_directory(INDEX_DIR):
     logging.info(f'Writing out: "{TEXT_FILE}"')
     with open(TEXT_FILE, 'w') as f:
         for row in eco.data:
-            f.write(f"{row['name']}\n")
+            name = row['name'].split(':')
+            # Double the main opening names, to give them more weight in the training.
+            # ... and take the opportunity to replace apostrophes so that at query time
+            # we can match "Queens Gambit" against "Queen's Gambit
+            alt_name = name[0].replace("'", "")
+            f.write(f"{name[0]} ({alt_name}) {' '.join(name[1:])}\n")
 
-    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '32', '--win', '3')
+    run('train.py', '--epochs', f'{EPOCHS}', '--text', TEXT_FILE, '--use-metaphone', '--embed', '64', '--win', '10')
     run('index.py', '--text', TEXT_FILE, '--num-trees', 8)
 

@@ -1198,7 +1198,8 @@ class ChessApp(App):
         """ Trigger long-press event if touched outside the chessboard """
         if not any((
             self.board_widget.inside(self.board_widget.to_widget(*touch.pos)),
-            self.action.collide_point(*touch.pos)
+            self.action.collide_point(*touch.pos),
+            self.has_modal_views()
         )):
             delay = 1 if is_mobile() else 0.5
             Clock.schedule_once(self.on_long_press, delay)
@@ -2782,6 +2783,8 @@ class ChessApp(App):
         return self.use_assistant or self.use_intent_recognizer
 
 
-    def enable_assistants(self):
+    def enable_assistants(self, user_input=''):
         self.use_assistant = True
         self.use_intent_recognizer = True
+        if user_input:
+            self.chat_assist(user_input)

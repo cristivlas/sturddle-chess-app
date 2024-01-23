@@ -495,7 +495,7 @@ class Assistant:
             self.session = requests.Session()
 
 
-    def can_use_local_hack(self):
+    def can_use_local(self):
         """ Can use the local IntentClassifier hacks? """
         return bool(self.intent_recognizer.dictionary)
 
@@ -722,7 +722,7 @@ class Assistant:
                         partial(
                             self._app.confirm,
                             msg + ' Do you want to enable the Assistant feature',
-                            self._app.enable_assistants
+                            partial(self._app.enable_assistants, user_input)
                         ))
 
         self._worker.send_message(partial(background_task, user_input))

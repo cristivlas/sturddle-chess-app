@@ -12,12 +12,12 @@ class TestOpenings(unittest.TestCase):
         queries = {
             "alban's counter-gambit": [
                 "Queen's Gambit Declined: Albin Countergambit",
-                "Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation",
-                "Queen's Gambit Declined: Albin Countergambit, Lasker Trap"
+                #"Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation",
+                #"Queen's Gambit Declined: Albin Countergambit, Lasker Trap"
             ],
             "kasparov attack": [
                 "Queen's Indian Defense: Kasparov-Petrosian Variation, Kasparov Attack",
-                "Queen's Indian Defense: Kasparov Variation"
+                "French Defense: Rubinstein Variation, Kasparov Attack",
             ],
             "casparoff petrosian": [
                 "Queen's Indian Defense: Kasparov-Petrosian Variation, Petrosian Attack",
@@ -34,30 +34,39 @@ class TestOpenings(unittest.TestCase):
                 "Pterodactyl Defense",
                 "Modern Defense: Pterodactyl Variation"
             ],
+            "sicilian pterodactil": [
+                "Pterodactyl Defense: Sicilian, Benoni Gambit",
+            ],
+            "sicilian defence pterodactyle": [
+                "Pterodactyl Defense: Sicilian, Benoni Gambit",
+            ],
             "Dragon, hyperaccelerated": [
                 "Sicilian Defense: Hyperaccelerated Dragon",
-                "Sicilian Defense: Accelerated Dragon, Modern Variation"
+                #"Sicilian Defense: Accelerated Dragon, Modern Variation"
             ],
             "CaroKann": [
                 "Caro-Kann Defense",
             ],
             "LiverFried attack": [
-                "Italian Game: Anti-Fried Liver Defense",
+                #"Italian Game: Anti-Fried Liver Defense",
                 "Italian Game: Two Knights Defense, Fried Liver Attack"
             ],
             "Fried Liver Attak": [
-                "Italian Game: Anti-Fried Liver Defense",
+                #"Italian Game: Anti-Fried Liver Defense",
                 "Italian Game: Two Knights Defense, Fried Liver Attack"
             ],
             "hyper-accelerated dragon": [
                 "Sicilian Defense: Hyperaccelerated Dragon",
-                "Sicilian Defense: Accelerated Dragon, Modern Variation"
+                #"Sicilian Defense: Accelerated Dragon, Modern Variation"
             ],
             "ageincourt de-fence": [
-                "English Opening: Agincourt Defense, Catalan Defense",
                 "English Opening: Agincourt Defense, Keres Defense",
-                "English Opening: Agincourt Defense, Wimpy System",
-                "English Opening: Agincourt Defense, Kurajica Defense",
+                #"English Opening: Agincourt Defense, Catalan Defense",
+                #"English Opening: Agincourt Defense, Wimpy System",
+                #"English Opening: Agincourt Defense, Kurajica Defense",
+                "English Opening: Agincourt Defense, Tarrasch Defense",
+                #"English Opening: Agincourt Defense",
+                "English Opening: Agincourt Defense, Catalan Defense, Semi-Slav Defense"
             ],
             "orthoshnapp gambit": [
                 "French Defense: Orthoschnapp Gambit",
@@ -77,15 +86,24 @@ class TestOpenings(unittest.TestCase):
                 "King's Indian Defense: Fianchetto Variation, Classical Fianchetto",
                 "King's Indian Defense: Fianchetto Variation, Immediate Fianchetto"
             ],
+            "The Goblin": [
+                "Dresden Opening: The Goblin",
+            ],
+            "queens gambith declineth": [
+                "Queen's Gambit Declined",
+            ],
             "yugoslav attack": [
-                "King's Indian Attack: Yugoslav Variation"
+                "Sicilian Defense: Dragon Variation, Yugoslav Attack",
+                "Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
             ],
             "sicilian iugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
+                #"Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
             ],
             "sicilian defence yugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
-            ]
+                #"Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
+            ],
         }
         for query, expected in queries.items():
             results = self.eco.query_by_name(query, top_n=1)

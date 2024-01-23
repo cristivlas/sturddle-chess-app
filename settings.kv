@@ -290,18 +290,18 @@
 
     OptGrid:
         OptLabel:
+            text: 'Local Assistant'
+            disabled: not app.assistant.can_use_local()
+        Switch:
+            active: app.use_intent_recognizer
+            on_active: app.use_intent_recognizer = self.active
+            disabled: not app.assistant.can_use_local()
+        OptLabel:
             text: 'Remote Assistant'
         Switch:
             active: app.assistant.enabled
             on_active: app.assistant.enabled = self.active
             id: enabled
-        OptLabel:
-            text: 'Local Assistant'
-            disabled: not app.assistant.can_use_local_hack()
-        Switch:
-            active: app.use_intent_recognizer
-            on_active: app.use_intent_recognizer = self.active
-            disabled: not app.assistant.can_use_local_hack()
         OptLabel:
             text: 'Model'
             disabled: not enabled.active
