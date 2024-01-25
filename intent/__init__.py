@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import numpy as np
@@ -6,7 +7,6 @@ import pickle
 import string
 
 from annoy import AnnoyIndex
-from kivy import Logger
 from metaphone import doublemetaphone
 
 
@@ -168,7 +168,7 @@ class IntentClassifier:
             query_tfidf = self.tfidf_model.transform(query_bow)
 
             # Get the nearest neighbor and its distance
-            k = max(100, top_n * self.annoy_index.get_n_trees())
+            k = max(10000, top_n * self.annoy_index.get_n_trees())
             results = self.annoy_index.get_nns_by_vector(query_tfidf, top_n, search_k=k, include_distances=True)
             if results:
                 return [(self.index_to_intent[i], d) for i,d in zip(*results) if d < threshold]
@@ -196,7 +196,7 @@ class IntentClassifier:
     def load(self, path):
         '''Loads the model components from the specified path.'''
         if not os.path.exists(path):
-            Logger.warning(f'intent-model: "{path}" does not exist')
+            logging.warning(f'intent-model: "{path}" does not exist')
         else:
             # Load the custom dictionary
             with open(f'{path}/dictionary.json', 'r') as f:

@@ -8,20 +8,19 @@ TODO: Compress the model by using embeddings.
 """
 import argparse
 import itertools
+import logging
 import numpy as np
 import os
 import sys
 
-os.environ['KIVY_NO_ARGS']='1'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from intent import IntentClassifier
-from kivy.logger import Logger, LOG_LEVELS
 from opening import ECO
-from puzzleview import themes_dict as puzzle_themes, PuzzleCollection
+from puzzlelib import themes_dict as puzzle_themes, PuzzleCollection
 
 all_puzzle_themes =  { k for k in puzzle_themes if PuzzleCollection().filter(k) }
-
+assert all_puzzle_themes
 
 alt_word_forms = {
     "search": ["what is", "lookup" ],
@@ -45,7 +44,7 @@ def generate_combinatorial_variations(sentence):
         ' '.join(combination) for combination in itertools.product(*word_variations)
     )
     for s in sentence_variations:
-        Logger.debug(f'search: {s}')
+        logging.debug(f'search: {s}')
 
     return list(sentence_variations)
 
@@ -208,7 +207,7 @@ def generate_synthetic_data(eco):
     for k, phrases in sample_phrases.items():
         if k.startswith('puzzle:'):
             for p in phrases:
-                Logger.debug(f'puzzle: {p}')
+                logging.debug(f'puzzle: {p}')
 
     # Add phrases for openings.
     unique_names = {}
@@ -254,7 +253,7 @@ def generate_synthetic_data(eco):
         for phrase in phrases:
             synthetic_data.append((phrase, intent))
 
-    Logger.debug(f'generated: {len(synthetic_data)} samples.')
+    logging.debug(f'generated: {len(synthetic_data)} samples.')
     return synthetic_data
 
 
@@ -263,7 +262,7 @@ def main():
     parser.add_argument('--model-name', default='intent-model', help='Base name for saving the model')
 
     args = parser.parse_args()
-    Logger.setLevel(LOG_LEVELS['debug'])
+    logging.basicConfig(level=logging.DEBUG)
     data = generate_synthetic_data(ECO())
 
     classifier = IntentClassifier(annoy_trees=8, min_word_freq=3)

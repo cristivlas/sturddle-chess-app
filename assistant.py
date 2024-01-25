@@ -38,8 +38,8 @@ from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
 from normalize import substitute_chess_moves, remove_san_notation
 from opening import Opening
-from puzzleview import PuzzleCollection, puzzle_description
-from puzzleview import themes_dict as puzzle_themes
+from puzzlelib import PuzzleCollection, puzzle_description
+from puzzlelib import themes_dict as puzzle_themes
 from speech import tts
 from worker import WorkerThread
 

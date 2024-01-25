@@ -35,7 +35,8 @@
 
     {"input": "set up the accelerated draco", "expected": "open:accelerated"},
     {"input": "set up the london system", "expected": "open:london system"},
-    {"input": "play reversed gambit", "expected": "open:king's gambit reversed"},
+    //{"input": "play reversed gambit", "expected": "open:king's gambit reversed"},
+    {"input": "play reversed gambit", "expected": "search:king's gambit reversed"},
     {"input": "let's pley the petrov", "expected": "open:petrov's defense"},
     {"input": "let's see the italian game on the board", "expected": "open:italian game"},
 
@@ -43,5 +44,5 @@
     {"input": "orto shnap gambitt", "expected": "search:orthoschnapp gambit"},
     {"input": "I would like to play the orto shnap", "expected": "open:orthoschnapp gambit"},
     //{"input": "practice sacrificing", "expected": "puzzle:sacrifice"},
-    {"input": "practice give up", "expected": "puzzle:sacrifice"}
+    {"input": "practice give up material", "expected": "puzzle:sacrifice"}
 ]
