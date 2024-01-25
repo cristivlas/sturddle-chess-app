@@ -12,6 +12,7 @@ class TestOpenings(unittest.TestCase):
         queries = {
             "alban's counter-gambit": [
                 "Queen's Gambit Declined: Albin Countergambit",
+
                 #"Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation",
                 #"Queen's Gambit Declined: Albin Countergambit, Lasker Trap"
             ],
@@ -38,35 +39,34 @@ class TestOpenings(unittest.TestCase):
                 "Pterodactyl Defense: Sicilian, Benoni Gambit",
             ],
             "sicilian defence pterodactyle": [
+                "Pterodactyl Defense",
                 "Pterodactyl Defense: Sicilian, Benoni Gambit",
             ],
             "Dragon, hyperaccelerated": [
                 "Sicilian Defense: Hyperaccelerated Dragon",
-                #"Sicilian Defense: Accelerated Dragon, Modern Variation"
             ],
             "CaroKann": [
                 "Caro-Kann Defense",
             ],
             "LiverFried attack": [
-                #"Italian Game: Anti-Fried Liver Defense",
                 "Italian Game: Two Knights Defense, Fried Liver Attack"
             ],
             "Fried Liver Attak": [
-                #"Italian Game: Anti-Fried Liver Defense",
+                "Italian Game: Anti-Fried Liver Defense",
                 "Italian Game: Two Knights Defense, Fried Liver Attack"
             ],
             "hyper-accelerated dragon": [
                 "Sicilian Defense: Hyperaccelerated Dragon",
-                #"Sicilian Defense: Accelerated Dragon, Modern Variation"
             ],
             "ageincourt de-fence": [
-                "English Opening: Agincourt Defense, Keres Defense",
+                "English Opening: Agincourt Defense",
+
+                #"English Opening: Agincourt Defense, Keres Defense",
                 #"English Opening: Agincourt Defense, Catalan Defense",
                 #"English Opening: Agincourt Defense, Wimpy System",
                 #"English Opening: Agincourt Defense, Kurajica Defense",
-                "English Opening: Agincourt Defense, Tarrasch Defense",
-                #"English Opening: Agincourt Defense",
-                "English Opening: Agincourt Defense, Catalan Defense, Semi-Slav Defense"
+                #"English Opening: Agincourt Defense, Tarrasch Defense",
+                #"English Opening: Agincourt Defense, Catalan Defense, Semi-Slav Defense"
             ],
             "orthoshnapp gambit": [
                 "French Defense: Orthoschnapp Gambit",
@@ -98,12 +98,19 @@ class TestOpenings(unittest.TestCase):
             ],
             "sicilian iugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
-                #"Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
             ],
             "sicilian defence yugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
-                #"Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
             ],
+            "rubenstain sistem": [
+                "Semi-Slav Defense: Rubinstein System",
+            ],
+            "kapablanka sister" : [
+                "Queen's Gambit Declined: Orthodox Defense, Capablanca System"
+            ],
+            "Lasker belly can" : [
+                "Sicilian Defense: Lasker-Pelikan Variation",
+            ]
         }
         for query, expected in queries.items():
             results = self.eco.query_by_name(query, top_n=1)

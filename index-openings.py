@@ -9,7 +9,7 @@ from contextlib import contextmanager
 INDEX_DIR = 'openings.idx'
 TOOLS_DIR = os.path.join(os.getcwd(), 'annembed')
 
-EPOCHS = 150  # For training.
+EPOCHS = 200  # For training.
 TEXT_FILE = 'names.txt'
 
 logging.basicConfig(level=logging.INFO)

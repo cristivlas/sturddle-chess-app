@@ -28,6 +28,7 @@ from collections import defaultdict
 from functools import lru_cache
 from os import path, walk
 from annembed.search import Index
+from rapidfuzz.process import extract
 
 
 class Opening:
@@ -137,8 +138,22 @@ class ECO:
     @lru_cache(maxsize=256)
     def query_by_name(self, query, *, max_distance=None, top_n=5):
         if self.index:
-            idx = self.index.search(query, max_distance=max_distance, top_n=top_n, min_nodes=len(self.data))
-            return [Opening(self.data[i]) for i,_ in idx]
+            n = top_n * 5  # Ask for a wider range than specified by the caller
+            idx = self.index.search(query, max_distance=max_distance, top_n=n, min_nodes=len(self.data))
+            #
+            # Use rapidfuzz to refine the search
+            #
+            results = {self.data[i]['name'].lower():i for i,_ in idx}
+
+            #print(f'\nQuery results for: {query}')
+            #[print(k, i) for k,i in results.items()]
+
+            keys = extract(query.lower(), results.keys(), limit=top_n)
+
+            #print(f'\nRefined results for: {query}')
+            #[print(k) for k in keys]
+
+            return [Opening(self.data[results[k[0]]]) for k in keys]
         return []
 
     @lru_cache(maxsize=256)
