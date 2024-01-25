@@ -33,9 +33,6 @@ cd eco/
 make
 cd ..
 
-# Index the ECO data:
-python3 index-openings.py 
-
 # now run it
 python3 main.py
 ```
