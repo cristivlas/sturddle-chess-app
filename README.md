@@ -9,12 +9,13 @@
 - Built-in puzzle collection
 - Built with Kivy and Python Chess
 
-![Alt text](/screenshots/Screenshot_Menu.png?raw=true "Menu")
-![Alt text](/screenshots/Screenshot_Game.png?raw=true "Game")
-![Alt text](/screenshots/Screenshot_EditMode.png?raw=true "Editor")
-![Alt text](/screenshots/Screenshot_PNGViewer.png?raw=true "PGN Viewer")
-![Alt text](/screenshots/Screenshot_Settings.png?raw=true "Settings")
-![Alt text](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
+![Menu](/screenshots/Screenshot_Menu.png?raw=true "Menu")
+![Game](/screenshots/Screenshot_Game.png?raw=true "Game")
+![Edit](/screenshots/Screenshot_EditMode.png?raw=true "Editor")
+![Viewer](/screenshots/Screenshot_PNGViewer.png?raw=true "PGN Viewer")
+![Settings](/screenshots/Screenshot_Settings.png?raw=true "Settings")
+![Advanced](/screenshots/Screenshot_AdvSettings.png?raw=true "Advanced Settings")
+<img src="https://raw.githubusercontent.com/cristivlas/sturddle-chess-app/master/screenshots/Screenshot_assistant.png" height="400px"/>
 <a href="https://en.wikipedia.org/wiki/Sturddlefish"><img src="images/sturddlefish.png" height="240px"><a/>
 # Build on desktop (requires Python3.8 or higher)
 
