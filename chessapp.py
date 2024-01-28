@@ -1231,6 +1231,8 @@ class ChessApp(App):
 
 
     def on_user_move(self, _, move):
+        if self.engine.board.is_game_over():
+            return
         self._android_hide_menu()
 
         if self.edit:
