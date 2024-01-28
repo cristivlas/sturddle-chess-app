@@ -1,5 +1,6 @@
 [
     {"input": "mate in 4", "expected": "puzzle:mateIn4"},
+    {"input": "let's study mate in four", "expected": "puzzle:mateIn4"},
     {"input": "what is a good move in this situation", "expected": "analyze"},
     {"input": "what is a good move in this position", "expected": "analyze"},
     {"input": "what is a good move in the current situation", "expected": "analyze"},
@@ -43,6 +44,6 @@
     {"input": "lookup the ortho-shnap gambit", "expected": "search:orthoschnapp gambit"},
     {"input": "orto shnap gambitt", "expected": "search:orthoschnapp gambit"},
     {"input": "I would like to play the orto shnap", "expected": "open:orthoschnapp gambit"},
-    //{"input": "practice sacrificing", "expected": "puzzle:sacrifice"},
+    {"input": "practice sacrificing", "expected": "puzzle:sacrifice"},
     {"input": "practice give up material", "expected": "puzzle:sacrifice"}
 ]

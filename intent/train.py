@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
-Generate syntehtic data and train an IntentClassifier.
+Generate synthetic data and train an IntentClassifier.
 Data is specific to the Chess App.
 Save the model to a specified folder (default is 'intent-model').
-
-TODO: Compress the model by using embeddings.
 """
 import argparse
 import itertools
@@ -24,6 +22,7 @@ assert all_puzzle_themes
 
 alt_word_forms = {
     "search": ["what is", "lookup" ],
+    "fischer": ["fisher"]
 }
 
 def alternative_words(word):

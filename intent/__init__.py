@@ -4,15 +4,15 @@ import os
 import re
 import numpy as np
 import pickle
-import string
 
 from annoy import AnnoyIndex
 from metaphone import doublemetaphone
+from .tokenization import BytePairEncoding
 
-
-DIGIT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-STOP_WORDS = ['a', 'an', 'all', 'some', 'the', 'this']
-
+ANNOY_INDEX_FILE = 'annoy_index.ann'
+DICTIONARY_FILE = 'dict.json'
+TDIDF_FILE = 'tfidf-idf.npy'
+TOKENIZER_FILE = 'tokenizer.pkl'
 
 class Dictionary:
     def __init__(self, documents=[], min_word_freq=1):
@@ -37,7 +37,7 @@ class Dictionary:
         return [self.word2idx[word] for word in document if word in self.word2idx]
 
     def __len__(self):
-        # assert len(self.word2idx) == len(self.idx2word)
+        assert len(self.word2idx) == len(self.idx2word)
         return len(self.idx2word)
 
 
@@ -66,8 +66,6 @@ class TfidfModel:
 
 
 class IntentClassifier:
-    SEED = 4013
-
     def __init__(self, annoy_trees=32, min_word_freq=1):
         self.dictionary = None
         self.tfidf_model = None
@@ -76,19 +74,13 @@ class IntentClassifier:
         self.dim = 0
         self.annoy_trees = annoy_trees
         self.min_word_freq = min_word_freq
-
-    @staticmethod
-    def preprocess_digits(token):
-        ''' Convert each digit in the token to its word equivalent. '''
-        if token.isdigit():
-            return ''.join(DIGIT_WORDS[int(digit)] for digit in token)
-        return token
+        self.tokenizer = BytePairEncoding()
 
     def preprocess(self, text, phonetic=True):
         '''Preprocesses the input text by tokenizing and normalizing.'''
 
         normalizations = {
-            # Compounded words and corrections
+            # Compounded words and corrections.
             r'counter[-\s]?gambit': 'countergambit',
             r'hyper[-\s]?accelerated': 'hyperaccelerated',
             r'end[-\s]?games?': 'endgame',
@@ -97,7 +89,7 @@ class IntentClassifier:
             r'look[-\s]?up': 'lookup',
             r'set[-\s]?up': 'setup',
 
-            # Contractions
+            # Contractions.
             r"what's": "what is",
             r"who's": "who is",
             r"where's": "where is",
@@ -110,31 +102,15 @@ class IntentClassifier:
             r"that's": "that is",
             r"I'd": "I would",
             r"let's": "let us",
+            r"'s": "",
         }
         for pattern, replacement in normalizations.items():
             text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
 
-        text = text.replace("'s", "")
-
-        # Strip punctuation
-        text = ''.join(char for char in text if char not in string.punctuation)
-
-        # Split on word boundaries, keep digits.
-        tokens = re.findall(r'\b\d+\b|\w+', text)
-
-        # Remove stop words.
-        tokens = [tok for tok in tokens if tok not in STOP_WORDS]
-
-        # Convert digit to digit words.
-        tokens = [self.preprocess_digits(token.lower()) for token in tokens]
-
-        if phonetic:
-            tokens = [m for tok in tokens for m in doublemetaphone(tok)]
-
-        return tokens
+        return self.tokenizer.tokenize(text)
 
     def train(self, data):
-        '''Trains the classifier with the provided data.'''
+        self.tokenizer.build(corpus=''.join([text for text, _ in data]), use_metaphone=True, vocab_size=800)
         processed_data = [(self.preprocess(text), label) for text, label in data]
 
         # Feature Extraction
@@ -150,14 +126,13 @@ class IntentClassifier:
         # Build an Annoy Index
         self.dim = len(self.dictionary)
         self.annoy_index = AnnoyIndex(self.dim, 'angular')
-        self.annoy_index.set_seed(self.SEED)
 
         for i, vec in enumerate(dense_tfidf_corpus):
             self.annoy_index.add_item(i, vec)
 
         self.annoy_index.build(self.annoy_trees)
 
-        # Mapping index to intents
+        # Map index to intents
         self.index_to_intent = {i: label for i, (_, label) in enumerate(processed_data)}
 
     def classify_intent(self, query, *, top_n=1, threshold=1.0):
@@ -179,27 +154,23 @@ class IntentClassifier:
         if not os.path.exists(path):
             os.makedirs(path)
 
-        # Save the custom dictionary
-        with open(f'{path}/dictionary.json', 'w') as f:
+        with open(os.path.join(path, DICTIONARY_FILE), 'w') as f:
             json.dump(self.dictionary.word2idx, f)
 
-        # Save TF-IDF idf values
-        np.save(f'{path}/tfidf_idf.npy', self.tfidf_model.idf)
+        np.save(os.path.join(path, TDIDF_FILE), self.tfidf_model.idf)
 
-        # Save Annoy index
-        self.annoy_index.save(f'{path}/annoy_index.ann')
-
-        # Save index to intent mapping
-        with open(f'{path}/index_to_intent.pkl', 'wb') as f:
+        self.annoy_index.save(os.path.join(path, ANNOY_INDEX_FILE))
+        with open(os.path.join(path, 'index_to_intent.pkl'), 'wb') as f:
             pickle.dump(self.index_to_intent, f)
+
+        self.tokenizer.save(os.path.join(path, TOKENIZER_FILE))
 
     def load(self, path):
         '''Loads the model components from the specified path.'''
         if not os.path.exists(path):
             logging.warning(f'intent-model: "{path}" does not exist')
         else:
-            # Load the custom dictionary
-            with open(f'{path}/dictionary.json', 'r') as f:
+            with open(os.path.join(path, DICTIONARY_FILE), 'r') as f:
                 word2idx = json.load(f)
                 self.dictionary = Dictionary()
                 self.dictionary.word2idx = word2idx
@@ -207,17 +178,15 @@ class IntentClassifier:
                 for word, idx in word2idx.items():
                     self.dictionary.idx2word[idx] = word
 
-            # Load TF-IDF idf values
-            idf = np.load(f'{path}/tfidf_idf.npy')
+            idf = np.load(os.path.join(path, TDIDF_FILE))
             self.tfidf_model = TfidfModel([], self.dictionary)
             self.tfidf_model.idf = idf
 
-            # Load Annoy index
             self.dim = len(self.dictionary.idx2word)
             self.annoy_index = AnnoyIndex(self.dim, 'angular')
-            self.annoy_index.load(f'{path}/annoy_index.ann')
-            self.annoy_index.set_seed(self.SEED)
+            self.annoy_index.load(os.path.join(path, ANNOY_INDEX_FILE))
 
-            # Load index to intent mapping
-            with open(f'{path}/index_to_intent.pkl', 'rb') as f:
+            with open(os.path.join(path, 'index_to_intent.pkl'), 'rb') as f:
                 self.index_to_intent = pickle.load(f)
+
+            self.tokenizer = BytePairEncoding.load(os.path.join(path, TOKENIZER_FILE))
