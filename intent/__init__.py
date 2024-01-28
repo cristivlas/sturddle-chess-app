@@ -9,7 +9,7 @@ from annoy import AnnoyIndex
 from metaphone import doublemetaphone
 from .tokenization import BytePairEncoding
 
-ANNOY_INDEX_FILE = 'annoy_index.ann'
+ANNOY_INDEX_FILE = 'index.ann'
 DICTIONARY_FILE = 'dict.json'
 TDIDF_FILE = 'tfidf-idf.npy'
 TOKENIZER_FILE = 'tokenizer.pkl'
@@ -110,7 +110,7 @@ class IntentClassifier:
         return self.tokenizer.tokenize(text)
 
     def train(self, data):
-        self.tokenizer.build(corpus=''.join([text for text, _ in data]), use_metaphone=True, vocab_size=800)
+        self.tokenizer.build(corpus=''.join([text for text, _ in data]), use_metaphone=True, vocab_size=600)
         processed_data = [(self.preprocess(text), label) for text, label in data]
 
         # Feature Extraction
