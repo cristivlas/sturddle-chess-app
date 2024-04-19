@@ -18,9 +18,11 @@ def get_token_count(model, messages, functions):
 
 
 _limits = {
+    'gpt-3.5-turbo': 16385,
     'gpt-3.5-turbo-1106': 16385,
     'gpt-4': 8192,
     'gpt-4-1106-preview': 128000,
+    'gpt-4-turbo': 128000,
 }
 
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """ Run this after updating ECO. """
+""" Requires tensorflow==2.13.1 and keras==2.13.1. DO NOT UPGRADE TO Keras 3. """
 import logging
 import opening
 import os
