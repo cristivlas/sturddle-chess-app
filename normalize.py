@@ -13,7 +13,7 @@ from num2words import num2words
 # |O-O(?:-O)?: Captures castling moves, "O-O" for kingside and "O-O-O" for queenside.
 # [\+#]?: Optional '+' or '#' at the end to denote check ('+') or checkmate ('#').
 
-regex = r'(?<! to | on |the )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-h1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
+regex = r'(?<! to | on |the )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-hA-H1-8]?[xX]?[a-hA-H][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
 
 
 def substitute_chess_moves(text, insert_delim=None, num_words=False, capitalize=True):
@@ -126,7 +126,10 @@ def test_substitute_chess_moves():
         "The final move was queen to h5, checkmate, ending the game dramatically."],
         ["king to c3", "king to c3"],
         ["pawn on c3", "pawn on c3"],
-        ["the c3 pawn", "the c3 pawn"]
+        ["the c3 pawn", "the c3 pawn"],
+        ["A good pawn move for you to consider is dxE5", "A good pawn move for you to consider is pawn to E5"],
+        ["A good pawn move for you to consider is DxE5", "A good pawn move for you to consider is pawn to E5"],
+        ["A good pawn move for you to consider is DXe5", "A good pawn move for you to consider is pawn to e5"],
 ]
 
     for test, expected in test_cases:

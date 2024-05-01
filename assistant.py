@@ -1311,44 +1311,6 @@ class Assistant:
             Logger.debug(f'{_assistant}: {text}')
             speak()
 
-"""
-def group_by_prefix(strings, group_hint=None, sort_by_freq=True):
-    '''
-    Group search results (for openings) by prefix, sort descending by frequency.
-    The same effect could probably be achieved by organizing the ECO information
-    as graphs or trees of openings with variations. The "flat" way of storing may
-    work better with the rapidfuzz name searching though.
-    '''
-    def generate_prefixes(string, expr_len):
-        '''Generate all prefixes up to expr_len terms for a given string.'''
-        terms = string.split(',')
-        return [' '.join(terms[:i]).rstrip() for i in range(1, min(expr_len+1, len(terms)+1))]
-
-    def get_prefixes(n):
-        prefixes = defaultdict(int)
-        for s in sorted(strings, reverse=True):
-            for p in generate_prefixes(s, n):
-                prefixes[p] += 1
-        return prefixes
-
-    for n in range(5, 3, -1):
-        prefixes = get_prefixes(n)
-
-        if group_hint is None or len(prefixes) == group_hint:
-            break
-
-        if len(prefixes) < group_hint:
-            prefixes = get_prefixes(n + 1)
-            break
-
-    result = prefixes.items()
-
-    if sort_by_freq:
-        # Sort by the number of strings containing them
-        result = sorted(result, key=lambda kv: kv[1], reverse=True)
-
-    return result
-"""
 
 _epd_regex = (
     r'([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+'  # Piece placement
@@ -1360,3 +1322,4 @@ _epd_regex = (
 
 def contains_epd(text):
     return re.search(_epd_regex, text) is not None
+
