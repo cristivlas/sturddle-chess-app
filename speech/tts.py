@@ -1,5 +1,5 @@
 """
-Sturddlefish Chess App (c) 2022, 2023 Cristian Vlasceanu
+Sturddlefish Chess App (c) 2022, 2023, 2024 Cristian Vlasceanu
 -------------------------------------------------------------------------
 
 This program is free software: you can redistribute it and/or modify
@@ -100,6 +100,8 @@ else:
         utility = whereis_exe('say') or whereis_exe('espeak')
         if utility:
             _scheduled[0] = _subprocess([utility, message])
+        else:
+            _scheduled[0] = _subprocess(['./say.py', message])
 
 
 def is_speaking():

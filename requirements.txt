@@ -1,11 +1,16 @@
 annoy
 chess
+gTTS
 kivy
 Cython
 metaphone
 numpy
 num2words
+# Optional
+# openai
+# openai-whisper
 pyautogui
+playsound
 plyer
 pyparsing
 pyaudio
