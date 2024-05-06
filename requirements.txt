@@ -10,11 +10,12 @@ num2words
 # openai
 # openai-whisper
 pyautogui
-playsound
+pydub
 plyer
 pyparsing
 pyaudio
 rapidfuzz
+simpleaudio
 soundfile
 SpeechRecognition
 wget

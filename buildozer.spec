@@ -27,7 +27,7 @@ source.exclude_dirs = __pycache__,bin,build,docs,sturddle_chess_engine,p4a-recip
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it
-source.exclude_patterns = LICENSE,log,images/*/*.jpg,build.py,speech/stt/data/*
+source.exclude_patterns = LICENSE,log,images/*/*.jpg,build.py,speech/stt/data/*,*/tests/*,say.py
 
 # (str) Application versioning (method 1)
 # version =
