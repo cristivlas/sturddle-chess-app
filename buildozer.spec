@@ -166,7 +166,7 @@ android.ndk_api = 21
 #android.whitelist_src =
 
 # (str) Path to a custom blacklist file
-android.blacklist_src = %(source.dir)s/blacklist.txt
+# android.blacklist_src = %(source.dir)s/blacklist.txt
 
 # (list) List of Java .jar files to add to the libs so that pyjnius can access
 # their classes. Don't add jars that you do not need, since extra jars can slow
@@ -332,7 +332,7 @@ p4a.local_recipes = p4a-recipes
 #p4a.setup_py = false
 
 # (str) extra command line arguments to pass when invoking pythonforandroid.toolchain
-#p4a.extra_args =
+p4a.extra_args = --blacklist-requirements=sqlite3
 
 
 #
