@@ -472,7 +472,8 @@ class Assistant:
         #self.model = 'gpt-4-turbo'
         #self.model = 'gpt-4-1106-preview'
         #self.model = 'gpt-3.5-turbo-1106'
-        self.model = 'gpt-4'
+        #self.model = 'gpt-4'
+        self.model = 'gpt-4o'
         self.retry_count = 5
         self.requests_timeout = 5.0
         self.temperature = 0.01
@@ -520,6 +521,8 @@ class Assistant:
         self._app.use_assistant = enable
         if enable and not self._app.use_voice:
             self._app.use_voice = True
+        if enable:
+            self._app.use_intent_recognizer = False
 
 
     def _completion_request(self, user_request, messages, *, functions, timeout):

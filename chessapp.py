@@ -498,6 +498,8 @@ class ChessApp(App):
     # ----------------------------------------------------------------
     MAX_DIFFICULTY = len(NPS_LEVEL) + 1
 
+    use_intent_recognizer = BooleanProperty(False)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
