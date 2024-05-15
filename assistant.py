@@ -220,7 +220,8 @@ _FUNCTIONS = [
 
 _BASIC_PROMPT = (
     f"Always reply with text-to-speech friendly English text. "
-    f"Do not state the position of individual pieces or use ASCII art. "
+    f"Do not state the position of individual pieces; do not use ASCII art. "
+    f"Never use asterisks or non-printable characters in your answers. "
     f"Be concise. Do not return move sequences in non-function call replies. "
 )
 
