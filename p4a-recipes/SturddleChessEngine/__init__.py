@@ -108,7 +108,7 @@ class SturddleChessEngine(CythonRecipe, CppCompiledComponentsPythonRecipe):
             'context.cpp',
             'nnue.h',
             'primes.hpp',
-            'shared_hash_table.h',
+            'hash_table.h',
             'search.h',
             'search.cpp',
             'tables.h',
