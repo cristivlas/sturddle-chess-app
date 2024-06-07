@@ -108,7 +108,7 @@ ABOUT   = f"""Powered by the [b]Sturddle Chess Engine V2[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
-(C) 2022, 2023 Cristian Vlasceanu
+(C) 2022 - 2024 Cristian Vlasceanu
 Sturddlefish image by Alexandra Nicolae
 
 {hlink(ICON)}
