@@ -143,17 +143,20 @@ class ECO:
             #
             # Use rapidfuzz to refine the search
             #
-            results = {self.data[i]['name'].lower():i for i,_ in idx}
+            try:
+                results = {self.data[i]['name'].lower():i for i,_ in idx}
 
-            #print(f'\nQuery results for: {query}')
-            #[print(k, i) for k,i in results.items()]
+                #print(f'\nQuery results for: {query}')
+                #[print(k, i) for k,i in results.items()]
 
-            keys = extract(query.lower(), results.keys(), limit=top_n)
+                keys = extract(query.lower(), results.keys(), limit=top_n)
 
-            #print(f'\nRefined results for: {query}')
-            #[print(k) for k in keys]
+                #print(f'\nRefined results for: {query}')
+                #[print(k) for k in keys]
 
-            return [Opening(self.data[results[k[0]]]) for k in keys]
+                return [Opening(self.data[results[k[0]]]) for k in keys]
+            except:
+                pass
         return []
 
     @lru_cache(maxsize=256)
