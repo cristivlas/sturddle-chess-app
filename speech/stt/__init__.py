@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 from kivy.utils import platform
+from kivy.logger import Logger
 
 if platform == 'android':
     from .android import AndroidSTT as STT
@@ -26,7 +27,8 @@ else:
     try:
         import whisper
         from .whisper import WhisperSTT as STT
-    except:
+    except Exception as e:
+        Logger.info(f'WhisperSTT: {e}, using GenericSTT')
         from .generic import GenericSTT as STT
 
 stt = STT()

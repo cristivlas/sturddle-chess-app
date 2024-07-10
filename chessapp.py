@@ -1087,6 +1087,7 @@ class ChessApp(App):
             return self.voice_input.enter()
 
         if keycode1 == Keyboard.keycodes['spacebar']:
+            self.board_widget.hide_bubble()
             return self.speech_input()
 
         # Ctrl+ functions. Disabled in edit mode or when modal views are active.
