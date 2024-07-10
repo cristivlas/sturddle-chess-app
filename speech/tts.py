@@ -17,12 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 
-import subprocess
-import threading
-from functools import partial
-
+import os
 import plyer
+import subprocess
 import sys
+import threading
+
+
+from functools import partial
 
 from kivy.clock import Clock, ClockEvent
 from kivy.logger import Logger
@@ -103,7 +105,8 @@ else:
         if utility:
             _scheduled[0] = _subprocess([utility, message])
         else:
-            _scheduled[0] = _subprocess([sys.executable, 'say.py', message])
+            script = 'wsay.py' if os.name == 'nt' else 'say.py'
+            _scheduled[0] = _subprocess([sys.executable, script, message])
 
 
 def is_speaking():
