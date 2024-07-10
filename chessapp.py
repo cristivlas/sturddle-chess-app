@@ -502,8 +502,8 @@ class ChessApp(App):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         chess.pgn.LOGGER.setLevel(50)
+
         self.in_game_animation = False  # animation in progress?
         self.assistant = Assistant(self)
         self.openai_api_key = os.environ.get('OPENAI_API_KEY', '')
@@ -702,6 +702,19 @@ class ChessApp(App):
         self.set_study_mode(study_mode)
 
 
+    def set_window_size(self, *_):
+        if not is_mobile():
+            try:
+                import pyautogui
+                w, h = pyautogui.size()
+                r = 0.5
+                Window.size = (WIDTH/HEIGHT * h * r, h * r)
+                Window.left = (w - Window.size[0]) // 2
+                Window.top = (h - Window.size[1]) // 2
+            except:
+                Window.size = (WIDTH, HEIGHT)
+
+
     def build(self):
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_request_close=self.on_quit)
@@ -709,17 +722,8 @@ class ChessApp(App):
         Window.bind(on_touch_down=self.on_touch_down)
         Window.bind(on_touch_up=self.on_touch_up)
 
-        if not is_mobile():
-            try:
-                import pyautogui
-                w, h = pyautogui.size()
-                r = 0.85
-                Window.size = (WIDTH/HEIGHT * h * r, h * r)
-                Window.top = h * (1-r) / 2
-            except:
-                Window.size = (WIDTH, HEIGHT)
-
         root = Root()
+
         for id, widget in root.ids.items():
             setattr(self, id, widget)
         self.board_widget.set_model(self.engine.board)
@@ -1190,6 +1194,8 @@ class ChessApp(App):
 
     def on_start(self):
         self._android_hide_menu()
+        Clock.schedule_once(self.set_window_size)
+
         self.update(self.engine.last_moves()[-1])
         self.engine.start()
         if not self.engine.is_opponents_turn():

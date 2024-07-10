@@ -1228,7 +1228,9 @@ class Assistant:
             for name, eco in search_param:
                 args[_openings].append(name)
                 args[name] = eco
-            return self._handle_lookup_openings(user_input, args).response == AppLogic.OK
+
+            result = self._handle_lookup_openings(user_input, args)
+            return result and result.response == AppLogic.OK
 
 
     def respond_to_user(self, response):

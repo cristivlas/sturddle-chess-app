@@ -22,6 +22,8 @@ import threading
 from functools import partial
 
 import plyer
+import sys
+
 from kivy.clock import Clock, ClockEvent
 from kivy.logger import Logger
 from kivy.utils import platform
@@ -101,7 +103,7 @@ else:
         if utility:
             _scheduled[0] = _subprocess([utility, message])
         else:
-            _scheduled[0] = _subprocess(['./say.py', message])
+            _scheduled[0] = _subprocess([sys.executable, 'say.py', message])
 
 
 def is_speaking():
