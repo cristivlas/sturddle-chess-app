@@ -100,7 +100,7 @@ class ECO:
                     yield path.join(dir, f)
 
     def read_tsv_file(self, fname):
-        with open(fname) as f:
+        with open(fname, encoding='utf-8') as f:
             reader = csv.DictReader(f, dialect='excel-tab')
             for row in reader:
                 self.by_fen[row['epd']] = row

@@ -34,6 +34,8 @@ class BytePairEncoding:
                 if max_freq < freq:
                     best_pair = pair
                     max_freq = freq
+            if best_pair is None:
+                break
             self._merge_pair(*best_pair, splits, word_freqs.keys())
             top_2 = best_pair[0] + best_pair[1]
             self.merges[best_pair] = top_2

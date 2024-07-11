@@ -294,7 +294,7 @@ class Input:
                 if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
             ]
             if params:
-                Logger.info(f'{func.__name__} expects args, args=\"{args}\"')
+                Logger.info(f'{func.__name__}(args) args=\"{args}\"')
                 if not args:
                     return False
                 cmd = lambda *_: func(args)

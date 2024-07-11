@@ -25,6 +25,7 @@ from kivy.config import Config
 Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'multisample', 16)
 
+import ctypes
 import math
 import random
 import re
@@ -118,8 +119,8 @@ GAME    = 'game'
 IMAGE   = 'images/sturddlefish.png'
 VIEW_MODE = ' Mode [color=A0A0A0]/[/color][b][color=FFA045] Engine Off[/color][/b]'
 
-WIDTH   = 480
-HEIGHT  = 700
+WIDTH   = 600
+HEIGHT  = 900
 
 # Modified Font Awesome codes for chess pieces
 PIECE_CODES = [
@@ -163,6 +164,13 @@ if not is_mobile():
 
 def bold(text):
     return f'[b]{text}[/b]'
+
+
+def screen_scale():
+    scale = 1.0  # TODO: Other platforms
+    if platform == 'win':
+        scale = ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100
+    return scale
 
 
 class Arrow:
@@ -705,15 +713,14 @@ class ChessApp(App):
     def set_window_size(self, *_):
         if not is_mobile():
             try:
-                import pyautogui
-                w, h = pyautogui.size()
-                r = 0.5
-                Window.size = (WIDTH/HEIGHT * h * r, h * r)
-                Window.left = (w - Window.size[0]) // 2
+                import pyautogui  # raises error if .Xauthority not found
+                _, h = pyautogui.size()
+                scale = screen_scale()
+                ratio = min(1.0, h / 1200 / scale)
+                Window.size = WIDTH * ratio, HEIGHT * ratio
                 Window.top = (h - Window.size[1]) // 2
             except:
                 Window.size = (WIDTH, HEIGHT)
-
 
     def build(self):
         Window.bind(on_keyboard=self.on_keyboard)
