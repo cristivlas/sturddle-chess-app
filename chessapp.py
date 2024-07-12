@@ -1914,7 +1914,11 @@ class ChessApp(App):
                 self.speak('Voice on' if self.use_voice else 'Voice off', True)
 
                 if self.use_voice:
-                    self.touch_hint('anywhere outside the board and hold to speak.')
+                    if is_mobile():
+                        self.touch_hint('anywhere outside the board and hold to speak.')
+                    else:
+                        self.touch_hint('''anywhere outside the board and hold, '''
+                                        '''or use SPACEBAR for voice commands.''')
 
         def commit_settings(*_):
             self.set_openai_key(self.assistant.temp_key)
