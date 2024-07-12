@@ -58,7 +58,7 @@ class GenericSTT(STT):
         if stt := [name for name in ['deepspeech', 'stt'] if importlib.util.find_spec(name)]:
             stt = importlib.import_module(stt[0])
         else:
-            Logger.info('stt: did not file deepspech or stt (coqui-ai)')
+            Logger.info('stt: did not find deepspech or stt (coqui-ai)')
             return
 
         model_path = os.path.join(os.path.dirname(__file__), DEEPSPEECH_MODEL)
