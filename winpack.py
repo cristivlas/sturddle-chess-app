@@ -134,7 +134,7 @@ def main():
     run_cmd('iscc installer.iss')
 
     # Final cleanup
-    # cleanup()
+    cleanup()
 
     if os.path.exists('installer.iss'):
         os.remove('installer.iss')

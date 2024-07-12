@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
 
-import os
 import plyer
 import subprocess
 import sys
@@ -81,16 +80,7 @@ elif platform == 'android':
                 Logger.error(f'tts: OnInitListener.status={OnInitListener.status}')
 
             _scheduled[0] = None
-#
-# elif platform == 'win':
-#     import win32com.client
-#     def win_speak(message):
-#         speaker = win32com.client.Dispatch("SAPI.SpVoice")
-#         speaker.Speak(message)
-#     def _speak(message, *_):
-#         thread = threading.Thread(target=win_speak, args=(message,))
-#         thread.start()
-#
+
 else:
     def _subprocess(args):
         _scheduled[0] = None
