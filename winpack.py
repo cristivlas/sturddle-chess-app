@@ -22,6 +22,7 @@ data_files = [
     ('images', 'images'),
     ('intent-model', 'intent-model'),
     ('openings.idx', 'openings.idx'),
+    ('wsay.py', '.')
 ]
 
 def on_rm_error(func, path, exc_info):
@@ -130,7 +131,7 @@ def main():
     run_cmd('iscc installer.iss')
 
     # Final cleanup
-    cleanup()
+    # cleanup()
 
     if os.path.exists('installer.iss'):
         os.remove('installer.iss')

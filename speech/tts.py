@@ -81,21 +81,16 @@ elif platform == 'android':
                 Logger.error(f'tts: OnInitListener.status={OnInitListener.status}')
 
             _scheduled[0] = None
-
-elif platform == 'win':
-    import asyncio
-    import win32com.client
-
-    def win_speak(message):
-        speaker = win32com.client.Dispatch("SAPI.SpVoice")
-        #voices = speaker.GetVoices()
-        #speaker.Voice = voices.Item(0)
-        speaker.Speak(message, 2)  # SVSFPurgeBeforeSpeak
-
-    def _speak(message, *_):
-        thread = threading.Thread(target=win_speak, args=(message,))
-        thread.start()
-
+#
+# elif platform == 'win':
+#     import win32com.client
+#     def win_speak(message):
+#         speaker = win32com.client.Dispatch("SAPI.SpVoice")
+#         speaker.Speak(message)
+#     def _speak(message, *_):
+#         thread = threading.Thread(target=win_speak, args=(message,))
+#         thread.start()
+#
 else:
     def _subprocess(args):
         _scheduled[0] = None
@@ -119,9 +114,12 @@ else:
         if utility:
             _scheduled[0] = _subprocess([utility, message])
         else:
+            # TODO: come up with a more reliable way of executing
+            # script on Windows (bundle the interpreter?)
+            script = 'wsay.py' if platform == 'win' else 'say.py'
             interp = sys.executable
-            script = 'say.py'
-            assert 'python' in interp.lower()
+            if 'python' not in interp.lower():
+                interp = 'python'  # running from bundle?
             _scheduled[0] = _subprocess([interp, script, message])
 
 
