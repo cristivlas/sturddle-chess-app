@@ -720,7 +720,6 @@ class ChessApp(App):
                 scale = screen_scale()
                 ratio = min(1.0, h / 1200 / scale)
                 Window.size = WIDTH * ratio, HEIGHT * ratio
-                Window.top = (h - Window.size[1]) // 2
             except:
                 Window.size = (WIDTH, HEIGHT)
 
@@ -730,6 +729,7 @@ class ChessApp(App):
         Window.bind(on_restore=lambda *_: self._android_hide_menu(True))
         Window.bind(on_touch_down=self.on_touch_down)
         Window.bind(on_touch_up=self.on_touch_up)
+        Window.bind(top=self.on_position_change, left=self.on_position_change)
 
         root = Root()
 
@@ -1003,6 +1003,11 @@ class ChessApp(App):
             self.use_assistant = store.get('use_assistant', False)
             self.use_intent_recognizer = store.get('use_intent_recognizer', False)
 
+            # Remember last window position
+            if not is_mobile():
+                pos = store.get('position', (Window.left, Window.top))
+                Window.left, Window.top = pos
+
 
     def save(self, *_):
         '''
@@ -1036,8 +1041,8 @@ class ChessApp(App):
             openai_api_key=self.openai_api_key,
             use_assistant=self.use_assistant,
             use_intent_recognizer=self.use_intent_recognizer,
+            position=(Window.left, Window.top)
         )
-
         self.update_button_states()
 
 
@@ -1173,6 +1178,10 @@ class ChessApp(App):
 
     def on_pause(self):
         return True
+
+
+    def on_position_change(self, *_):
+        self.save()
 
 
     def on_promo(self, move, promo):

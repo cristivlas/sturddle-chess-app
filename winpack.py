@@ -64,6 +64,8 @@ def cleanup():
 def create_inno_script():
     inno_script = f"""
 [Setup]
+AppPublisher=Cristian Vlasceanu
+AppPublisherURL=https://github.com/cristivlas/sturddle-chess-app
 AppName=Sturddle Chess for Windows
 AppVersion=0.9.0
 DefaultDirName={{autopf64}}\\SturddleChess
@@ -80,7 +82,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Source: "*"; DestDir: "{{app}}"; Flags: recursesubdirs
 
 [Icons]
-Name: "{{group}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"
+Name: "{{group}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"; WorkingDir: {{app}}
+Name: "{{group}}\\Uninstall Sturddle Chess"; Filename: "{{uninstallexe}}"; IconFilename: "{{app}}\\chess.exe"
 
 [Run]
 Filename: "{{app}}\\chess.exe"; Description: "Launch Sturddle Chess"; Flags: postinstall nowait

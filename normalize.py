@@ -15,6 +15,10 @@ from num2words import num2words
 
 regex = r'(?<! to | on |the )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-hA-H1-8]?[xX]?[a-hA-H][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
 
+def capitalize_chess_coords(coords):
+    pattern = r'\b([a-h])([1-8])\b'
+    return re.sub(pattern, lambda m: m.group(1).upper() + m.group(2), coords)
+
 
 def substitute_chess_moves(text, insert_delim=None, num_words=False, capitalize=True):
     '''
@@ -26,6 +30,8 @@ def substitute_chess_moves(text, insert_delim=None, num_words=False, capitalize=
 
     # Replace each move in the text with its translated version
     translated_text = re.sub(regex, replace_match, text)
+
+    translated_text = capitalize_chess_coords(translated_text)
 
     return translated_text
 
