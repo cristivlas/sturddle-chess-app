@@ -88,9 +88,9 @@ elif platform == 'win':
 
     def win_speak(message):
         speaker = win32com.client.Dispatch("SAPI.SpVoice")
-        voices = speaker.GetVoices()
-        speaker.Voice = voices.Item(0)
-        speaker.Speak(message)
+        #voices = speaker.GetVoices()
+        #speaker.Voice = voices.Item(0)
+        speaker.Speak(message, 2)  # SVSFPurgeBeforeSpeak
 
     def _speak(message, *_):
         thread = threading.Thread(target=win_speak, args=(message,))

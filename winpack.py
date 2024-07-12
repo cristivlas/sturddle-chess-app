@@ -63,8 +63,8 @@ def cleanup():
 def create_inno_script():
     inno_script = f"""
 [Setup]
-AppName=Sturddle Chess
-AppVersion=1.0
+AppName=Sturddle Chess for Windows
+AppVersion=0.9.0
 DefaultDirName={{autopf64}}\\SturddleChess
 DefaultGroupName=Sturddle Chess
 OutputDir={INSTALLER_OUTPUT}
@@ -103,7 +103,7 @@ def main():
            '--clean',
            '--icon=images/chess.ico',
            '-y',
-           '-w',
+           #'-w',
            '--log-level=INFO',
            f'--distpath={OUTPUT}',
            '--name=chess',
