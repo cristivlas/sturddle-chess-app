@@ -95,7 +95,12 @@ else:
     def _subprocess(args):
         _scheduled[0] = None
         _speaking[0] = True
-        p = subprocess.Popen(args)
+        p = subprocess.Popen(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
 
         def background_wait(p):
             p.wait()
@@ -110,18 +115,20 @@ else:
         return p
 
     def _speak(message):
-        utility = whereis_exe('say') or whereis_exe('espeak')
-        if utility:
-            _scheduled[0] = _subprocess([utility, message])
+        if platform == 'win':
+            interp = 'powershell.exe'
+            script_path = 'say.ps1'
+            _scheduled[0] = _subprocess([interp, '-ExecutionPolicy', 'Bypass', '-File', script_path, message])
         else:
-            # TODO: come up with a more reliable way of executing
-            # script on Windows (bundle the interpreter?)
-            script = 'wsay.py' if platform == 'win' else 'say.py'
-            interp = sys.executable
-            if 'python' not in interp.lower():
-                interp = 'python'  # running from bundle?
-            _scheduled[0] = _subprocess([interp, script, message])
-
+            utility = whereis_exe('say') or whereis_exe('espeak')
+            if utility:
+                _scheduled[0] = _subprocess([utility, message])
+            else:
+                script = 'say.py'
+                interp = sys.executable
+                if 'python' not in interp.lower():
+                    interp = 'python'  # running from bundle?
+                _scheduled[0] = _subprocess([interp, script, message])
 
 def is_speaking():
     if platform == 'android':

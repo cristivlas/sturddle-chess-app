@@ -22,7 +22,7 @@ data_files = [
     ('images', 'images'),
     ('intent-model', 'intent-model'),
     ('openings.idx', 'openings.idx'),
-    ('wsay.py', '.')
+    ('say.ps1', '.')
 ]
 
 def on_rm_error(func, path, exc_info):
