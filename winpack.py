@@ -1,12 +1,10 @@
-"""
-Create PyInstaller bundle and wrap with NSIS Windows
-"""
 import os
 import shutil
 import stat
 
 OUTPUT = 'dist'
 BUNDLE_DEST = os.path.join(OUTPUT, 'chess')
+INSTALLER_OUTPUT = os.getcwd()
 
 modules = [
     'chess',
@@ -55,48 +53,43 @@ def run_cmd(command):
     return os.system(command)
 
 def cleanup():
-    #paths = ['build', 'dist']
-    paths = ['build']
+    paths = ['build', 'dist']
     for p in paths:
         if os.path.exists(p):
             shutil.rmtree(p, onexc=on_rm_error)
     if os.path.exists('chess.spec'):
         os.remove('chess.spec')
 
-def create_nsis_script():
-    nsis_script = r"""
-    !include "MUI2.nsh"
+def create_inno_script():
+    inno_script = f"""
+[Setup]
+AppName=Sturddle Chess
+AppVersion=1.0
+DefaultDirName={{autopf64}}\\SturddleChess
+DefaultGroupName=Sturddle Chess
+OutputDir={INSTALLER_OUTPUT}
+OutputBaseFilename=SturddleChessInstaller
+Compression=lzma
+SolidCompression=yes
+SourceDir={BUNDLE_DEST}
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 
-    Name "Sturddle Chess"
-    OutFile "SturddleChessInstaller.exe"
-    InstallDir "$PROGRAMFILES64\SturddleChess"
+[Files]
+Source: "*"; DestDir: "{{app}}"; Flags: recursesubdirs
 
-    !insertmacro MUI_PAGE_DIRECTORY
-    !insertmacro MUI_PAGE_INSTFILES
+[Icons]
+Name: "{{group}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"
 
-    !insertmacro MUI_UNPAGE_CONFIRM
-    !insertmacro MUI_UNPAGE_INSTFILES
+[Run]
+Filename: "{{app}}\\chess.exe"; Description: "Launch Sturddle Chess"; Flags: postinstall nowait
 
-    !insertmacro MUI_LANGUAGE "English"
-
-    Section "Install"
-        SetOutPath $INSTDIR
-        File /r "${BUNDLE_DEST}\*.*"
-        CreateShortCut "$DESKTOP\Chess.lnk" "$INSTDIR\chess.exe"
-        WriteUninstaller "$INSTDIR\Uninstall.exe"
-    SectionEnd
-
-    Section "Uninstall"
-        Delete "$DESKTOP\Chess.lnk"
-        RMDir /r "$INSTDIR"
-    SectionEnd
+[UninstallDelete]
+Type: filesandordirs; Name: "{{app}}"
     """
 
-    # Replace ${BUNDLE_DEST} with the actual path
-    nsis_script = nsis_script.replace("${BUNDLE_DEST}", BUNDLE_DEST.replace("\\", "/"))
-
-    with open('installer.nsi', 'w') as f:
-        f.write(nsis_script)
+    with open('installer.iss', 'w') as f:
+        f.write(inno_script)
 
 def main():
     if not os.path.exists('eco/dist'):
@@ -108,6 +101,7 @@ def main():
     # Create the initial bundle
     cmd = ['pyinstaller',
            '--clean',
+           '--icon=images/chess.ico',
            '-y',
            '-w',
            '--log-level=INFO',
@@ -126,16 +120,20 @@ def main():
 
     post_bundle()
 
-    # Create NSIS script
-    create_nsis_script()
+    # Create Inno Setup script
+    create_inno_script()
 
-    # Run NSIS to create the installer
-    run_cmd('makensis installer.nsi')
+    # Create installer output directory
+    os.makedirs(INSTALLER_OUTPUT, exist_ok=True)
+
+    # Run Inno Setup to create the installer
+    run_cmd('iscc installer.iss')
 
     # Final cleanup
     cleanup()
-    if os.path.exists('installer.nsi'):
-        os.remove('installer.nsi')
+
+    if os.path.exists('installer.iss'):
+        os.remove('installer.iss')
 
 if __name__ == '__main__':
     main()
