@@ -2,7 +2,6 @@
 Voice recognition backend using OpenAI.
 '''
 import os
-#import openai
 import speech_recognition as sr
 import whisper
 from kivy.core.audio import SoundLoader

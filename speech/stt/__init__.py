@@ -25,8 +25,7 @@ elif platform == 'ios':
     from .base import STT
 else:
     try:
-        import whisper
-        from .whisper import WhisperSTT as STT
+        from .whoa import WhisperSTT as STT
     except Exception as e:
         Logger.info(f'WhisperSTT: {e}, using GenericSTT')
         from .generic import GenericSTT as STT
