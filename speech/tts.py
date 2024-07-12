@@ -82,6 +82,20 @@ elif platform == 'android':
 
             _scheduled[0] = None
 
+elif platform == 'win':
+    import asyncio
+    import win32com.client
+
+    def win_speak(message):
+        speaker = win32com.client.Dispatch("SAPI.SpVoice")
+        voices = speaker.GetVoices()
+        speaker.Voice = voices.Item(0)
+        speaker.Speak(message)
+
+    def _speak(message, *_):
+        thread = threading.Thread(target=win_speak, args=(message,))
+        thread.start()
+
 else:
     def _subprocess(args):
         _scheduled[0] = None
@@ -105,8 +119,10 @@ else:
         if utility:
             _scheduled[0] = _subprocess([utility, message])
         else:
-            script = 'wsay.py' if os.name == 'nt' else 'say.py'
-            _scheduled[0] = _subprocess([sys.executable, script, message])
+            interp = sys.executable
+            script = 'say.py'
+            assert 'python' in interp.lower()
+            _scheduled[0] = _subprocess([interp, script, message])
 
 
 def is_speaking():

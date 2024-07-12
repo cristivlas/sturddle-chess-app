@@ -512,11 +512,13 @@ class ChessApp(App):
         super().__init__(**kwargs)
         chess.pgn.LOGGER.setLevel(50)
 
+        datafile = 'game.dat' if is_mobile() else os.path.join(os.path.expanduser('~'), '.chess')
+
         self.in_game_animation = False  # animation in progress?
         self.assistant = Assistant(self)
         self.openai_api_key = os.environ.get('OPENAI_API_KEY', '')
         self.modal = None
-        self.store = DictStore('game.dat')
+        self.store = DictStore(datafile)
         self.eco = None
         self.engine = Engine(self.update, self.update_move, Logger.debug)
         self.engine.depth_callback = self.update_hash_usage
