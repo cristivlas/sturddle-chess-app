@@ -1,6 +1,9 @@
 import os
 import shutil
 import stat
+import subprocess
+
+from sturddle_chess_engine import chess_engine
 
 OUTPUT = 'dist'
 BUNDLE_DEST = os.path.join(OUTPUT, 'chess')
@@ -30,7 +33,14 @@ def on_rm_error(func, path, exc_info):
     func(path)
 
 def remove_unwanted_files_and_dirs():
-    unwanted_patterns = ['game.dat', '.git', '.gitignore', '*.log', '__pycache__']
+    unwanted_patterns = [
+        'game.dat',
+        '.git',
+        '.gitignore',
+        '*.log',
+        '__pycache__',
+        'pocketsphinx-data'
+    ]
 
     for root, dirs, files in os.walk(BUNDLE_DEST):
         for pattern in unwanted_patterns:
@@ -50,8 +60,7 @@ def post_bundle():
     remove_unwanted_files_and_dirs()
 
 def run_cmd(command):
-    print(command)
-    return os.system(command)
+    subprocess.run(command, shell=True, check=True, capture_output=False, text=True)
 
 def cleanup():
     paths = ['build', 'dist']
@@ -62,12 +71,13 @@ def cleanup():
         os.remove('chess.spec')
 
 def create_inno_script():
+    version=chess_engine.version()
     inno_script = f"""
 [Setup]
 AppPublisher=Cristian Vlasceanu
 AppPublisherURL=https://github.com/cristivlas/sturddle-chess-app
-AppName=Sturddle Chess for Windows
-AppVersion=0.9.0
+AppName=Sturddle Chess
+AppVersion={version}
 DefaultDirName={{autopf64}}\\SturddleChess
 DefaultGroupName=Sturddle Chess
 OutputDir={INSTALLER_OUTPUT}
