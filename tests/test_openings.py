@@ -1,6 +1,6 @@
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import opening
 import unittest
 
@@ -12,7 +12,7 @@ class TestOpenings(unittest.TestCase):
         queries = {
             "alban's counter-gambit": [
                 "Queen's Gambit Declined: Albin Countergambit",
-
+                "Blackmar-Diemer Gambit: Reversed Albin Countergambit",
                 #"Queen's Gambit Declined: Albin Countergambit, Fianchetto Variation",
                 #"Queen's Gambit Declined: Albin Countergambit, Lasker Trap"
             ],
@@ -60,7 +60,7 @@ class TestOpenings(unittest.TestCase):
             ],
             "ageincourt de-fence": [
                 "English Opening: Agincourt Defense",
-
+                "English Opening: Agincourt Defense, Bogoljubow Defense",
                 #"English Opening: Agincourt Defense, Keres Defense",
                 #"English Opening: Agincourt Defense, Catalan Defense",
                 #"English Opening: Agincourt Defense, Wimpy System",
@@ -94,7 +94,7 @@ class TestOpenings(unittest.TestCase):
             ],
             "yugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
-                "Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation"
+                "Sicilian Defense: Dragon Variation, Yugoslav Attack, Soltis Variation",
             ],
             "sicilian iugoslav attack": [
                 "Sicilian Defense: Dragon Variation, Yugoslav Attack",
@@ -104,12 +104,16 @@ class TestOpenings(unittest.TestCase):
             ],
             "rubenstain sistem": [
                 "Semi-Slav Defense: Rubinstein System",
+                "Yusupov-Rubinstein System"
             ],
             "kapablanka sister" : [
-                "Queen's Gambit Declined: Orthodox Defense, Capablanca System"
+                "Queen's Gambit Declined: Orthodox Defense, Capablanca System",
+                "Queen's Indian Defense: Capablanca Variation"
             ],
             "Lasker belly can" : [
                 "Sicilian Defense: Lasker-Pelikan Variation",
+                "Sicilian Defense: Lasker-Pelikan Variation, Sveshnikov Variation",
+                "Sicilian Defense: Lasker-Pelikan Variation, Sveshnikov Variation, Novosibirsk Variation",
             ]
         }
         for query, expected in queries.items():
