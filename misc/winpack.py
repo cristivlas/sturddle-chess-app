@@ -2,12 +2,13 @@ import os
 import shutil
 import stat
 import subprocess
-
-from sturddle_chess_engine import chess_engine
+import sys
 
 OUTPUT = 'dist'
 BUNDLE_DEST = os.path.join(OUTPUT, 'chess')
 INSTALLER_OUTPUT = os.getcwd()
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from sturddle_chess_engine import chess_engine
 
 modules = [
     'chess',
@@ -58,17 +59,20 @@ def remove_unwanted_files_and_dirs():
 
 def post_bundle():
     remove_unwanted_files_and_dirs()
+    shutil.copy(os.path.join('misc', 'AppxManifest.xml'), BUNDLE_DEST)
 
 def run_cmd(command):
     subprocess.run(command, shell=True, check=True, capture_output=False, text=True)
 
 def cleanup():
-    paths = ['build', 'dist']
+    paths = ['build', OUTPUT]
     for p in paths:
         if os.path.exists(p):
             shutil.rmtree(p, onexc=on_rm_error)
     if os.path.exists('chess.spec'):
         os.remove('chess.spec')
+    if os.path.exists('installer.iss'):
+        os.remove('installer.iss')
 
 def create_inno_script():
     version=chess_engine.version()
@@ -117,7 +121,7 @@ def main():
            '--clean',
            '--icon=images/chess.ico',
            '-y',
-           #'-w',
+           '-w',
            '--log-level=INFO',
            f'--distpath={OUTPUT}',
            '--name=chess',
@@ -144,10 +148,7 @@ def main():
     run_cmd('iscc installer.iss')
 
     # Final cleanup
-    cleanup()
-
-    if os.path.exists('installer.iss'):
-        os.remove('installer.iss')
+    #cleanup()
 
 if __name__ == '__main__':
     main()

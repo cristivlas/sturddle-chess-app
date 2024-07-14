@@ -557,7 +557,7 @@ class ChessApp(App):
 
 
     def about(self, *_):
-        TITLE = f'Sturddle Chess {chess_engine.version()}'
+        TITLE = f'Sturddle Chess (Engine {chess_engine.version()})'
         self.message_box(TITLE, ABOUT, Image(source=IMAGE), auto_wrap=False)
         self.modal.popup.size_hint=(.9, .35)
         self.modal.popup.message_max_font_size = sp(14)
