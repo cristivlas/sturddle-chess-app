@@ -41,11 +41,13 @@ import msgbox
 _DISABLED_ACTION_ITEM = 'atlas://data/images/defaulttheme/action_item'
 
 _VOICE_HELP = '''You can speak your move, or give commands such as:
-"evaluate the position", "flip the board", "show puzzles",
+"evaluate", "flip the board", "show puzzles",
 "start new game", "settings", etc.
 You can also request to play an opening, for example:
-"Play French Defense", or "Scotch Game", etc.
-You can also experiment with voice interaction using free-form English.
+"play French Defense", "Scotch Game", or "set up Caro Kann".
+You can experiment with voice interaction using free-form English.
+For best results, enter your Open AI key in the Advanced, Voice Assistant settings,
+and enable the Remote feature.
 '''
 
 class LanguageInput(GridLayout):  # See chessapp.kv
@@ -84,6 +86,10 @@ class Input:
         if text := self.get_text_input():
             self._input.ids.text.focus = False  # Hide the virtual keyboard.
             self._process([text])
+
+
+    def help_message(self, *_):
+        self._process(['help'])
 
 
     def _is_ask_mode(self):
@@ -143,7 +149,7 @@ class Input:
         self._popup.ids.title_box.add_widget(self._listen, index=2)
         self._popup.bind(on_dismiss=self._dismiss)
 
-        # In full dialog mode, add a "send" button.
+        # In full dialog mode, add "send" and "help" buttons
         if show_dialog:
             # Add the send button.
             self._send = ActionButton(
@@ -155,6 +161,15 @@ class Input:
                 on_press=self.enter
             )
             popup.ids.title_box.add_widget(self._send, index=-1)
+
+            # Help button
+            self._help = ActionButton(
+                text='\uF059',
+                halign='right',
+                font_name=self._app.font_awesome,
+                on_press=self.help_message
+            )
+            popup.ids.title_box.add_widget(self._help, index=-3)
 
         if stt.is_supported():
             def on_error(msg):
@@ -191,8 +206,9 @@ class Input:
         def callback(*_):
             if self._results:
                 last = self._results.pop()
-                self._input.ids.text.text = last[0]
-                self._parse(last)
+                if last:
+                    self._input.ids.text.text = last[0]
+                    self._parse(last)
 
         if self._results:
             # Delay parsing to allow for the UI to update.

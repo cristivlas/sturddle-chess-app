@@ -46,10 +46,10 @@ requirements = annoy,chess,CleanFuzz,kivy,metaphone,numpy,num2words,rapidfuzz,py
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/images/chess.png
+presplash.filename = %(source.dir)s/images/splash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/images/chess.png
+icon.filename = %(source.dir)s/images/logo_150.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
