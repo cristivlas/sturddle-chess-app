@@ -213,11 +213,19 @@
             use_separator: True
             RotatingActionPrevious:
                 id: menu_button
-                app_icon:'images/chess.png'
+                app_icon:'images/logo_50.png'
                 previous_image:'images/menu-bar.png'
                 previous_image_width: sp(32)
                 previous_image_height: sp(32)
                 on_release: app.on_menu_button(self)
+
+            AwesomeActionButton:
+                text: ' \uF130 '
+                id: voice_button
+                disabled: not app._use_voice
+                on_release: app.speech_input()
+
+            ActionSeparator:
 
             AwesomeActionButton:
                 text: ' \uF2EA '

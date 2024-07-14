@@ -40,6 +40,14 @@ import msgbox
 
 _DISABLED_ACTION_ITEM = 'atlas://data/images/defaulttheme/action_item'
 
+_VOICE_HELP = '''You can speak your move, or give commands such as:
+"evaluate the position", "flip the board", "show puzzles",
+"start new game", "settings", etc.
+You can also request to play an opening, for example:
+"Play French Defense", or "Scotch Game", etc.
+You can also experiment with voice interaction using free-form English.
+'''
+
 class LanguageInput(GridLayout):  # See chessapp.kv
     @property
     def stt_supported(self):
@@ -270,6 +278,9 @@ class Input:
             self._start_stt()  # keep listening
 
 
+    def help(self):
+        self._app.assistant.respond_to_user(_VOICE_HELP)
+
     def _run_command(self, command, args):
         actions = {
             'analyze': lambda *_: self._app.analyze(full=True),
@@ -277,6 +288,7 @@ class Input:
             'edit': self._app.edit_start,
             'evaluate': self._app.analyze,
             'exit': self._app.exit,
+            'help': self.help,
             'hints': self._app.hints,
             'new': self._app.new_game,
             'opening': self._app.lookup_and_play_opening,

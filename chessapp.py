@@ -104,15 +104,12 @@ def hlink(link):
 CHESS   = 'https://python-chess.readthedocs.io/en/latest/]python-chess'
 CODE    = 'https://github.com/cristivlas/sturddle-chess-app]github.com/sturddle-chess-app'
 KIVY    = 'https://kivy.org/]Kivy'
-ICON    = 'https://www.flaticon.com/free-icons/chess]Chess icon created by Freepik - Flaticon'
-ABOUT   = f"""Powered by the [b]Sturddle Chess Engine V2[/b],
+ABOUT   = f"""Powered by the [b]Sturddle Chess Engine[/b],
 {hlink(KIVY)}, and {hlink(CHESS)} {Engine.chess_ver()}.
 
 {hlink(CODE)}
 (C) 2022 - 2024 Cristian Vlasceanu
 Sturddlefish image by Alexandra Nicolae
-
-{hlink(ICON)}
 """
 
 GAME    = 'game'
@@ -490,9 +487,10 @@ def _from_clipboard():
 
 
 class ChessApp(App):
-    icon = 'images/chess.png'
+    icon = 'images/logo_50.png'
     font_awesome = 'fonts/Font Awesome 5 Free Solid.ttf'
     engine_busy = ObjectProperty(bool)  # used in settings.kv
+    _use_voice = ObjectProperty(bool)
 
     # Node-per-second limits by "skill-level". The engine does not
     # implement strength levels, the application layer injects delays

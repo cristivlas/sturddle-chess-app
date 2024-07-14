@@ -36,7 +36,7 @@ from io import StringIO
 from gpt_utils import get_token_count, get_token_limit
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
-from normalize import substitute_chess_moves, remove_san_notation
+from normalize import capitalize_chess_coords, substitute_chess_moves, remove_san_notation
 from opening import Opening
 from puzzlelib import PuzzleCollection, puzzle_description
 from puzzlelib import themes_dict as puzzle_themes
@@ -1245,6 +1245,7 @@ class Assistant:
 
         # Convert list of moves (in short algebraic notation - SAN) to pronounceable text.
         tts_text = substitute_chess_moves(response, ';')
+        tts_text = capitalize_chess_coords(tts_text)
 
         # Reformat numbered lists if the response does not seem to contain moves.
         if tts_text == response:

@@ -90,7 +90,6 @@ def generate_synthetic_data(eco):
             'make a recommendation',
             'find the best move',
             'find me a good move',
-            'help me find a move',
             'move suggestion',
             'good move suggestion',
             'good move recommendation',
@@ -112,6 +111,19 @@ def generate_synthetic_data(eco):
             'give me an idea',
             'give me some ideas',
             'do you have any idea for what to do',
+        ],
+        'help': [
+            'Help',
+            'Help me out',
+            'I need help',
+            'I need assistance',
+            'How do I use voice commands',
+            'what do I do',
+            'how does voice work',
+            'how does this work',
+            'give me help',
+            'provide help',
+            'some help',
         ],
         # Examples of unhandled / unknown intents:
         'None':[

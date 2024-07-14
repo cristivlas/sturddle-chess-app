@@ -133,6 +133,7 @@ class NLP:
         edit = pp.Keyword('edit')
         exit = pp.Keyword('exit') | pp.Keyword('quit')
         flip = pp.Keyword('flip') + pp.Opt(THE + pp.Keyword('board'))
+        help = pp.Keyword('help') | pp.Keyword('?')
         hints = (pp.Keyword('show') | pp.Keyword('suggest')) + (pp.Keyword('hints') | pp.Keyword('variations'))
         new_game = pp.Opt('start') + pp.Opt('a') + pp.Keyword('new') + pp.Keyword('game')
         opening = (pp.Keyword('play') +
@@ -158,6 +159,7 @@ class NLP:
             backup.set_parse_action(self._on_backup) |
             edit.set_parse_action(partial(assign_command, 'edit')) |
             exit.set_parse_action(partial(assign_command, 'exit')) |
+            help.set_parse_action(partial(assign_command, 'help')) |
             hints.set_parse_action(assign_last_tok) |
             new_game.set_parse_action(partial(assign_command, 'new')) |
             puzzle.set_parse_action(partial(assign_command, 'puzzle')) |

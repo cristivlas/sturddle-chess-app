@@ -13,7 +13,7 @@ from num2words import num2words
 # |O-O(?:-O)?: Captures castling moves, "O-O" for kingside and "O-O-O" for queenside.
 # [\+#]?: Optional '+' or '#' at the end to denote check ('+') or checkmate ('#').
 
-regex = r'(?<! to | on |the )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-hA-H1-8]?[xX]?[a-hA-H][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
+regex = r'(?<! to | on |the |rom )\b(?:[1-9][0-9]*\.\s*)?(([KQBNR]?[a-hA-H1-8]?[xX]?[a-hA-H][1-8](?:=[QRBN])?|O-O(?:-O)?)\b[\+#]?)'
 
 def capitalize_chess_coords(coords):
     pattern = r'\b([a-h])([1-8])\b'
@@ -30,9 +30,6 @@ def substitute_chess_moves(text, insert_delim=None, num_words=False, capitalize=
 
     # Replace each move in the text with its translated version
     translated_text = re.sub(regex, replace_match, text)
-
-    translated_text = capitalize_chess_coords(translated_text)
-
     return translated_text
 
 
@@ -136,6 +133,7 @@ def test_substitute_chess_moves():
         ["A good pawn move for you to consider is dxE5", "A good pawn move for you to consider is pawn to E5"],
         ["A good pawn move for you to consider is DxE5", "A good pawn move for you to consider is pawn to E5"],
         ["A good pawn move for you to consider is DXe5", "A good pawn move for you to consider is pawn to e5"],
+        ["knight from g1", "knight from g1"]
 ]
 
     for test, expected in test_cases:

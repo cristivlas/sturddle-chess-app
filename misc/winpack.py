@@ -119,7 +119,7 @@ def main():
     # Create the initial bundle
     cmd = ['pyinstaller',
            '--clean',
-           '--icon=images/chess.ico',
+           '--icon=images/chess32.ico',
            '-y',
            '-w',
            '--log-level=INFO',
