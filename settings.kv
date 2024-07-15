@@ -206,11 +206,13 @@
 
         OptLabel:
             text: 'Online Speech Recognition'
-            disabled: not stt.is_offline_supported() or not use_voice.active
+            disabled: not use_voice.active
+            opacity: 1 if stt.is_offline_supported() else 0
         Switch:
             active: not stt.prefer_offline
             on_active: stt.prefer_offline = not self.active
-            disabled: not stt.is_offline_supported() or not use_voice.active
+            disabled: not use_voice.active
+            opacity: 1 if stt.is_offline_supported() else 0
 
     OptGrid:
         size_hint_y: 0.6
