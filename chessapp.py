@@ -112,7 +112,7 @@ Sturddlefish image by Alexandra Nicolae
 """
 
 GAME    = 'game'
-IMAGE   = 'images/sturddlefish.png'
+IMAGE   = 'images/splash.png'
 VIEW_MODE = ' Mode [color=A0A0A0]/[/color][b][color=FFA045] Engine Off[/color][/b]'
 
 WIDTH   = 600
