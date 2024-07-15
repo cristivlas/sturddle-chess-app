@@ -28,7 +28,7 @@ import requests
 import weakref
 
 from center import CenterControl
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 from enum import Enum
 from functools import partial
 from intent import IntentClassifier

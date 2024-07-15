@@ -4,9 +4,8 @@ Voice recognition backend using OpenAI.
 import os
 import speech_recognition as sr
 import whisper
-from kivy.core.audio import SoundLoader
 from kivy.logger import Logger
-from .base import STT
+from .base import STT, load_sound
 
 # tiny.en, base.en and small.en seems to perform well-enough
 # https://github.com/openai/whisper
@@ -21,8 +20,8 @@ class WhisperSTT(STT):
         self.ask_mode = False
         self._cancel = None
         self._model = whisper.load_model(MODEL)
-        self._start_sound = self._load_sound('start.mp3', 0.5)
-        self._stop_sound = self._load_sound('stop.mp3', 0.5)
+        self._start_sound = load_sound('start.mp3', 0.5)
+        self._stop_sound = load_sound('stop.mp3', 0.5)
         self._sr = sr.Recognizer()
         self.time_limit = kwargs.pop('time_limit', 5)
 
@@ -86,9 +85,3 @@ class WhisperSTT(STT):
 
     def _is_supported(self):
         return self._is_offline_supported()
-
-    def _load_sound(self, filename, volume=1):
-        sound = SoundLoader.load(os.path.join(os.path.dirname(__file__), filename))
-        if sound:
-            sound.volume = volume
-            return sound

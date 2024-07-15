@@ -35,7 +35,6 @@ from datetime import datetime
 from functools import partial
 from io import StringIO
 from os import path
-from time import sleep
 
 import chess.pgn
 
@@ -74,7 +73,7 @@ from assistant import Assistant
 from engine import Engine
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
-from normalize import substitute_chess_moves
+from normalize import substitute_chess_moves, capitalize_chess_coords
 from opening import ECO
 from puzzleview import PuzzleCollection, PuzzleView, puzzle_description
 from speech import nlp, stt, tts, voice
@@ -997,6 +996,8 @@ class ChessApp(App):
 
             if not self.openai_api_key:
                 self.openai_api_key = store.get('openai_api_key', '')
+                if not is_mobile() and self.openai_api_key:
+                    os.environ['OPENAI_API_KEY'] = self.openai_api_key
 
             self.use_assistant = store.get('use_assistant', False)
             self.use_intent_recognizer = store.get('use_intent_recognizer', False)
@@ -2287,6 +2288,7 @@ class ChessApp(App):
 
     def speak(self, message, always=False):
         if always or self.use_voice:
+            message = capitalize_chess_coords(message)
             tts.speak(message, stt.stt)
 
 

@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
+import os
+from kivy.core.audio import SoundLoader
+
 class STT:
     '''
     Speech-to-text base class
@@ -70,3 +73,9 @@ class STT:
     def _is_offline_supported(self):
         return False
 
+
+def load_sound(filename, volume=1):
+    """Support utility for chimes."""
+    if sound := SoundLoader.load(os.path.join(os.path.dirname(__file__), filename)):
+        sound.volume = volume
+        return sound

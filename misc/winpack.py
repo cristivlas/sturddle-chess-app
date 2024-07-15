@@ -3,6 +3,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import importlib.util
 
 OUTPUT = 'dist'
 BUNDLE_DEST = os.path.join(OUTPUT, 'chess')
@@ -29,13 +30,19 @@ data_files = [
     ('say.ps1', '.')
 ]
 
+def find_whisper_path():
+    spec = importlib.util.find_spec("whisper")
+    if spec is not None:
+        return os.path.dirname(spec.origin)
+    return None
+
 def on_rm_error(func, path, exc_info):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
 def remove_unwanted_files_and_dirs():
     unwanted_patterns = [
-        'game.dat',
+        '.buildozer'
         '.git',
         '.gitignore',
         '*.log',
@@ -116,10 +123,22 @@ def main():
     # Clean up before starting
     cleanup()
 
+    # Detect Whisper installation
+    whisper_path = find_whisper_path()
+
+    # Add Whisper assets to data_files if found
+    if whisper_path:
+        whisper_assets_dir = os.path.join(whisper_path, "assets")
+        if os.path.exists(whisper_assets_dir):
+            data_files.append((whisper_assets_dir, 'whisper/assets'))
+            print(f"Added Whisper assets to data files: {whisper_assets_dir}")
+        else:
+            print("Whisper assets directory not found")
+
     # Create the initial bundle
     cmd = ['pyinstaller',
            '--clean',
-           '--icon=images/chess32.ico',
+           '--icon=images/chess.ico',
            '-y',
            '-w',
            '--log-level=INFO',
@@ -133,6 +152,10 @@ def main():
 
     for m in modules:
         cmd.extend(['--hidden-import', m])
+
+    # Add Whisper as a hidden import if found
+    if whisper_path:
+        cmd.extend(['--hidden-import', 'whisper'])
 
     run_cmd(' '.join(cmd))
 
