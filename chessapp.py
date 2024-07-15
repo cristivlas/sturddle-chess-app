@@ -124,6 +124,7 @@ PIECE_CODES = [
     [0, '\uF470', '\uF471', '\uF472', '\uF473', '\uF474', '\uF475'],
 ]
 COLOR_NAMES = ['Black', 'White']
+CONFIRM_QUIT = 'Save game and exit application'
 
 SWIPE_DIST = cm(1.5)
 
@@ -884,7 +885,7 @@ class ChessApp(App):
 
 
     def exit(self, *_):
-        self.confirm('Exit application (game will be saved)', self.stop)
+        self.confirm(CONFIRM_QUIT, self.stop)
 
 
     @staticmethod
@@ -1188,16 +1189,10 @@ class ChessApp(App):
 
 
     def on_quit(self, *args, **kwargs):
-        tts.stop()
-        self.engine.cancel()
-        self.engine.stop()
-
-        if platform == 'macosx':
-            # hide python launcher from dock
-            from AppKit import NSApp
-            view = NSApp().dockTile().contentView()
-            view.setHidden_(True)
-            view.removeFromSuperview()
+        def on_confirmed():
+            self.stop()
+        self.confirm(CONFIRM_QUIT, on_confirmed)
+        return True
 
 
     def on_resume(self):
