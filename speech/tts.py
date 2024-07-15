@@ -89,7 +89,6 @@ else:
             args,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         def background_wait(p):

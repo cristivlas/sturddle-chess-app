@@ -123,7 +123,7 @@ class NLP:
         # -----------------------------------------
         # Grammar rules for miscellaneous commands
         # -----------------------------------------
-        analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') + THE + pp.Opt(pp.Keyword('position'))
+        analyze = pp.Keyword('analyze') | pp.Keyword('evaluate') | pp.Keyword('eval') + THE + pp.Opt(pp.Keyword('position'))
 
         backup_prefix = (pp.Keyword('go') + pp.Keyword('back')) | (pp.Keyword('back') + pp.Keyword('up'))
         backup_one = backup_prefix + (pp.Keyword('one') | pp.Keyword('1')) + pp.Keyword('move')

@@ -302,6 +302,7 @@ class Input:
             'analyze': lambda *_: self._app.analyze(full=True),
             'backup': self._app.backup,
             'edit': self._app.edit_start,
+            'eval': self._app.analyze,
             'evaluate': self._app.analyze,
             'exit': self._app.exit,
             'help': self.help,

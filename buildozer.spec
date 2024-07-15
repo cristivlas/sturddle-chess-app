@@ -23,7 +23,7 @@ source.include_patterns = intent-model/*,openings.idx/*
 source.exclude_exts = spec,dat,c,cpp,h,so,pyx,zip,psd,txt,mp3,sh
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = __pycache__,bin,build,docs,dist,sturddle_chess_engine,p4a-recipes,screenshots,tests,tools,venv
+source.exclude_dirs = __pycache__,bin,build,docs,dist,misc,sturddle_chess_engine,p4a-recipes,screenshots,tests
 
 # (list) List of exclusions using pattern matching
 # Exclude utilities, and engine code -- because we cythonize it

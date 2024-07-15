@@ -1,4 +1,5 @@
 import os
+import platform
 import shutil
 import stat
 import subprocess
@@ -9,13 +10,21 @@ OUTPUT = 'dist'
 BUNDLE_DEST = os.path.join(OUTPUT, 'chess')
 INSTALLER_OUTPUT = os.getcwd()
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Load engine for version.
 from sturddle_chess_engine import chess_engine
+
+is_windows = platform.system() == 'Windows'
+
 
 modules = [
     'chess',
     'chess.syzygy',
-    'win32timezone',
 ]
+
+if is_windows:
+    modules += [
+        'win32timezone',
+    ]
 
 data_files = [
     ('*.bin', '.'),
@@ -27,8 +36,16 @@ data_files = [
     ('images', 'images'),
     ('intent-model', 'intent-model'),
     ('openings.idx', 'openings.idx'),
-    ('say.ps1', '.')
 ]
+
+if is_windows:
+    data_files += [
+        ('say.ps1', '.')
+    ]
+else:
+    data_files += [
+        ('say.py', '.')
+    ]
 
 def find_whisper_path():
     spec = importlib.util.find_spec("whisper")
@@ -47,6 +64,7 @@ def remove_unwanted_files_and_dirs():
         '.gitignore',
         '*.log',
         '__pycache__',
+        'misc',
         'pocketsphinx-data'
     ]
 
@@ -66,7 +84,8 @@ def remove_unwanted_files_and_dirs():
 
 def post_bundle():
     remove_unwanted_files_and_dirs()
-    shutil.copy(os.path.join('misc', 'AppxManifest.xml'), BUNDLE_DEST)
+    if is_windows:
+        shutil.copy(os.path.join('misc', 'AppxManifest.xml'), BUNDLE_DEST)
 
 def run_cmd(command):
     subprocess.run(command, shell=True, check=True, capture_output=False, text=True)
@@ -161,14 +180,15 @@ def main():
 
     post_bundle()
 
-    # Create Inno Setup script
-    create_inno_script()
+    if is_windows:
+        # Create Inno Setup script
+        create_inno_script()
 
-    # Create installer output directory
-    os.makedirs(INSTALLER_OUTPUT, exist_ok=True)
+        # Create installer output directory
+        os.makedirs(INSTALLER_OUTPUT, exist_ok=True)
 
-    # Run Inno Setup to create the installer
-    run_cmd('iscc installer.iss')
+        # Run Inno Setup to create the installer
+        run_cmd('iscc installer.iss')
 
     # Final cleanup
     #cleanup()
