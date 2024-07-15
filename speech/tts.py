@@ -82,13 +82,14 @@ elif platform == 'android':
             _scheduled[0] = None
 
 else:
-    def _subprocess(args):
+    def _subprocess(args, **kwargs):
         _scheduled[0] = None
         _speaking[0] = True
         p = subprocess.Popen(
             args,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            **kwargs
         )
 
         def background_wait(p):
@@ -107,7 +108,10 @@ else:
         if platform == 'win':
             interp = 'powershell.exe'
             script_path = 'say.ps1'
-            _scheduled[0] = _subprocess([interp, '-ExecutionPolicy', 'Bypass', '-File', script_path, message])
+            _scheduled[0] = _subprocess([
+                interp, '-ExecutionPolicy', 'Bypass', '-File', script_path, message],
+                creationflags = subprocess.CREATE_NO_WINDOW
+            )
         else:
             utility = whereis_exe('say') or whereis_exe('espeak')
             if utility:
