@@ -36,6 +36,7 @@ data_files = [
     ('images', 'images'),
     ('intent-model', 'intent-model'),
     ('openings.idx', 'openings.idx'),
+    ('syzygy/3-4-5', 'syzygy/3-4-5'),  # Endgame tables
 ]
 
 if is_windows:
