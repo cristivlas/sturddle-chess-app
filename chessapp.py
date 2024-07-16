@@ -1149,7 +1149,7 @@ class ChessApp(App):
             ...
         else:
             tts.stop()  # cancel any text-to-speech in progress
-            self.speech_input()  # start the voice user interface
+            # self.speech_input()  # start the voice user interface
 
 
     def on_menu_button(self, btn, *_):
@@ -1916,12 +1916,12 @@ class ChessApp(App):
                 use_voice[0] = self.use_voice
                 self.speak('Voice on' if self.use_voice else 'Voice off', True)
 
-                if self.use_voice:
-                    if is_mobile():
-                        self.touch_hint('anywhere outside the board and hold to speak.')
-                    else:
-                        self.touch_hint('''anywhere outside the board and hold, '''
-                                        '''or use SPACEBAR for voice commands.''')
+                # if self.use_voice:
+                #     if is_mobile():
+                #         self.touch_hint('anywhere outside the board and hold to speak.')
+                #     else:
+                #         self.touch_hint('''anywhere outside the board and hold, '''
+                #                         '''or use SPACEBAR for voice commands.''')
 
         def commit_settings(*_):
             self.set_openai_key(self.assistant.temp_key)
