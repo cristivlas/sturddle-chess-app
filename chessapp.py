@@ -84,9 +84,8 @@ try:
     from jnius import autoclass
 
     android_api_version = autoclass('android.os.Build$VERSION')
-    AndroidView = autoclass('android.view.View')
-    AndroidPythonActivity = autoclass('org.kivy.android.PythonActivity')
-
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    Intent = autoclass('android.content.Intent')
     Logger.info(f'API: level={android_api_version.SDK_INT}')
 
 except ImportError:
@@ -684,14 +683,14 @@ class ChessApp(App):
     @run_on_ui_thread
     def _android_hide_menu(self, restore=False):
         if android_api_version.SDK_INT >= 19:
-            activity = autoclass('org.kivy.android.PythonActivity').mActivity
             View = autoclass('android.view.View')
-            decorView = activity.getWindow().getDecorView()
+            decorView = PythonActivity.mActivity.getWindow().getDecorView()
             flags = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY \
                     | View.SYSTEM_UI_FLAG_FULLSCREEN \
                     | View.SYSTEM_UI_FLAG_LOW_PROFILE \
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             decorView.setSystemUiVisibility(flags)
+            Logger.debug("_android_hide_menu: ok")
 
 
     def backup(self, move_count=1):
@@ -720,6 +719,7 @@ class ChessApp(App):
                 Window.size = WIDTH * ratio, HEIGHT * ratio
             except:
                 Window.size = (WIDTH, HEIGHT)
+
 
     def build(self):
         Window.bind(on_keyboard=self.on_keyboard)
@@ -1101,7 +1101,6 @@ class ChessApp(App):
             return self.voice_input.enter()
 
         if keycode1 == Keyboard.keycodes['spacebar']:
-            self.board_widget.hide_bubble()
             return self.speech_input()
 
         # Ctrl+ functions. Disabled in edit mode or when modal views are active.
@@ -1172,6 +1171,8 @@ class ChessApp(App):
             not self.edit,
             not modal or not self.has_modal_views(),
         )):
+            self.board_widget.hide_bubble()
+            self.voice_input.stop()
             self.voice_input.start(modal)
             return True
 
@@ -1191,7 +1192,11 @@ class ChessApp(App):
     def on_quit(self, *args, **kwargs):
         def on_confirmed():
             self.stop()
-        self.confirm(CONFIRM_QUIT, on_confirmed)
+
+        if False:
+            self.confirm(CONFIRM_QUIT, on_confirmed)
+        else:
+            on_confirmed()
         return True
 
 
@@ -1624,7 +1629,6 @@ class ChessApp(App):
         self.board_widget.cancel_long_press()
         self.board_widget.set_model(self.engine.board)
         self.moves_record.clear()
-        # restarting the engine above takes care of making a move for WHITE
         self._set_study_mode(False, auto_move=False)
         self.update_hash_usage()
         assert not self.puzzle
@@ -1908,8 +1912,8 @@ class ChessApp(App):
 
             if self.has_modal_views():
                 # Reschedule self for later if modal dialog is on,
-                # because any text bubbles will not pop up while
-                # another modal window is active.
+                # to work around text bubbles not popping up when
+                # other modal window is active.
                 Clock.schedule_once(speak_voice_setting)
 
             elif use_voice[0] != self.use_voice:
@@ -2365,8 +2369,6 @@ class ChessApp(App):
         title, text = self.transcribe(columns=None)
         if platform == 'android':
             try:
-                PythonActivity = autoclass('org.kivy.android.PythonActivity')
-                Intent = autoclass('android.content.Intent')
                 String = autoclass('java.lang.String')
                 intent = Intent()
                 intent.setAction(Intent.ACTION_SEND)
