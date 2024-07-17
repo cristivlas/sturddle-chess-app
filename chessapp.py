@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # workaround nspaste throwing index errors on macos
 import os
 os.environ['KIVY_CLIPBOARD']='sdl2'
+os.environ['KIVY_NO_CONFIG']='1'
 
 from kivy.config import Config
 
