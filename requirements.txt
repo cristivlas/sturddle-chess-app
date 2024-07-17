@@ -12,6 +12,7 @@ num2words
 pyautogui
 pydub
 plyer
+psutil
 pyparsing
 pyaudio
 rapidfuzz

@@ -82,6 +82,20 @@ elif platform == 'android':
             _scheduled[0] = None
 
 else:
+    import atexit
+    import psutil
+
+    def kill_subprocess():
+        if _scheduled[0]:
+            p = psutil.Process(_scheduled[0].pid)
+            try:
+                p.terminate()
+                Logger.info(f"tts: process {p.pid} terminated.")
+            except Exception as e:
+                Logger.error(e)
+
+    atexit.register(kill_subprocess)
+
     def _subprocess(args, **kwargs):
         _scheduled[0] = None
         _speaking[0] = True
