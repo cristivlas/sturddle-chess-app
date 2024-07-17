@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sturddlefish Chess App - Voice Input</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        p, pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        pre {
+            white-space: pre-wrap;
+        }
+        .example {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .example pre {
+            margin: 5px 0;
+        }
+        .note {
+            background-color: #e7f4e4;
+            padding: 10px;
+            border: 1px solid #c3d9c1;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice Input</h1>
+    <p>The Sturddlefish Chess App has a built-in capability to interpret various natural language commands related to chess moves and other game-related actions. Below are examples of legal expressions that the app can handle:</p>
+    <div class="note">Commands may omit some details when the context is unambiguous.</div>
+    
+    <h2>Move Examples</h2>
+    <div class="example">
+        <pre>The knight takes the pawn at e5</pre>
+        <pre>Knight takes pawn</pre>
+        <pre>Queen captures the rook on h7</pre>
+        <pre>Queen takes rook</pre>
+        <pre>Castle</pre>
+        <pre>The bishop to c4</pre>
+        <pre>The rook at a1 to a5</pre>
+        <pre>Rook to a5</pre>
+        <pre>Promote to queen</pre>
+        <pre>Promote to knight</pre>
+        <pre>e2 to e4</pre>
+        <pre>g1 to f3</pre>
+        <pre>Pawn to e4</pre>
+        <pre>e4</pre>
+    </div>
+
+    <h2>Miscellaneous Commands</h2>
+    <div class="example">
+        <pre>Analyze the position</pre>
+        <pre>Show hints</pre>
+        <pre>Start a new game</pre>
+        <pre>Evaluate</pre>
+        <pre>Back up two moves</pre>
+        <pre>Replay</pre>
+        <pre>Play Sicilian Defense</pre>
+        <pre>Show puzzles</pre>
+    </div>
+
+    <div class="note">
+        <p>When a command is not recognized, the app will fall back to the Assistant function, which uses two tiers: a local intent recognizer and integration with ChatGPT. When "Remote Assistant" is enabled in settings and commands are not understood, and the Local Assistant is turned off or fails to recognize text, the text is processed by the ChatGPT integration layer. For this to work, users need to provide their own OpenAI API Key and enter it into the settings.</p>
+        <p>The Assistant feature enables free-form commands, such as "What is the best move?", "Make a recommendation" or "I want to practice checkmate in three moves".</p>
+        <p>For more information on obtaining an API key, please visit the <a href="https://platform.openai.com/docs/overview">OpenAI API key page</a>.</p>
+    </div>
+</body>
+</html>
