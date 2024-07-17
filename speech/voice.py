@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import inspect
 import os
 import weakref
-import webbrowser
 from functools import partial
 
 from kivy.clock import Clock
@@ -296,8 +295,6 @@ class Input:
 
     def help(self):
         self._app.assistant.respond_to_user(_VOICE_HELP)
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        webbrowser.open(f"file://{os.path.join(script_dir, 'voice_help.html')}")
 
 
     def _run_command(self, command, args):
