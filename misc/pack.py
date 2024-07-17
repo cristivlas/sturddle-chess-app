@@ -36,7 +36,6 @@ data_files = [
     ('images', 'images'),
     ('intent-model', 'intent-model'),
     ('openings.idx', 'openings.idx'),
-    ('syzygy/3-4-5', 'syzygy/3-4-5'),  # Endgame tables
 ]
 
 if is_windows:
@@ -46,6 +45,10 @@ if is_windows:
 else:
     data_files += [
         ('say.py', '.')
+    ]
+if os.path.exists('syzygy/3-4-5'):
+    data_files += [
+        ('syzygy/3-4-5', 'syzygy/3-4-5'),  # Endgame tables
     ]
 
 def find_whisper_path():
