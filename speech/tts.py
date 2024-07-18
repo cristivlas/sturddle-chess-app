@@ -37,6 +37,22 @@ _scheduled = [None]
 _speaking = [False]
 
 
+def stop():
+    if s := _scheduled[0]:
+        if isinstance(s, ClockEvent):
+            s.cancel()
+
+        elif isinstance(s, subprocess.Popen):
+            Logger.info(f'tts: terminating process {s.pid}')
+            s.terminate()
+
+        _scheduled[0] = None
+
+    elif platform == 'android':
+        if instance.isSpeaking():
+            instance.stop()
+
+
 if platform == 'ios':
     def _speak(message):
         plyer.tts.speak(message)
@@ -83,18 +99,8 @@ elif platform == 'android':
 
 else:
     import atexit
-    import psutil
 
-    def kill_subprocess():
-        if _scheduled[0]:
-            p = psutil.Process(_scheduled[0].pid)
-            try:
-                p.terminate()
-                Logger.info(f"tts: process {p.pid} terminated.")
-            except Exception as e:
-                Logger.error(e)
-
-    atexit.register(kill_subprocess)
+    atexit.register(stop)
 
     def _subprocess(args, **kwargs):
         _scheduled[0] = None
@@ -154,18 +160,3 @@ def speak(message, stt, *_):
 
     else:
         _speak(message)
-
-
-def stop():
-    if s := _scheduled[0]:
-        if isinstance(s, ClockEvent):
-            s.cancel()
-
-        elif isinstance(s, subprocess.Popen):
-            s.terminate()
-
-        _scheduled[0] = None
-
-    elif platform == 'android':
-        if instance.isSpeaking():
-            instance.stop()

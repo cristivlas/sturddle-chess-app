@@ -724,8 +724,8 @@ class ChessApp(App):
 
 
     def setup_listeners(self, _):
-        """Use pynput keyboard to get events from headset"""
-        self.listener = keyboard.Listener(on_press=self.on_press)
+        """Use pynput keyboard to get events from headset button."""
+        self.listener = keyboard.Listener(on_press=self.on_keypress)
         self.listener.start()
 
 
@@ -913,7 +913,7 @@ class ChessApp(App):
             # Attacked by the opposite color?
             is_attacked = board.is_attacked_by(not piece.color, square)
 
-            if support != is_attacked:
+            if is_attacked and support != is_attacked:
                 undefended[piece.color].append((
                     chess.PIECE_NAMES[piece.piece_type],
                     chess.square_name(square).upper())
@@ -1151,6 +1151,7 @@ class ChessApp(App):
                 return True
 
         if keycode1 == Keyboard.keycodes['escape']:
+            tts.stop()  # stop text-to-speech
             return True # don't close on Escape
 
 
@@ -1172,6 +1173,7 @@ class ChessApp(App):
 
 
     def speech_input(self, modal=True):
+        self.board_widget.hide_bubble()
 
         if all((
             self.use_voice,
@@ -1182,8 +1184,6 @@ class ChessApp(App):
             not self.edit,
             not modal or not self.has_modal_views(),
         )):
-            self.board_widget.hide_bubble()
-            self.voice_input.stop()
             self.voice_input.start(modal)
             return True
 
@@ -1196,8 +1196,10 @@ class ChessApp(App):
         self.save()
 
 
-    def on_press(self, key):
-        if hasattr(key, 'name') and key.name == 'media_play_pause':
+    def on_keypress(self, key):
+        """Handle headset button."""
+        if self.use_voice and hasattr(key, 'name') and key.name == 'media_play_pause':
+            tts.stop()  # Cancel any pending text-to-speech
             Clock.schedule_once(self.speech_input)
 
 
