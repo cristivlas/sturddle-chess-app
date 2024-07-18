@@ -15,6 +15,7 @@ plyer
 psutil
 pyparsing
 pyaudio
+pynput
 rapidfuzz
 simpleaudio
 soundfile

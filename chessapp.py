@@ -68,6 +68,8 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex, platform
 
+from pynput import keyboard
+
 import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
@@ -722,6 +724,12 @@ class ChessApp(App):
                 Window.size = (WIDTH, HEIGHT)
 
 
+    def setup_listeners(self, _):
+        """Use pynput keyboard to get events from headset"""
+        self.listener = keyboard.Listener(on_press=self.on_press)
+        self.listener.start()
+
+
     def build(self):
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_request_close=self.on_quit)
@@ -765,6 +773,9 @@ class ChessApp(App):
             self.hash_label.texture_update()
 
         self.nps_label.bind(font_resize=sync_font_sizes)
+
+        if not is_mobile():
+            Clock.schedule_once(self.setup_listeners, 0)
         return root
 
 
@@ -1184,6 +1195,11 @@ class ChessApp(App):
 
     def on_position_change(self, *_):
         self.save()
+
+
+    def on_press(self, key):
+        if hasattr(key, 'name') and key.name == 'media_play_pause':
+            Clock.schedule_once(self.speech_input)
 
 
     def on_promo(self, move, promo):
