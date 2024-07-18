@@ -68,8 +68,6 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex, platform
 
-from pynput import keyboard
-
 import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
@@ -159,6 +157,7 @@ def is_mobile():
 
 if not is_mobile():
     Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
+    from pynput import keyboard  # For handling headset/media button events
 
 
 def bold(text):
@@ -166,7 +165,7 @@ def bold(text):
 
 
 def screen_scale():
-    scale = 1.0  # TODO: Other platforms
+    scale = 1.0  # TODO: Other platforms?
     if platform == 'win':
         scale = ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100
     return scale
