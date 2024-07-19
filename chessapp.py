@@ -16,9 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------
 """
-# workaround nspaste throwing index errors on macos
 import os
-os.environ['KIVY_CLIPBOARD']='sdl2'
+os.environ['KIVY_CLIPBOARD']='sdl2'  # workaround nspaste throwing index errors on macos
 os.environ['KIVY_NO_CONFIG']='1'
 
 from kivy.config import Config
@@ -48,6 +47,7 @@ from kivy.core.text import Label as CoreLabel
 from kivy.core.window import Keyboard, Window
 from kivy.utils import get_color_from_hex, platform
 if Window.dpi == 0:
+    # https://github.com/kivy/kivy/issues/7874
     Window.dpi = ctypes.windll.user32.GetDpiForSystem() if platform == 'win' else 96
 from kivy.graphics import *
 from kivy.graphics.tesselator import Tesselator
@@ -1799,7 +1799,6 @@ class ChessApp(App):
 
         # highlight the starting square, so that
         # the bubble may leave the destination visible
-
         if move := self.engine.last_moves()[-1]:
             self.board_widget.highlight_move(move.uci()[:2])
 
