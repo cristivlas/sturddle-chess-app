@@ -475,6 +475,7 @@ class Assistant:
         #self.model = 'gpt-3.5-turbo-1106'
         #self.model = 'gpt-4'
         self.model = 'gpt-4o'
+        self.model = 'gpt-4o-mini'
         self.retry_count = 5
         self.requests_timeout = 5.0
         self.temperature = 0.01
@@ -561,11 +562,16 @@ class Assistant:
 
             if response:
                 self._ctxt.add_message(messages[-1])  # outgoing message posted successfully
-
-                return self._on_api_response(user_request, parse_json(response.content))
+                content = parse_json(response.content)
+                return self._on_api_response(user_request, content)
 
             else:
-                Logger.error(f'{_assistant}: {parse_json(response.content)}')
+                content = parse_json(response.content)
+                Logger.error(f'{_assistant}: {content}')
+                try:
+                    self.respond_to_user(content['error']['message'])
+                except:
+                    ...
 
         except requests.exceptions.ReadTimeout as e:
             Logger.warning(f'{_assistant}: request failed: {e}')

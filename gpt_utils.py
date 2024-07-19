@@ -23,6 +23,7 @@ _limits = {
     'gpt-4': 8192,
     'gpt-4-1106-preview': 128000,
     'gpt-4o': 128000,
+    'gpt-4o-mini': 128000,
     'gpt-4-turbo': 128000,
 }
 
