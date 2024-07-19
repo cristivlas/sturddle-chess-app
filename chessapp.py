@@ -25,6 +25,7 @@ from kivy.config import Config
 
 Config.set('graphics', 'resizable', False)
 Config.set('graphics', 'multisample', 16)
+Config.set('graphics', 'window_state', 'hidden')
 
 import ctypes
 import math
@@ -42,12 +43,12 @@ import chess.pgn
 from center import CenterControl
 from kivy.app import App
 from kivy.animation import Animation
-from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock, mainthread
 from kivy.core.clipboard import Clipboard
 from kivy.core.text import Label as CoreLabel
 from kivy.core.window import Keyboard, Window
-from kivy.effects.scroll import ScrollEffect
+if Window.dpi == 0:
+    Window.dpi = 96
 from kivy.graphics import *
 from kivy.graphics.tesselator import Tesselator
 from kivy.logger import Logger, LOG_LEVELS
@@ -63,7 +64,6 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.modalview import ModalView
-from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.utils import get_color_from_hex, platform
@@ -737,6 +737,9 @@ class ChessApp(App):
         Window.bind(on_touch_up=self.on_touch_up)
         Window.bind(top=self.on_position_change, left=self.on_position_change)
 
+        Window.show()
+        Window._update_density_and_dpi()
+
         root = Root()
 
         for id, widget in root.ids.items():
@@ -775,6 +778,7 @@ class ChessApp(App):
 
         if not is_mobile():
             Clock.schedule_once(self.setup_listeners, 0)
+
         return root
 
 
