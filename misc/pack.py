@@ -121,13 +121,18 @@ SolidCompression=yes
 SourceDir={BUNDLE_DEST}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+PrivilegesRequired=lowest
 
 [Files]
 Source: "*"; DestDir: "{{app}}"; Flags: recursesubdirs
 
 [Icons]
-Name: "{{group}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"; WorkingDir: {{app}}
-Name: "{{group}}\\Uninstall Sturddle Chess"; Filename: "{{uninstallexe}}"; IconFilename: "{{app}}\\chess.exe"
+Name: "{{autoprograms}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"; WorkingDir: {{app}}
+Name: "{{autoprograms}}\\Uninstall Sturddle Chess"; Filename: "{{uninstallexe}}"; IconFilename: "{{app}}\\chess.exe"
+Name: "{{autodesktop}}\\Sturddle Chess"; Filename: "{{app}}\\chess.exe"; Tasks: desktopicon
+
+[Tasks]
+Name: desktopicon; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Run]
 Filename: "{{app}}\\chess.exe"; Description: "Launch Sturddle Chess"; Flags: postinstall nowait
