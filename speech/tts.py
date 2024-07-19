@@ -22,7 +22,6 @@ import subprocess
 import sys
 import threading
 
-
 from functools import partial
 
 from kivy.clock import Clock, ClockEvent
@@ -105,16 +104,14 @@ else:
     def _subprocess(args, **kwargs):
         _scheduled[0] = None
         _speaking[0] = True
-        p = subprocess.Popen(
-            args,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            **kwargs
-        )
+        p = subprocess.Popen(args, stdout=subprocess.DEVNULL, **kwargs)
 
         def background_wait(p):
             p.wait()
             Logger.debug(f'stt: {p}')
+            if p.returncode != 0:
+                _, stderr = p.communicate()
+                Logger.error(stderr.decode().strip())
             _speaking[0] = False
 
         thread = threading.Thread(target=background_wait, args=(p,))
@@ -130,7 +127,7 @@ else:
             script_path = 'say.ps1'
             _scheduled[0] = _subprocess([
                 interp, '-ExecutionPolicy', 'Bypass', '-File', script_path, message],
-                creationflags = subprocess.CREATE_NO_WINDOW
+                creationflags = subprocess.CREATE_NO_WINDOW, stderr=subprocess.PIPE
             )
         else:
             utility = whereis_exe('say') or whereis_exe('espeak')

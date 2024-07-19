@@ -40,15 +40,15 @@ from os import path
 
 import chess.pgn
 
-from center import CenterControl
 from kivy.app import App
 from kivy.animation import Animation
 from kivy.clock import Clock, mainthread
 from kivy.core.clipboard import Clipboard
 from kivy.core.text import Label as CoreLabel
 from kivy.core.window import Keyboard, Window
+from kivy.utils import get_color_from_hex, platform
 if Window.dpi == 0:
-    Window.dpi = 96
+    Window.dpi = ctypes.windll.user32.GetDpiForSystem() if platform == 'win' else 96
 from kivy.graphics import *
 from kivy.graphics.tesselator import Tesselator
 from kivy.logger import Logger, LOG_LEVELS
@@ -58,7 +58,6 @@ from kivy.storage.dictstore import DictStore
 from kivy.uix.actionbar import ActionPrevious
 from kivy.uix.bubble import Bubble
 from kivy.uix.button import Button
-from kivy.uix.checkbox import CheckBox
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.image import Image
@@ -66,11 +65,11 @@ from kivy.uix.label import Label
 from kivy.uix.modalview import ModalView
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
-from kivy.utils import get_color_from_hex, platform
 
 import sturddle_chess_engine as chess_engine
 
 from assistant import Assistant
+from center import CenterControl
 from engine import Engine
 from movestree import MovesTree
 from msgbox import MessageBox, ModalBox
