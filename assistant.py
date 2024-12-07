@@ -604,7 +604,11 @@ class Assistant:
                 # Save the function_call to the conversation history before executing it.
                 self._ctxt.add_function_call(function_call)
 
-                result = function_call.execute(user_request)
+                try:
+                    result = function_call.execute(user_request)
+                except Exception as e:
+                    result = None
+                    Logger.error(f'{function_call.name}: exception: {e}')
 
                 if not result:
                     result = FunctionResult()

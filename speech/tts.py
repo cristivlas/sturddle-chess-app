@@ -102,6 +102,8 @@ else:
     atexit.register(stop)
 
     def _subprocess(args, **kwargs):
+        assert args
+
         _scheduled[0] = None
         _speaking[0] = True
         p = subprocess.Popen(args, stdout=subprocess.DEVNULL, **kwargs)
@@ -112,7 +114,7 @@ else:
             if p.returncode != 0:
                 _, stderr = p.communicate()
                 output = stderr.decode().strip()
-                Logger.error(f"tts: returned {p.returncode} {output}")
+                Logger.error(f"tts: {args[0]} returned {p.returncode} {output}")
             _speaking[0] = False
 
         thread = threading.Thread(target=background_wait, args=(p,))

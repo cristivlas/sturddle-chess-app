@@ -2036,8 +2036,11 @@ class ChessApp(App):
                     return False  # There is no move to be made.
 
                 animate = True  # Override and always animate continuations.
-                if name and len(pgn) > len(current_pgn):
-                    self.speak(f'{name} continuation:')
+                if name:
+                    if len(pgn) == len(current_pgn):
+                        self.speak(f'Looks like {name} is already in play.')
+                    elif len(pgn) > len(current_pgn):
+                        self.speak(f'{name} continuation:')
 
                 current = self.game_len()  # Animated play starts at the current move.
 
@@ -2066,9 +2069,11 @@ class ChessApp(App):
 
     def lookup_and_play_opening(self, name):
         if self.eco:
-            opening = self.eco.query_by_name(name, top_n=1)
-            if opening:
-                return self.play_opening(opening[0])
+            try:
+                if opening := self.eco.query_by_name(name, top_n=1):
+                    return self.play_opening(opening[0])
+            except Exception as e:
+                Logger.error(f"query_by_name: {e}")
 
         return self.chat_assist()
 

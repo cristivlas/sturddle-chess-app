@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import csv
 import io
 import os
-import string
 
 import chess
 import chess.pgn
@@ -142,21 +141,21 @@ class ECO:
             idx = self.index.search(query, max_distance=max_distance, top_n=n, min_nodes=len(self.data))
             #
             # Use rapidfuzz to refine the search
-            #
-            try:
-                results = {self.data[i]['name'].lower():i for i,_ in idx}
+            # NOTE: an IndexError below could be caused by:
+            #   - the openings.idx was not rebuilt correctly after an ECO submodule update,
+            #   - or the 'make clean; make' commands have not been executed in the ECO module.
+            results = {self.data[i]['name'].lower():i for i,_ in idx}
 
-                #print(f'\nQuery results for: {query}')
-                #[print(k, i) for k,i in results.items()]
+            #print(f'\nQuery results for: {query}')
+            #[print(k, i) for k,i in results.items()]
 
-                keys = extract(query.lower(), results.keys(), limit=top_n)
+            keys = extract(query.lower(), results.keys(), limit=top_n)
 
-                #print(f'\nRefined results for: {query}')
-                #[print(k) for k in keys]
+            #print(f'\nRefined results for: {query}')
+            #[print(k) for k in keys]
 
-                return [Opening(self.data[results[k[0]]]) for k in keys]
-            except:
-                pass
+            return [Opening(self.data[results[k[0]]]) for k in keys]
+
         return []
 
     @lru_cache(maxsize=256)
