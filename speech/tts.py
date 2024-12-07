@@ -108,10 +108,11 @@ else:
 
         def background_wait(p):
             p.wait()
-            Logger.debug(f'stt: {p}')
+            Logger.debug(f'tts: {p}')
             if p.returncode != 0:
                 _, stderr = p.communicate()
-                Logger.error(stderr.decode().strip())
+                output = stderr.decode().strip()
+                Logger.error(f"tts: returned {p.returncode} {output}")
             _speaking[0] = False
 
         thread = threading.Thread(target=background_wait, args=(p,))

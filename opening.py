@@ -138,7 +138,7 @@ class ECO:
     @lru_cache(maxsize=256)
     def query_by_name(self, query, *, max_distance=None, top_n=5):
         if self.index:
-            n = top_n * 5  # Ask for a wider range than specified by the caller
+            n = max(20, top_n * 5)  # Ask for a wider range than specified by the caller
             idx = self.index.search(query, max_distance=max_distance, top_n=n, min_nodes=len(self.data))
             #
             # Use rapidfuzz to refine the search
